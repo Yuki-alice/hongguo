@@ -602,6 +602,7 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		if page > 1 {
 			ctx = context.WithValue(ctx, libraryMoreKey{}, true)
 		}
+		ctx = context.WithValue(ctx, libraryPageKey{}, page)
 		items, err = d.fetchHongguoAppCatalogCategory(ctx, category)
 		state := d.hongguoCatalogSnapshot()
 		result.hongguo = state
@@ -670,7 +671,15 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		seen[drama.ID] = true
 		result.Items = append(result.Items, nativeNormalize(drama))
 	}
-	engine.saveCatalogCache(cacheKey, &result)
+	// 游标必须与目录数据在同一次写盘里提交：
+	// 先落盘再提交，落盘内容就会是提交前的旧游标；先提交再落盘，写盘失败又会让内存领先于磁盘。
+	// 因此这里先把待提交游标合并进本次快照，再交给 saveCatalogCache 一次性写盘。
+	if merged := d.mergePendingFeeds(result.hongguo); merged != nil {
+		result.hongguo = merged
+	}
+	if saveErr := engine.saveCatalogCache(cacheKey, &result); saveErr != nil {
+		d.discardPendingFeeds()
+	}
 	return result, nil
 }
 

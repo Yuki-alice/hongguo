@@ -13,16 +13,18 @@ from pathlib import Path
 SOURCE_DIRECTORIES = {
     '.github', 'lib', 'native', 'android', 'windows', 'ios', 'macos', 'linux',
     'web', 'assets', 'packages', 'scripts', 'test', 'test_driver', 'integration_test',
+    'engine', 'rules', 'rust_builder',
 }
 SOURCE_FILES = {
     '.gitattributes', '.gitignore', '.metadata', '.editorconfig',
     'AGENTS.md', 'README.md', 'pubspec.yaml', 'pubspec.lock',
     'analysis_options.yaml', 'l10n.yaml', 'flutter_launcher_icons.yaml',
+    'flutter_rust_bridge.yaml',
 }
 EXCLUDED_DIRECTORIES = {
-    '.git', '.dart_tool', '.pub-cache', '.gradle', '.cxx', '.kotlin',
+    '.git', '.dart_tool', '.pub-cache', '.gradle', '.cxx', '.kotlin', 'reference',
     '.idea', '.vscode', '__pycache__', '.pytest_cache', '.mypy_cache',
-    '.ruff_cache', '.cache', '.venv', 'venv', 'build', 'dist', 'coverage',
+    '.ruff_cache', '.cache', '.venv', 'venv', 'build', 'dist', 'coverage', 'target',
     'node_modules', 'vendor', 'Pods', 'Carthage', 'DerivedData', '.swiftpm', 'xcuserdata',
     '.symlinks', 'ephemeral', 'jniLibs', 'CMakeFiles', 'sdk', 'android-sdk',
     'flutter-sdk', 'ndk', 'toolchains',
@@ -53,6 +55,10 @@ REQUIRED_FILES = {
     'android/app/build.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties',
     'windows/CMakeLists.txt', 'windows/flutter/CMakeLists.txt',
     '.github/workflows/build.yml', 'scripts/build_native.py',
+    # Rust 引擎（目标后端）。Go 移除后下面四项会被替换为这里的 Rust 等价物。
+    'engine/Cargo.toml', 'engine/Cargo.lock', 'engine/bridge/Cargo.toml',
+    'engine/bridge/src/lib.rs', 'rust_builder/pubspec.yaml',
+    'flutter_rust_bridge.yaml', 'lib/src/rust/frb_generated.dart',
 }
 
 

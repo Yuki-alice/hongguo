@@ -1,6 +1,10 @@
 * text=auto
 *.dart text eol=lf
 *.go text eol=lf
+*.rs text eol=lf
+*.toml text eol=lf
+# 站点夹具按原样保存：换行符是解析输入的一部分
+engine/bridge/tests/fixtures/** -text
 *.py text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf

@@ -1,0 +1,71 @@
+{
+  "schema": "1.0",
+  "id": "wuguo",
+  "name": "伍果",
+  "group": "duanju",
+  "base": "https://www.duanju55.com",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search"
+  ],
+  "catalog": {
+    "url": "index.php/vod/type/id/{category}.html",
+    "item": [
+      "div.BrowseList_itemBox",
+      "div.SecondList_secondListItem"
+    ],
+    "fields": {
+      "id": [
+        "a.BrowseList_bookName@href",
+        "a.SecondList_bookName@href",
+        "a@href"
+      ],
+      "title": [
+        "a.BrowseList_bookName",
+        "a.SecondList_bookName",
+        "a@title"
+      ],
+      "cover": [
+        "img.BrowseList_imageItem@src",
+        "img@src"
+      ],
+      "category": [
+        "div.BrowseList_tagsBox",
+        "div.SecondList_bookType"
+      ],
+      "description": [
+        "a.BrowseList_bookIntro",
+        "a.SecondList_bookIntro"
+      ]
+    }
+  },
+  "detail": {
+    "episodes": [
+      "a[href*='/vod/play/']",
+      "ul.content__playlist a",
+      "a[href*='/play/']"
+    ]
+  },
+  "search": {
+    "url": "index.php/vod/search/page/{page}/wd/{keyword}.html",
+    "item": [
+      "div.BrowseList_itemBox",
+      "div.SecondList_secondListItem"
+    ],
+    "fields": {
+      "id": [
+        "a.BrowseList_bookName@href",
+        "a.SecondList_bookName@href",
+        "a@href"
+      ],
+      "title": [
+        "a.BrowseList_bookName",
+        "a.SecondList_bookName"
+      ],
+      "cover": [
+        "img@src"
+      ]
+    }
+  }
+}

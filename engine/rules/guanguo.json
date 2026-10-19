@@ -1,0 +1,219 @@
+{
+  "schema": "1.0",
+  "id": "guanguo",
+  "name": "观果",
+  "group": "duanju",
+  "base": "https://api.drama.9ddm.com",
+  "kind": "json",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search"
+  ],
+  "headers": {
+    "User-Agent": "okhttp/5.1.0"
+  },
+  "catalog": {
+    "url": "{base}/drama/home/search?version_code=1500&version_name=1.5.0&device_name=Pixel%208%20Pro&device_type=phone&is_first_day=true&is_first_24h=true&app_launch_way=icon&default_homepage=homepage_interaction&device_owning_firm=Google&font_scale=default&os_type=1&clientInfo={md5:{ts10}}",
+    "request": {
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "audience": "全部",
+        "order": "最新",
+        "page": { "$int": "{page}" },
+        "pageSize": { "$int": "30" },
+        "searchWord": "",
+        "subject": "{category}"
+      }
+    },
+    "items": [
+      "data"
+    ],
+    "fields": {
+      "id": [
+        "oneId",
+        "one_id",
+        "id"
+      ],
+      "title": [
+        "title",
+        "name"
+      ],
+      "cover": [
+        "horzPoster",
+        "vertPoster",
+        "cover"
+      ],
+      "episodes": [
+        "episodeCount",
+        "totalEpisodeCount"
+      ],
+      "category": [
+        "shortPlayTag"
+      ],
+      "description": [
+        "description",
+        "desc"
+      ],
+      "tags": [
+        "shortPlayTag"
+      ],
+      "views": {
+        "paths": [
+          "viewCount"
+        ],
+        "divide": 10000,
+        "divideFrom": 10000,
+        "suffix": "次播放",
+        "highSuffix": "万次播放"
+      }
+    },
+    "hasMore": {
+      "minItems": 30
+    }
+  },
+  "detail": {
+    "url": "{base}/drama/home/shortVideoDetail?version_code=1500&version_name=1.5.0&device_name=Pixel%208%20Pro&device_type=phone&is_first_day=true&is_first_24h=true&app_launch_way=icon&default_homepage=homepage_interaction&device_owning_firm=Google&font_scale=default&os_type=1&clientInfo={md5:{ts10}}&oneId={id}&page=1&pageSize=1000&userId=0&queryAll=true",
+    "request": {
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      }
+    },
+    "meta": [
+      "$"
+    ],
+    "fields": {
+      "id": [
+        "oneId"
+      ],
+      "title": [
+        "title"
+      ],
+      "cover": [
+        "vertPoster",
+        "horzPoster"
+      ],
+      "episodes": [
+        "totalEpisodeCount",
+        "episodeCount"
+      ],
+      "category": [
+        "shortPlayTag"
+      ],
+      "description": [
+        "description"
+      ],
+      "tags": [
+        "shortPlayTag"
+      ],
+      "views": {
+        "paths": [
+          "viewedEpisodeNumber"
+        ],
+        "divide": 10000,
+        "divideFrom": 10000,
+        "suffix": "次播放",
+        "highSuffix": "万次播放"
+      }
+    },
+    "episodes": {
+      "paths": [
+        "data"
+      ],
+      "videoUrl": [
+        "playUrl",
+        "videoUrl",
+        "play_url"
+      ],
+      "best": {
+        "paths": [
+          "videoClarityList"
+        ],
+        "url": [
+          "playUrl",
+          "videoUrl",
+          "url"
+        ],
+        "rank": [
+          "clarity",
+          "quality",
+          "definition"
+        ]
+      },
+      "number": [
+        "playOrder",
+        "episodeOrder",
+        "index",
+        "episode"
+      ],
+      "title": [
+        "title",
+        "name"
+      ],
+      "emptyMessage": "观果详情未返回可播放分集，请稍后重试或改用其他站源"
+    }
+  },
+  "search": {
+    "url": "{base}/drama/home/search?version_code=1500&version_name=1.5.0&device_name=Pixel%208%20Pro&device_type=phone&is_first_day=true&is_first_24h=true&app_launch_way=icon&default_homepage=homepage_interaction&device_owning_firm=Google&font_scale=default&os_type=1&clientInfo={md5:{ts10}}",
+    "request": {
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "audience": "全部",
+        "order": "最新",
+        "page": { "$int": "1" },
+        "pageSize": { "$int": "30" },
+        "searchWord": "{keyword}",
+        "subject": ""
+      }
+    },
+    "items": [
+      "data"
+    ],
+    "fields": {
+      "id": [
+        "oneId",
+        "one_id",
+        "id"
+      ],
+      "title": [
+        "title",
+        "name"
+      ],
+      "cover": [
+        "horzPoster",
+        "vertPoster",
+        "cover"
+      ],
+      "episodes": [
+        "episodeCount",
+        "totalEpisodeCount"
+      ],
+      "category": [
+        "shortPlayTag"
+      ],
+      "description": [
+        "description",
+        "desc"
+      ],
+      "tags": [
+        "shortPlayTag"
+      ],
+      "views": {
+        "paths": [
+          "viewCount"
+        ],
+        "divide": 10000,
+        "divideFrom": 10000,
+        "suffix": "次播放",
+        "highSuffix": "万次播放"
+      }
+    }
+  }
+}

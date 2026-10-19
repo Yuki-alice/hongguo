@@ -1,0 +1,115 @@
+{
+  "schema": "1.0",
+  "id": "xingguo",
+  "name": "星果",
+  "group": "duanju",
+  "base": "http://read.api.duodutek.com",
+  "kind": "json",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search"
+  ],
+  "idSplit": "@",
+  "categories": [
+    { "id": "1287", "name": "推荐一" },
+    { "id": "1288", "name": "推荐二" },
+    { "id": "1289", "name": "推荐三" },
+    { "id": "1290", "name": "推荐四" },
+    { "id": "1291", "name": "推荐五" }
+  ],
+  "catalog": {
+    "url": "{base}/novel-api/app/pageModel/getResourceById?productId=2a8c14d1-72e7-498b-af23-381028eb47c0&vestId=2be070e0-c824-4d0e-a67a-8f688890cadb&channel=oppo19&osType=android&version=20&token=202509271001001446030204698626&resourceId={category}&pageNum={page}&pageSize=10",
+    "categoryDefault": "1287",
+    "items": [
+      "data.datalist"
+    ],
+    "fields": {
+      "id": [
+        "id",
+        "bookId"
+      ],
+      "idTemplate": "{id}@{introduction}",
+      "title": [
+        "name",
+        "title"
+      ],
+      "cover": [
+        "icon",
+        "cover"
+      ],
+      "episodes": [
+        "chapterCount",
+        "total"
+      ],
+      "description": [
+        "introduction",
+        "desc"
+      ],
+      "views": {
+        "paths": [
+          "heat"
+        ],
+        "suffix": "万播放"
+      }
+    },
+    "hasMore": {
+      "minItems": 10
+    }
+  },
+  "detail": {
+    "url": "{base}/novel-api/basedata/book/getChapterList?bookId={idFirst}&productId=2a8c14d1-72e7-498b-af23-381028eb47c0&vestId=2be070e0-c824-4d0e-a67a-8f688890cadb&channel=oppo19&osType=android&version=20&token=202509271001001446030204698626",
+    "episodes": {
+      "paths": [
+        "data"
+      ],
+      "videoUrl": [
+        "shortPlayUrl",
+        "playUrl",
+        "url"
+      ],
+      "recurse": true,
+      "number": [
+        "chapterNum",
+        "sort",
+        "index"
+      ],
+      "emptyMessage": "星果未返回可播放分集"
+    }
+  },
+  "search": {
+    "url": "{base}/novel-api/basedata/book/searchBook?productId=2a8c14d1-72e7-498b-af23-381028eb47c0&vestId=2be070e0-c824-4d0e-a67a-8f688890cadb&channel=oppo19&osType=android&version=20&token=202509271001001446030204698626&key={keyword}&pageNum={page}&pageSize=20",
+    "items": [
+      "data.datalist"
+    ],
+    "fields": {
+      "id": [
+        "id",
+        "bookId"
+      ],
+      "idTemplate": "{id}@{introduction}",
+      "title": [
+        "name",
+        "title"
+      ],
+      "cover": [
+        "icon",
+        "cover"
+      ],
+      "episodes": [
+        "chapterCount",
+        "total"
+      ],
+      "description": [
+        "introduction",
+        "desc"
+      ],
+      "views": {
+        "paths": [
+          "heat"
+        ],
+        "suffix": "万播放"
+      }
+    }
+  }
+}

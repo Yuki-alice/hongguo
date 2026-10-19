@@ -96,5 +96,14 @@ class SourceSyncTests(unittest.TestCase):
         self.assertEqual((self.destination / 'preserved.txt').read_text(), 'keep')
 
 
+    def test_rust_engine_files_are_required(self):
+        for name in [
+            'engine/Cargo.toml', 'engine/Cargo.lock', 'engine/bridge/Cargo.toml',
+            'engine/bridge/src/lib.rs', 'rust_builder/pubspec.yaml',
+            'flutter_rust_bridge.yaml', 'lib/src/rust/frb_generated.dart',
+        ]:
+            self.assertIn(name, REQUIRED_FILES, name)
+
+
 if __name__ == '__main__':
     unittest.main()

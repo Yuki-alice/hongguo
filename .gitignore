@@ -38,3 +38,22 @@ ios/Flutter/flutter_export_environment.sh
 ios/Runner/GeneratedPluginRegistrant.*
 ios/DuanjuCore/*.xcframework/
 **/xcuserdata/
+
+# Rust engine build artifacts
+engine/target/
+engine/Cargo.lock.bak
+
+# Rust 引擎构建产物
+# cargokit 构建工具的本地产物
+rust_builder/cargokit/build_tool/.dart_tool/
+rust_builder/cargokit/build_tool/bin/build_tool_runner.dill
+
+# 旧 Go 后端只读参考快照（含独立 git 仓库，按 D5 不进版本管理）
+reference/
+
+# macOS 平台构建产物
+macos/Pods/
+macos/Flutter/ephemeral/
+
+# 工具缓存，非项目源码
+.dsh/

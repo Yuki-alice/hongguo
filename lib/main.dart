@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core_bridge.dart';
+import 'engine_repository.dart';
+import 'engine_backed_repository.dart';
+import 'engine_routing.dart';
 import 'app_layout.dart';
 import 'app_orientation.dart';
 import 'app_theme.dart';
@@ -49,7 +53,10 @@ class AppBootstrap extends StatefulWidget {
 
 class _AppBootstrapState extends State<AppBootstrap>
     with WidgetsBindingObserver {
-  final repository = NativeRepository();
+  AppRepository? _repository;
+
+  /// 当前生效的仓库（可能是纯 Go，也可能是引擎装饰后的版本）。
+  AppRepository get repository => _repository!;
   final navigator = GlobalKey<NavigatorState>();
   LocalStore? store;
   Object? error;
@@ -96,6 +103,27 @@ class _AppBootstrapState extends State<AppBootstrap>
     }
   }
 
+  /// 装配仓库。引擎可用时用装饰器接管受支持的站源，
+  /// 失败则静默回退到纯 Go 核心，不影响启动。
+  Future<AppRepository> _buildRepository() async {
+    final core = NativeRepository();
+    if (!EngineRouting.enabled) return core;
+    try {
+      final engine = await EngineRepository.create();
+      // 缓存目录与应用数据目录同级，卸载后随应用数据一起清理。
+      final support = await getApplicationSupportDirectory();
+      await engine.setCacheDirectory('${support.path}/engine');
+      return EngineBackedRepository(
+        delegate: core,
+        engine: engine,
+        route: EngineRouting.route,
+      );
+    } catch (error, stack) {
+      debugPrint('Rust 引擎不可用，回退到 Go 核心：$error\n$stack');
+      return core;
+    }
+  }
+
   Future<void> _refreshDevice() async {
     final detected = await AppDevice.detect(fallback: device);
     if (!mounted ||
@@ -113,6 +141,7 @@ class _AppBootstrapState extends State<AppBootstrap>
     try {
       final preferences = await SharedPreferences.getInstance();
       await _refreshDevice();
+      _repository = await _buildRepository();
       await repository.initialize();
       if (mounted) {
         setState(() {

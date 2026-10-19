@@ -1,0 +1,203 @@
+{
+  "schema": "1.0",
+  "id": "heguo",
+  "name": "河果",
+  "group": "duanju",
+  "base": "https://www.kuaikaw.cn",
+  "kind": "next",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search",
+    "resolve"
+  ],
+  "categories": [
+    { "id": "462", "name": "甜宠" },
+    { "id": "1102", "name": "古装仙侠" },
+    { "id": "1145", "name": "现代言情" },
+    { "id": "1170", "name": "青春" },
+    { "id": "585", "name": "豪门恩怨" },
+    { "id": "417-464", "name": "逆袭" },
+    { "id": "439-465", "name": "重生" },
+    { "id": "1159", "name": "系统" },
+    { "id": "1147", "name": "总裁" },
+    { "id": "943", "name": "职场商战" }
+  ],
+  "catalog": {
+    "urls": [
+      { "url": "{base}/browse/{category}/{page}", "when": "category" },
+      { "url": "{base}/" }
+    ],
+    "items": [
+      "props.pageProps.bannerList",
+      "props.pageProps.bookList",
+      "props.pageProps.recommendList",
+      "props.pageProps.seoColumnVos[].bookInfos"
+    ],
+    "fields": {
+      "id": [
+        "bookId",
+        "book_id",
+        "id"
+      ],
+      "title": [
+        "bookName",
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverWap",
+        "cover",
+        "coverUrl"
+      ],
+      "episodes": [
+        "totalChapterNum"
+      ],
+      "category": [
+        "categoryList"
+      ],
+      "description": [
+        "introduction",
+        "intro",
+        "description"
+      ],
+      "tags": [
+        "categoryList"
+      ],
+      "releaseStatus": {
+        "paths": [
+          "statusDesc"
+        ],
+        "total": "totalChapterNum"
+      }
+    },
+    "hasMore": {
+      "total": "props.pageProps.pages",
+      "current": "props.pageProps.page"
+    }
+  },
+  "detail": {
+    "url": "{base}/drama/{id}",
+    "meta": [
+      "props.pageProps.bookInfoVo"
+    ],
+    "fields": {
+      "id": [
+        "bookId"
+      ],
+      "title": [
+        "bookName",
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverWap",
+        "cover",
+        "coverUrl"
+      ],
+      "episodes": [
+        "totalChapterNum"
+      ],
+      "category": [
+        "categoryList"
+      ],
+      "description": [
+        "introduction",
+        "intro",
+        "description"
+      ],
+      "tags": [
+        "categoryList"
+      ],
+      "releaseStatus": {
+        "paths": [
+          "statusDesc"
+        ],
+        "total": "totalChapterNum"
+      }
+    },
+    "episodes": {
+      "paths": [
+        "props.pageProps.chapterList"
+      ],
+      "chapterId": [
+        "chapterId",
+        "chapter_id",
+        "id"
+      ],
+      "pageUrlTemplate": "{base}/episode/{id}/{chapterId}",
+      "number": [
+        "chapterNum",
+        "sort",
+        "index"
+      ],
+      "title": [
+        "chapterName",
+        "title"
+      ],
+      "emptyMessage": "河果未返回可播放分集"
+    }
+  },
+  "search": {
+    "url": "{base}/seo/video/6007",
+    "request": {
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "pname": "www.kuaikaw.cn"
+      },
+      "body": {
+        "sourceType": { "$int": "1" },
+        "keyword": "{keyword}",
+        "index": { "$int": "1" }
+      }
+    },
+    "items": [
+      "data.bookList"
+    ],
+    "fields": {
+      "id": [
+        "bookId",
+        "book_id",
+        "id"
+      ],
+      "title": [
+        "bookName",
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverWap",
+        "cover",
+        "coverUrl"
+      ],
+      "episodes": [
+        "totalChapterNum"
+      ],
+      "category": [
+        "categoryList"
+      ],
+      "description": [
+        "introduction",
+        "intro",
+        "description"
+      ],
+      "tags": [
+        "categoryList"
+      ],
+      "releaseStatus": {
+        "paths": [
+          "statusDesc"
+        ],
+        "total": "totalChapterNum"
+      }
+    }
+  },
+  "resolve": {
+    "urlPaths": [
+      "props.pageProps.chapterInfo.chapterVideoVo.mp4",
+      "props.pageProps.chapterInfo.chapterVideoVo.mp4720p",
+      "props.pageProps.chapterInfo.chapterVideoVo.vodMp4Url"
+    ]
+  }
+}

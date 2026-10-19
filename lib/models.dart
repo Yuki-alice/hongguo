@@ -303,8 +303,20 @@ class PlaybackPlan {
     this.routeIndex = 0,
     this.routeCount = 1,
     this.local = false,
+    this.segments = const [],
+    this.keyUri = '',
+    this.keyIv = '',
   });
   final String url;
+
+  /// HLS 分片清单；非空表示可按分片下载。
+  final List<String> segments;
+
+  /// HLS AES-128 密钥地址。
+  final String keyUri;
+
+  /// HLS AES-128 的 IV。
+  final String keyIv;
   final Map<String, String> headers;
   final String decryptionKey;
   final int quality;

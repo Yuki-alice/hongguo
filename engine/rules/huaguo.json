@@ -1,0 +1,60 @@
+{
+  "schema": "1.0",
+  "id": "huaguo",
+  "name": "花果",
+  "group": "duanju",
+  "base": "https://www.zywest263.com",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search"
+  ],
+  "catalog": {
+    "url": "search.html?page={page}&searchtype=5&tid={category}&year=",
+    "item": [
+      "li[class*=vodlist__item]",
+      "li.vodlist__item"
+    ],
+    "fields": {
+      "id": [
+        "a[class*=vodlist__thumb]@href",
+        "h4 a@href"
+      ],
+      "title": [
+        "h4 a@title",
+        "a[class*=vodlist__thumb]@title"
+      ],
+      "cover": [
+        "a[class*=vodlist__thumb]@data-original",
+        "img@data-original"
+      ],
+      "category": [
+        "span[class*=pic-text]"
+      ]
+    }
+  },
+  "detail": {
+    "episodes": [
+      "a[href*='/zywxvd/']",
+      "a[href*='/play/']"
+    ],
+    "url": "zywview/{id}.html"
+  },
+  "search": {
+    "url": "search.html?page=1&searchtype=5&wd={keyword}",
+    "item": [
+      "li[class*=vodlist__item]"
+    ],
+    "fields": {
+      "id": [
+        "a[class*=vodlist__thumb]@href"
+      ],
+      "title": [
+        "h4 a@title"
+      ],
+      "cover": [
+        "a[class*=vodlist__thumb]@data-original"
+      ]
+    }
+  }
+}

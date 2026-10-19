@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = ["bridge", "crates/*"]
+
+[workspace.package]
+edition = "2021"
+version = "0.3.0"
+rust-version = "1.97"
+
+[workspace.dependencies]
+aes = "0.8"
+async-trait = "0.1"
+cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+cipher = { version = "0.4", features = ["block-padding", "alloc"] }
+cssparser = "0.38.0"
+hex = "0.4.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
+rquickjs = { version = "0.9", features = ["bindgen", "loader"] }
+scraper = "0.27.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2.0.21"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "fs", "io-util"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+# 必须保持 unwind：flutter_rust_bridge 依赖 catch_unwind 把 Rust panic 转成 Dart 异常。
+# abort 模式下任何一处 expect 都会直接终止 Flutter 进程，且无法上报。
+panic = "unwind"

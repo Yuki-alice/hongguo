@@ -19,6 +19,37 @@ env:
   GOSUMDB: sum.golang.org
 
 jobs:
+  rust:
+    # Rust 引擎的静态检查与测试。纯 Linux 即可，不需要 Flutter 或 NDK：
+    # 插件宿主在 Linux 上同样使用 Pulley 解释器，与三端行为一致。
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine -> target
+      - name: Format
+        run: cargo fmt --all --check
+        working-directory: engine
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: engine
+      - name: Test
+        run: cargo test --workspace
+        working-directory: engine
+      - name: 依赖方向守卫
+        run: |
+          # 契约层不得引入运行时依赖（ARCHITECTURE.md §6.3）。
+          if cargo tree -p guo-source-api -e normal 2>/dev/null \
+              | grep -Eq '\b(tokio|reqwest|wasmtime|rquickjs)\b'; then
+            echo "::error::guo-source-api 引入了运行时依赖"
+            exit 1
+          fi
+
   checks:
     if: false
     runs-on: ubuntu-latest

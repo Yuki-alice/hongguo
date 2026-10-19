@@ -28,6 +28,11 @@ type libraryUpdateKey struct{}
 
 type libraryKnownKey struct{}
 
+// libraryPageKey 携带调用方请求的页码。
+// 首次加载（page=1）只取一页；page=N 表示再向后续载 N 页，
+// 否则首页会一路翻到 MaxPagesPerSort 上限，既慢又浪费流量。
+type libraryPageKey struct{}
+
 func (downloader *Downloader) fetchHongguoAppCatalog(ctx context.Context) ([]Drama, error) {
 	return downloader.fetchHongguoAppCatalogCategory(ctx, "")
 }
@@ -65,6 +70,12 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 	if pageLimit > 200 {
 		pageLimit = 200
 	}
+	// 请求页码决定本轮翻页预算：page=N 表示本轮最多再取一页，
+	// 即「从当前游标推进到下一页」。首页（page=1）只取一页，
+	// 否则会一路翻到 MaxPagesPerSort 上限，既慢又浪费流量。
+	if page, _ := ctx.Value(libraryPageKey{}).(int); page > 0 && pageLimit > 1 {
+		pageLimit = 1
+	}
 	headLimit := min(pageLimit, 3)
 	roundLimit := pageLimit
 	if update {
@@ -91,6 +102,7 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 	seen := map[string]int{}
 	var dramas []Drama
 	var failures []error
+	pending := map[string]hongguoCatalogCursor{}
 	for round := 0; round < roundLimit; round++ {
 		active := false
 		for index, genre := range genres {
@@ -180,9 +192,11 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 					scan.head, scan.done, scan.pages = false, false, 0
 				}
 			}
-			client.mu.Lock()
-			client.state.Feeds[feedKey(genre.key)] = checkpoint
-			client.mu.Unlock()
+			// 只记在本次扫描的本地游标里，不直接写回 client.state：
+			// 未落盘的页码一旦进入 client.state，任何无关的写盘（例如补资料）
+			// 都会把「尚未提交」的游标一并持久化，重启后就会跳过这一页。
+			// 提交由 nativeCatalog -> saveCatalogCache 在写盘成功后统一完成。
+			pending[feedKey(genre.key)] = checkpoint
 			reportLibraryProgress(ctx, sourceHongguo, items, nil, false)
 		}
 		if !active {
@@ -190,7 +204,47 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 		}
 	}
 	sort.SliceStable(dramas, func(left, right int) bool { return dramas[left].DisplayTitle() < dramas[right].DisplayTitle() })
+	// 本次扫描到的游标暂存起来，等写盘成功后再提交。
+	client.mu.Lock()
+	client.pendingFeeds = pending
+	client.mu.Unlock()
 	return dramas, errors.Join(failures...)
+}
+
+// mergePendingFeeds 把本次扫描得到的游标合并进给定快照并提交进 client.state。
+//
+// 必须在目录数据落盘**之前**调用：落盘内容与内存状态要一次写对，
+// 否则重启会读到旧游标（跳过本页）或读到未保存的页码。
+func (downloader *Downloader) mergePendingFeeds(base *hongguoCatalogState) *hongguoCatalogState {
+	client := downloader.hongguoClient()
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.pendingFeeds) == 0 {
+		return base
+	}
+	merged := base
+	if merged == nil {
+		merged = &hongguoCatalogState{Version: 1, DeviceID: client.state.DeviceID, InstallID: client.state.InstallID, Feeds: map[string]hongguoCatalogCursor{}}
+	} else {
+		merged = cloneHongguoCatalogState(merged)
+		if merged.Feeds == nil {
+			merged.Feeds = map[string]hongguoCatalogCursor{}
+		}
+	}
+	for key, cursor := range client.pendingFeeds {
+		merged.Feeds[key] = cursor
+		client.state.Feeds[key] = cursor
+	}
+	client.pendingFeeds = nil
+	return merged
+}
+
+// discardPendingFeeds 放弃本次扫描的游标（写盘失败时调用）。
+func (downloader *Downloader) discardPendingFeeds() {
+	client := downloader.hongguoClient()
+	client.mu.Lock()
+	client.pendingFeeds = nil
+	client.mu.Unlock()
 }
 
 func parseHongguoCatalogPage(result map[string]any, cursor hongguoCatalogCursor, category string) ([]Drama, hongguoCatalogCursor, error) {

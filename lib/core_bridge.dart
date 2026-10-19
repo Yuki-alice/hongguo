@@ -67,6 +67,8 @@ class AppFailure implements Exception {
 }
 
 abstract class AppRepository {
+  /// 本地用户与权限状态。下载/权限判定需要它，允许为空。
+  LocalStore? access;
   Future<Map<String, dynamic>> lan(
     String command,
     Map<String, dynamic> payload,
@@ -190,7 +192,14 @@ class NativeRepository extends AppRepository {
   static final _coverDecoder = CoverDecoder();
   NativeRepository({this.background = false});
   final bool background;
-  LocalStore? access;
+
+  LocalStore? _access;
+
+  @override
+  LocalStore? get access => _access;
+
+  @override
+  set access(LocalStore? value) => _access = value;
   final _readOwner = DateTime.now().microsecondsSinceEpoch.toString();
   int _readSequence = 0;
   final _activeReads = <String, int>{};

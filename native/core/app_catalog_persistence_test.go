@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"sync"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -349,10 +350,12 @@ func TestNativeCatalogSizeLimitPreservesPreviousFile(t *testing.T) {
 
 func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 	paused, release := make(chan struct{}), make(chan struct{})
+	// 重试会对同一 offset 再次发请求，close 必须只发生一次。
+	var pausedOnce sync.Once
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
 		payload := nativeHongguoRequestForTest(t, request)
 		if payload.Offset == 18 && payload.Scene == "comic_series" {
-			close(paused)
+			pausedOnce.Do(func() { close(paused) })
 			select {
 			case <-release:
 			case <-request.Context().Done():

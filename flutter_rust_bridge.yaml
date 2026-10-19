@@ -1,0 +1,6 @@
+rust_input: crate::api
+rust_root: engine/bridge/
+dart_output: lib/src/rust
+# 生成后需把 lib/src/rust/frb_generated.dart 的 ioDirectory 手工改回
+# engine/target/release/：工作区共享 target/，codegen 会按 rust_root 推出
+# engine/bridge/target/release/，那是错误路径（只影响本机测试加载）。

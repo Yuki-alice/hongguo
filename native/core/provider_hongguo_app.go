@@ -49,6 +49,8 @@ type hongguoAppClient struct {
 	suggestPending map[string]*hongguoSuggestionCall
 	danmaku        map[string]hongguoDanmakuCacheEntry
 	danmakuPending map[string]*hongguoDanmakuCall
+	// 本次扫描得到、尚未写盘提交的游标。
+	pendingFeeds map[string]hongguoCatalogCursor
 }
 
 func (downloader *Downloader) hongguoClient() *hongguoAppClient {

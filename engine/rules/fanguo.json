@@ -1,0 +1,161 @@
+{
+  "schema": "1.0",
+  "id": "fanguo",
+  "name": "饭果",
+  "group": "duanju",
+  "base": "https://xifan-api-cn.youlishipin.com",
+  "kind": "json",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search"
+  ],
+  "idSplit": "#",
+  "categories": [
+    { "id": "都市", "name": "都市" },
+    { "id": "甜宠", "name": "甜宠" },
+    { "id": "逆袭", "name": "逆袭" },
+    { "id": "战神", "name": "战神" },
+    { "id": "古装", "name": "古装" },
+    { "id": "穿越", "name": "穿越" },
+    { "id": "萌宝", "name": "萌宝" }
+  ],
+  "catalog": {
+    "url": "{base}/xifan/search/getSearchList?reqType=search&offset=0&keyword={category}&quickEngineVersion=-1&scene=",
+    "categoryDefault": "都市",
+    "items": [
+      "result.elements[].contents[].duanjuVo"
+    ],
+    "fields": {
+      "id": [
+        "duanjuId",
+        "duanju_id",
+        "id"
+      ],
+      "idTemplate": "{id}#{source}",
+      "title": [
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverImageUrl",
+        "cover_image_url",
+        "cover"
+      ],
+      "episodes": [
+        "total",
+        "totalEpisodeNum"
+      ],
+      "category": [
+        "categories"
+      ],
+      "description": [
+        "description",
+        "desc",
+        "intro"
+      ],
+      "tags": [
+        "categories"
+      ]
+    }
+  },
+  "detail": {
+    "url": "{base}/xifan/drama/getDuanjuInfo?duanjuId={idFirst}&source={idRest}",
+    "meta": [
+      "result"
+    ],
+    "fields": {
+      "id": [
+        "duanjuId"
+      ],
+      "title": [
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverImageUrl",
+        "cover_image_url",
+        "cover"
+      ],
+      "episodes": [
+        "total"
+      ],
+      "category": [
+        "categories"
+      ],
+      "description": [
+        "description",
+        "desc",
+        "intro"
+      ],
+      "tags": [
+        "categories"
+      ],
+      "releaseStatus": {
+        "paths": [
+          "updateStatus"
+        ],
+        "total": "total",
+        "current": "current"
+      }
+    },
+    "episodes": {
+      "paths": [
+        "result.episodeList"
+      ],
+      "videoUrl": [
+        "playUrl",
+        "play_url",
+        "videoUrl"
+      ],
+      "number": [
+        "index",
+        "episode",
+        "sort"
+      ],
+      "title": [
+        "title",
+        "name"
+      ],
+      "emptyMessage": "饭果未返回可播放分集"
+    }
+  },
+  "search": {
+    "url": "{base}/xifan/search/getSearchList?reqType=search&offset=0&keyword={keyword}&quickEngineVersion=-1&scene=",
+    "items": [
+      "result.elements[].contents[].duanjuVo"
+    ],
+    "fields": {
+      "id": [
+        "duanjuId",
+        "duanju_id",
+        "id"
+      ],
+      "idTemplate": "{id}#{source}",
+      "title": [
+        "title",
+        "name"
+      ],
+      "cover": [
+        "coverImageUrl",
+        "cover_image_url",
+        "cover"
+      ],
+      "episodes": [
+        "total",
+        "totalEpisodeNum"
+      ],
+      "category": [
+        "categories"
+      ],
+      "description": [
+        "description",
+        "desc",
+        "intro"
+      ],
+      "tags": [
+        "categories"
+      ]
+    }
+  }
+}

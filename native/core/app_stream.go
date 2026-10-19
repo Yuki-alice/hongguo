@@ -296,7 +296,19 @@ func (stream *nativeStreamServer) nativeServe(writer http.ResponseWriter, reques
 	if response.Request != nil && response.Request.URL != nil {
 		finalURL = response.Request.URL
 	}
-	playlist := strings.Contains(asset.contentType, "mpegurl") || strings.Contains(contentType, "mpegurl") || strings.HasSuffix(strings.ToLower(finalURL.Path), ".m3u8")
+	// 后缀与 Content-Type 都不可靠：CDN 常用 octet-stream，地址也可能没有 .m3u8。
+	// 因此对未知类型先读前缀按内容判断，确认为播放列表后再按播放列表处理。
+	playlist := strings.Contains(asset.contentType, "mpegurl") ||
+		strings.Contains(contentType, "mpegurl") ||
+		strings.HasSuffix(strings.ToLower(finalURL.Path), ".m3u8")
+	if !playlist && !strings.HasPrefix(contentType, "video/") && !strings.HasPrefix(contentType, "audio/") {
+		prefix, prefixErr := io.ReadAll(io.LimitReader(response.Body, 7))
+		if prefixErr == nil {
+			playlist = strings.HasPrefix(strings.TrimPrefix(strings.TrimSpace(string(prefix)), "\ufeff"), "#EXTM3U")
+		}
+		// 已读出的前缀要拼回去，避免后续 passthrough 丢字节。
+		response.Body = io.NopCloser(io.MultiReader(strings.NewReader(string(prefix)), response.Body))
+	}
 	if playlist && request.Method == http.MethodHead {
 		writer.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
 		writer.WriteHeader(http.StatusOK)
