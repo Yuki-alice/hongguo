@@ -1,7 +1,7 @@
 # 交接文档 · Flutter 技术栈现代化
 
 > 生成时间：2026-10-20
-> 分支：`main` · 版本：`0.2.59+65`
+> 分支：`main` · 版本：`0.2.60+66`
 > 状态：**路由迁移已完成；P1 逻辑页面已 ViewModel 化；P2 测试改造已完成；全量测试 328 通过 / 0 失败；剩余 LAN / 首页 / 播放器 UI 状态**
 
 ---
@@ -593,7 +593,7 @@ test/ui/features/
 
 ---
 
-## 6.5 Rust 引擎现状（2026-10-20 第十三轮）
+## 6.5 Rust 引擎现状（2026-10-21 第十六轮）
 
 引擎侧已从「一个 crate 堆全部」拆成 9 crate 工作区，并把插件体系做成可运行的代码。
 细节见 `engine/docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
@@ -601,10 +601,11 @@ test/ui/features/
 | 事项 | 现状 |
 | --- | --- |
 | 工作区 | `engine/Cargo.toml` 虚清单；`bridge/` 只做 FRB 边界，实现在 `engine/crates/*` |
-| 主源 | `guo-source-hongguo` 已注册进 `builtin_registry()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类 |
+| 主源 | `guo-source-hongguo` 已注册进 `builtin_registry()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类；发果规则带在线验证用例（`--ignored`） |
 | 插件安装 | `bridge/src/api/plugins.rs` 暴露 `setPluginDirectory` / `parseRepository` / `installPlugin` / `installedPlugins` / `uninstallPlugin` / `setPluginEnabled` / `rollbackPlugin` / `rememberRepository`，Dart 绑定已生成到 `lib/src/rust/api/plugins.dart` |
 | 代码插件 | WIT 契约 `engine/crates/plugin-wasm/wit/source-plugin.wit`；模板 `engine/examples/plugin-template/`（`./build.sh`） |
-| 测试 | `cargo test --workspace` 263 项；Dart 引擎测试 9 项需先 `cargo build -p guo_engine --release` |
+| 站源 | 引擎注册 11 个：红果主源、猫果代码源、9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / 帝果 / 发果） |
+| 测试 | `cargo test --workspace` 344 项；Dart 引擎测试 9 项需先 `python scripts/prepare_engine.py` |
 
 **Dart 测试的前置条件**：跑引擎测试前先准备动态库：
 

@@ -11,7 +11,7 @@
 | 声明式规则引擎 | ✅ `guo-rule-engine`：HTML / JSON / 内嵌 JSON 三类取数，加载期校验 |
 | HTTP 传输层 | ✅ `guo-host`：reqwest + 流式截断，live 请求验证 |
 | 代码插件层 | ✅ 猫果签名源；✅ WASM 组件宿主（真实组件端到端） |
-| 站源迁移 | 🔄 8/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果） |
+| 站源迁移 | 🔄 10/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果） |
 | 取流（resolve） | ✅ 引擎接管，含 HLS 解析与回退 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 解密 |
 | 目录缓存 | ✅ 版本化落盘 + TTL + 分页游标合并 |
@@ -22,7 +22,71 @@
 | **P1 地基** | ✅ 2026-10-20：9 crate 工作区、插件宿主、红果主源、真实组件链路（见第十三轮） |
 | **插件生态闭环** | ✅ 2026-10-20：仓库客户端 + 官方规则包 + 插件管理 UI（见第十四轮） |
 | **D4 主源能力面** | ✅ 2026-10-20：榜单 / 推荐 / 联想 / 弹幕 / 系列剧（见第十五轮） |
-| **P2 站源迁移** | 🔄 9/20（新增帝果声明式规则；其余四源待迁移） |
+| **P2 站源迁移** | 🔄 10/20（发果声明式规则；剩芽果 / 牛果 / 皮果 / 黄豆 / 剧果 / 野果 / 黄果三源） |
+
+## 第十六轮：P2 第二个站源 —— 发果（2026-10-21）
+
+目标：用一个真实站点把「声明式规则从取证到上线」的流程走完整，
+并留下可复跑的在线验证手段。
+
+### 为什么选发果
+
+| 候选 | 结论 |
+| --- | --- |
+| 发果 | 标准 `stui-vodlist` 模板，`player_aaaa` 直链 m3u8，页面可访问 → 本轮做 |
+| 皮果 | `ptt.red` 当前不可达，抓不到结构。凭猜测写规则违反「先取真实夹具再写规则」的既有教训 → 推迟 |
+| 芽果 / 牛果 | 芽果要登录令牌、牛果要 AES 解密，属代码插件，不是声明式规则的适用范围 |
+| 黄豆 / 剧果 / 野果 / 黄果三源 | 各自需要签名或专属客户端，留待后续 |
+
+### 站点结构（实测）
+
+```
+目录   /xzyxvt/{slug}n.html?page={page}    卡片  div.stui-vodlist__box
+详情   /xzyxvd/{id}.html                   分集  ul.stui-content__playlist li a
+分集   /xzyxvp/{id}n{n}m{m}.html           取流  player_aaaa 变量的 url 字段
+搜索   /xzyxvc/{keyword}-wdyswzqun1num.html
+```
+
+两个必须记住的坑：
+
+1. **类名带随机后缀**。页面里 `stui-vodlist__box` 与 `k0btppvloj vqh3my5ckr …`
+   这类随机串混在同一个 `class` 属性里，每页还不一样。规则只能依赖
+   `stui-vodlist__*` / `stui-content__playlist` 这些稳定钩子；夹具保留了原始
+   随机类名，测试因此能守住这条不变量。
+2. **页码走查询串，且 slug 拼接方式特殊**。分类地址是
+   `duanju` + `n` + `.html`（`/xzyxvt/duanjun.html`），不是 `duanju.html`。
+   第 2 页是 `?page=2` 而不是 `/xzyxvt/duanju2n.html`（后者 302）。
+
+### 交付
+
+| 文件 | 内容 |
+| --- | --- |
+| `engine/rules/faguo.json` | 目录 / 详情 / 搜索 / 取流规则，11 个分类 |
+| `engine/bridge/tests/faguo_fixtures.rs` | 7 项离线对拍：元数据、目录卡片、分类地址、分集、搜索编码、取流、详情模板 |
+| `engine/bridge/tests/faguo_live.rs` | 2 项在线验证（`#[ignore]`）：真实目录 ≥10 条；详情 → 分集 → 取到 `.m3u8` |
+| `engine/bridge/tests/fixtures/faguo_{catalog,detail,play}.html` | 真实响应裁剪：3 张卡片、完整分集、`player_aaaa` |
+
+`builtin_registry_loads_every_shipped_rule` 的清单补上了此前漏掉的
+`wangguo` / `diguo`，再加 `faguo`。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ 344 项（原 337，新增 7） |
+| `cargo fmt --check` / `clippy -D warnings` | ✅ 干净 |
+| 在线验证 `--ignored` | ✅ 2 项：目录 ≥10 条、取到 `index.m3u8` |
+| 官方规则仓库重打包 | ✅ 9 个包（新增 `guo.faguo`） |
+| Dart 引擎站源清单 | ✅ 11 个，发果能力位 `catalog/detail/search/resolve/categories` |
+| `flutter test` | ✅ 328 通过 / 0 失败 |
+
+### 未做
+
+- 皮果：站点不可达，没有真实结构就不写规则；
+- 发果的 VIP 判定：页面没有稳定的 VIP 标记，暂时全部按免费处理；
+- 发果分类清单只覆盖首页可见的 11 个主分类，二级分类未展开。
+
+---
 
 ## 第十五轮：D4 收尾 + P2 首源（2026-10-20）
 

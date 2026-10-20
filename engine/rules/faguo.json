@@ -1,0 +1,80 @@
+{
+  "schema": "1.0",
+  "id": "faguo",
+  "name": "发果",
+  "group": "duanju",
+  "base": "https://www.xzyx168.com",
+  "kind": "html",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search",
+    "resolve"
+  ],
+  "headers": {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+  },
+  "categories": [
+    { "id": "duanju", "name": "短剧" },
+    { "id": "aiqingpian", "name": "爱情片" },
+    { "id": "dongzuopian", "name": "动作片" },
+    { "id": "fanzuipian", "name": "犯罪片" },
+    { "id": "guochanju", "name": "国产剧" },
+    { "id": "gangju", "name": "港剧" },
+    { "id": "hanju", "name": "韩剧" },
+    { "id": "dianshiju", "name": "电视剧" },
+    { "id": "dianying", "name": "电影" },
+    { "id": "dongman", "name": "动漫" },
+    { "id": "zongyi", "name": "综艺" }
+  ],
+  "catalog": {
+    "urls": [
+      { "url": "xzyxvt/{category}n.html?page={page}", "when": "category" },
+      { "url": "xzyxvt/duanjun.html?page={page}" }
+    ],
+    "item": [
+      "div.stui-vodlist__box"
+    ],
+    "fields": {
+      "id": "a.stui-vodlist__thumb@href",
+      "idPattern": "(\\d+)",
+      "title": [
+        "div.stui-vodlist__detail h4.title a",
+        "a.stui-vodlist__thumb@title"
+      ],
+      "cover": [
+        "a.stui-vodlist__thumb img@data-original",
+        "a.stui-vodlist__thumb@data-original"
+      ],
+      "remark": "span.pic-text"
+    }
+  },
+  "detail": {
+    "url": "xzyxvd/{id}.html",
+    "episodes": "ul.stui-content__playlist li a",
+    "title": "div.stui-content__detail h1.title",
+    "cover": "a.stui-vodlist__thumb@data-original, div.stui-content__thumb img@data-original",
+    "intro": "div.detail-content p"
+  },
+  "search": {
+    "url": "xzyxvc/{keyword}-wdyswzqun1num.html",
+    "item": [
+      "ul.stui-vodlist__media li"
+    ],
+    "fields": {
+      "id": "a.stui-vodlist__thumb@href",
+      "idPattern": "(\\d+)",
+      "title": [
+        "div.detail h3.title a",
+        "a.stui-vodlist__thumb@title"
+      ],
+      "cover": [
+        "a.stui-vodlist__thumb img@data-original",
+        "a.stui-vodlist__thumb@data-original"
+      ]
+    }
+  },
+  "resolve": {
+    "playerVar": "player_aaaa"
+  }
+}

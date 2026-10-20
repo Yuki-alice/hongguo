@@ -28,7 +28,8 @@ fn builtin_registry_loads_every_shipped_rule() {
     let registry = builtin_registry();
     let metas = registry.metas();
     for id in [
-        "maoguo", "wuguo", "huaguo", "fanguo", "guanguo", "xingguo", "heguo",
+        "maoguo", "wuguo", "huaguo", "fanguo", "guanguo", "xingguo", "heguo", "wangguo", "diguo",
+        "faguo",
     ] {
         assert!(
             metas.iter().any(|meta| meta.id == id),

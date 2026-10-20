@@ -119,4 +119,5 @@ const BUILTIN_RULES: &[&str] = &[
     include_str!("../../../rules/heguo.json"),
     include_str!("../../../rules/wangguo.json"),
     include_str!("../../../rules/diguo.json"),
+    include_str!("../../../rules/faguo.json"),
 ];
