@@ -55,10 +55,13 @@ void main() {
       expect(store.history.length, allSourcesEnabled ? 2 : 1);
       expect(store.isFavorite(other.id), allSourcesEnabled);
       expect(store.watched(other.id) != null, allSourcesEnabled);
+      // `toggleFavorite` 对不可用站源是空操作（非 ALL_SOURCES 构建下
+      // `huangdou` 不在 `SourceSite.values` 里），因此不能假设它一定改变状态。
       await store.toggleFavorite(red);
       final backup = await store.exportBackup();
       final library =
           (jsonDecode(backup)['libraries'] as Map)['default'] as Map;
+      // 导出不过滤站源：red 刚被取消收藏，因此只剩 other（两种构建都一样）。
       expect((library['favorites'] as List).map((row) => (row as Map)['id']), [
         other.id,
       ]);
@@ -66,7 +69,10 @@ void main() {
       await store.importBackup(backup);
       expect(store.preferences.getString('source'), 'huangdou');
       expect(store.history, hasLength(allSourcesEnabled ? 2 : 1));
-      expect(store.favorites.map((drama) => drama.id), [other.id]);
+      expect(
+        store.favorites.map((drama) => drama.id),
+        allSourcesEnabled ? [other.id] : isEmpty,
+      );
       store.dispose();
     },
   );

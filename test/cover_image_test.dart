@@ -6,6 +6,8 @@ import 'package:duanju_app/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+
 import 'fixtures.dart';
 
 class CoverFixtureRepository extends FixtureRepository {
@@ -27,6 +29,10 @@ void main() {
   ) async {
     final repository = CoverFixtureRepository();
     final widget = MaterialApp(
+      // `CachedCoverImage` 的失败态用了 `AppLocalizations.of(context)`，
+      // 没有 delegates 时它返回 null，会直接抛空断言。
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: SizedBox(
         width: 100,
         height: 150,

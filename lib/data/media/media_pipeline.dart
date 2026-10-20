@@ -95,12 +95,15 @@ class MergePlan {
     final vc = probes
         .map((p) => p.videoSignature != video.videoSignature)
         .toList();
-    var ac = probes
+    final ac = probes
         .map((p) => audio != null && p.audioSignature != audio.audioSignature)
         .toList();
+    // 多数音轨是 AAC 且存在差异时，重编码的条目统一用 aac_low profile，
+    // 保证拼出来的音轨参数一致。**只影响需要重编码的条目**：
+    // 把全部条目标记为「要转码」会让原本能直接 copy 的多数音轨也白白重编码，
+    // 既慢又损质量，而且与 `audioTranscodes` 的语义（真正需要转码的条数）不符。
     final canonicalAac =
         audio?.audio['codec_name'] == 'aac' && ac.any((change) => change);
-    if (canonicalAac) ac = List.filled(probes.length, true);
     if (vc.any((v) => v) && !{'h264', 'hevc'}.contains(video.videoCodec)) {
       throw AppFailure('多数分集为 ${video.videoCodec}，当前不能将其他格式转换为此编码；原文件已保留。');
     }

@@ -318,8 +318,12 @@ class MediaLibrary extends ChangeNotifier {
   }
 
   void _check() {
+    // 用户主动取消与「环境变了」要分开报：前者是预期行为（按钮叫「取消」），
+    // 后者是权限/账号变化，提示语必须能指向用户该做什么。
+    if (_cancelled) {
+      throw AppFailure('本地媒体处理已取消，原分集和恢复记录保留');
+    }
     if (_disposed ||
-        _cancelled ||
         suspended ||
         !store.canDownload ||
         _taskEpoch != null && _taskEpoch != store.profileEpoch ||

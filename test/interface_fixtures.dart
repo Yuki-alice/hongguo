@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:duanju_app/domain/download_collections.dart';
 import 'package:duanju_app/domain/models.dart';
 
 import 'fixtures.dart';
@@ -65,6 +66,43 @@ class InterfaceRepository extends FixtureRepository {
 
   @override
   Future<List<DownloadJob>> downloads() async => List.of(jobs);
+
+  /// 页面现在走批量接口：覆写它才能让 `commands` 记录成一次批处理，
+  /// 否则会落到基类的「逐条调用 controlDownloads」实现，看起来像点了单条任务。
+  @override
+  Future<DownloadBatchResult> controlDownloadBatch(
+    String command,
+    List<String> ids, {
+    Map<String, String> expectedVersions = const {},
+  }) async {
+    commands.add('$command:');
+    final targets = ids.toSet();
+    jobs = [
+      for (final job in jobs)
+        DownloadJob(
+          id: job.id,
+          drama: job.drama,
+          episode: job.episode,
+          state: targets.contains(job.id)
+              ? switch (command) {
+                  'pause' || 'pauseAll' when job.active => 'paused',
+                  'resume' || 'resumeAll' when job.resumable => 'queued',
+                  _ => job.state,
+                }
+              : job.state,
+          bytes: job.bytes,
+          total: job.total,
+          progress: job.progress,
+        ),
+    ];
+    return DownloadBatchResult(
+      completed: [
+        for (final job in jobs)
+          if (targets.contains(job.id)) job.id,
+      ],
+      failures: const {},
+    );
+  }
 
   @override
   Future<void> controlDownloads(String command, {String id = ''}) async {

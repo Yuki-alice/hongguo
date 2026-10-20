@@ -212,7 +212,13 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
       widget.drama.id,
     );
     widget.repository.catalogUpdates.addListener(_metadataChanged);
-    _file = widget.repository.cover(widget.drama);
+    // `.ignore()` 只是告诉测试框架「这个 Future 的错误有人处理」，
+    // FutureBuilder 拿到的仍是**原始** Future：错误照常进入 hasError 分支，
+    // 失败态的重试按钮才会出现。之前的 catchError 会把错误吞成空串，
+    // 让 FutureBuilder 走 hasData 分支去渲染一张空路径的图片。
+    final future = widget.repository.cover(widget.drama);
+    future.ignore();
+    _file = future;
   }
 
   @override
@@ -272,13 +278,24 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
       ).evict();
     }
     if (mounted) {
-      setState(() {
-        _coverFailed = _retryOnFailure = false;
-        _failedPath = null;
-        _file = widget.repository.cover(
+      // 立刻给 Future 挂上错误监听：`FutureBuilder` 要到下一帧才订阅它，
+      // 而「该剧没有海报」这类校验错误是异步抛出的；若无人同步监听，
+      // 会被测试框架当成未捕获异常直接判失败。
+      Future<String> file;
+      try {
+        file = widget.repository.cover(
           widget.repository.catalogUpdates.current(widget.drama),
           force: true,
         );
+      } catch (error) {
+        file = Future<String>.error(error);
+      }
+      // 与 initState 同理：旁路监听用 `ignore()`，不吞错误。
+      file.ignore();
+      setState(() {
+        _coverFailed = _retryOnFailure = false;
+        _failedPath = null;
+        _file = file;
       });
     }
   }
