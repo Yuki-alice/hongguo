@@ -233,6 +233,13 @@ pub trait SourcePlugin: Send + Sync {
 
 ### 6.2 目录与 crate
 
+> **实施状态（2026-10-20，第十三轮）**：下方拓扑已按此结构落地，差异只有两处——
+> ① 多出 `crates/media`（m3u8 解析与 AES-128 解密，被 rule-engine / runtime / 各代码源共用）；
+> ② `SourcePlugin` trait 与 `SourceRegistry` 放在 `source-api` 而不是 `runtime`，
+> 因为规则源与组件源都要实现它，放 runtime 会形成反向依赖。
+> `edition` 仍为 2021（与 FRB 2.13 生成代码一致），`resolver` 为 2，不是文中的 3/2024。
+> `rust-toolchain.toml` 与 `deny.toml` 尚未添加（工具链靠开发者环境，依赖治理待 P2 补）。
+
 ```text
 engine/
 ├── Cargo.toml                  # 虚清单：[workspace] only
@@ -1186,6 +1193,7 @@ macOS 启动无回退日志；探针给出三端体积与冷启动数字，作�
 | D3 | 第三方仓库是否强制签名 | **不强制（已定 2026-10-19）**：逐包 SHA-256 强制；签名作为仓库信任加成，未签名仓库在 UI 标注并要求更新时确认 |
 | D4 | 主源红果是否包含弹幕 / 榜单 / 推荐 / 系列剧 | **包含（已定 2026-10-19）**：主源能力位与 Go 版对齐，P1 一并交付，不拆到后续阶段 |
 | D5 | 是否保留 Go 版并行发布 | **完全移除（已定 2026-10-19）**：不并行发版；Go 仅作迁移期只读规格来源，P4 删除 `native/` 与全部 Go 构建链 |
+| D7 | wasmtime 体积超预算（iOS +9 MB、Android +12 MB） | **接受增量（已定 2026-10-20）**：三端全量引入 wasmtime，不做平台分层（B）、不做运行时裁剪（C）。实测真实调用点下 macOS +11.97 MiB、iOS +10.60 MiB；重建模条件见 `poc-4-wasmtime-pulley.md` §8 |
 | D6 | 插件 id 命名空间 | **待定**：`guo.*` 只是暂用示例；项目大概率不采用 `guoapp` 命名，定名后再统一替换（见下方说明） |
 
 D1 连带的三条设计后果（已写进正文，不是待定项）：

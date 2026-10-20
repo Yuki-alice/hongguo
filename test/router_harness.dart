@@ -1,6 +1,7 @@
-import 'package:duanju_app/app_theme.dart';
-import 'package:duanju_app/core_bridge.dart';
-import 'package:duanju_app/local_store.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/core/app_theme.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/ui/providers/app_providers.dart';
 import 'package:duanju_app/ui/routing/app_router.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,8 @@ Future<GoRouter> pumpRouterApp(
       container: container,
       child: MaterialApp.router(
         routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: theme ?? AppTheme.light,
         debugShowCheckedModeBanner: false,
       ),

@@ -9,6 +9,8 @@ rust-version = "1.97"
 
 [workspace.dependencies]
 aes = "0.8"
+base64 = "0.23"
+ed25519-dalek = { version = "3", features = ["pkcs8", "rand_core"] }
 async-trait = "0.1"
 cbc = { version = "0.1", features = ["alloc", "block-padding"] }
 cipher = { version = "0.4", features = ["block-padding", "alloc"] }
@@ -17,10 +19,15 @@ hex = "0.4.3"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
 rquickjs = { version = "0.9", features = ["bindgen", "loader"] }
 scraper = "0.27.0"
+semver = { version = "1.0", features = ["serde"] }
+sha2 = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2.0.21"
+toml = "1.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "fs", "io-util"] }
+# 插件包只接受 deflate：bzip2 / zstd / lzma 会拖进三端都要交叉编译的 C 依赖。
+zip = { version = "9", default-features = false, features = ["deflate"] }
 
 [profile.release]
 opt-level = "z"

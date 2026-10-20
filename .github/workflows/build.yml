@@ -38,6 +38,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
         working-directory: engine
+      - name: 生成官方规则仓库（端到端测试需要）
+        run: cargo run -p guo-plugin-host --bin pack_rules -- dist/rules rules
+        working-directory: engine
       - name: Test
         run: cargo test --workspace
         working-directory: engine

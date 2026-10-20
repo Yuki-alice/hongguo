@@ -7,17 +7,346 @@
 | POC-1 rquickjs on iOS | ✅ 通过 |
 | POC-2 FRB 四端 | ✅ 通过（Windows 待 CI 补验） |
 | POC-3 TLS 指纹 / CF | ✅ 通过（wreq 可过 CF） |
-| 契约层 | ✅ 落地 |
-| 声明式规则引擎 | ✅ 落地，HTML / JSON / 内嵌 JSON 三类取数 |
-| HTTP 传输层 | ✅ reqwest 实现，live 请求验证 |
-| 代码插件层 | ✅ 猫果签名源端到端跑通 |
-| 站源迁移 | 🔄 6/20（伍果、花果、饭果、观果、星果、河果声明式；猫果签名）—— 新增四源为开发快照，未做真实站点验证 |
+| 契约层 | ✅ `guo-source-api`：模型、错误、请求/响应、`SourcePlugin` trait、MD5 原语 |
+| 声明式规则引擎 | ✅ `guo-rule-engine`：HTML / JSON / 内嵌 JSON 三类取数，加载期校验 |
+| HTTP 传输层 | ✅ `guo-host`：reqwest + 流式截断，live 请求验证 |
+| 代码插件层 | ✅ 猫果签名源；✅ WASM 组件宿主（真实组件端到端） |
+| 站源迁移 | 🔄 8/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果） |
 | 取流（resolve） | ✅ 引擎接管，含 HLS 解析与回退 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 解密 |
 | 目录缓存 | ✅ 版本化落盘 + TTL + 分页游标合并 |
-| Flutter 接入 | ✅ 装饰器架构 + 真实调度（16 项测试） |
-| 对拍验收 | ✅ Go 夹具 + Dart 模型跨层对拍 |
+| 插件仓库 / 安装器 | ✅ `guo-plugin-host`：清单、zip 防护、SHA-256、Ed25519、TOFU、原子安装 |
+| Flutter 接入 | ✅ 装饰器架构 + 真实调度；插件 API 已生成 Dart 绑定 |
+| 对拍验收 | ✅ Go 夹具 + Dart 模型跨层对拍；✅ X-Gorgon 签名 Go↔Rust 对拍 |
 | **P0 基线** | ✅ 2026-10-19：工作区 + CI + 构建验证 + 插件运行时探针（见第十二轮） |
+| **P1 地基** | ✅ 2026-10-20：9 crate 工作区、插件宿主、红果主源、真实组件链路（见第十三轮） |
+| **插件生态闭环** | ✅ 2026-10-20：仓库客户端 + 官方规则包 + 插件管理 UI（见第十四轮） |
+| **D4 主源能力面** | ✅ 2026-10-20：榜单 / 推荐 / 联想 / 弹幕 / 系列剧（见第十五轮） |
+| **P2 站源迁移** | 🔄 9/20（新增帝果声明式规则；其余四源待迁移） |
+
+## 第十五轮：D4 收尾 + P2 首源（2026-10-20）
+
+目标：补齐主源 D4 的差异化能力，并开始 P2 的站源迁移。
+
+### 一个必须先纠正的事实
+
+我之前说「红果 App 接口需要设备注册」——**这是错的**。查 `native/core` 后确认：
+Go 版没有独立的设备注册请求，`newHongguoDeviceID()` 只在本地生成两个 19 位数字串
+（`device_id` / `iid`）就直接使用。真正的缺口是「App 接口取数路径根本没接」，
+不是缺一个注册步骤。
+
+### D4 五项能力
+
+| 能力 | 数据来源 | 实现 |
+| --- | --- | --- |
+| 榜单 | 网页 `/rank/<path>` | `rankings.rs`：四个看板、名次窗口校验、跨榜与跨页拒绝 |
+| 推荐 | App `/reading/distribution/category/landpage/v/` | `capabilities.rs`：`offset` + `session_id` 游标，首屏 `client_req_type=3`、翻页 `2` |
+| 联想 | 网页 `/incent_resource/suggestion` | 去重、词性白名单、上限 10 |
+| 弹幕 | App `/novel/commentapi/comment/list/<vid>/v1/` | 60 秒分段、窗口过滤、按时间排序、上限 90 |
+| 系列剧 | 复用搜索 | 标题季号识别（`第2季`/`第二季`/`Season 2`/`S2`），按主标题聚合 |
+
+契约层新增 `RankingBoard` / `RankingPage` / `RecommendCursor` / `RecommendPage` /
+`DanmakuPage` / `SeriesSeason` / `Suggestion`，`SourcePlugin` 增加五个带默认实现的
+可选方法（默认返回 `Unsupported` 或空），因此**已有站源一行都不用改**。
+
+设备身份改为**落盘持久化**：Go 版进程重启就换新 ID，会让服务端当成新设备、
+游标全失效；这里存到 `SourceStore`，重启后仍可续用。
+
+### P2 首源：帝果（声明式）
+
+帝果是标准 HTML + CSS 结构，用声明式规则即可，无需代码插件：
+
+```text
+rules/diguo.json  →  index.php/vod/type/id/{category}/page/1.html
+                     卡片：a.video-item / a.video-surface
+                     详情：index.php/vod/detail/id/{id}.html
+                     搜索：index.php/vod/search/page/1/wd/{keyword}.html
+```
+
+### 规则引擎补的两项能力（都是被帝果逼出来的）
+
+1. **`idPattern`**：站点把 id 藏在路径里（`/vod/play/id/456/sid/1/nid/1.html`）。
+   直接拿整段 URL 当主键，同一部剧在目录与详情会得到两个 id。
+   抽取时**只在路径段里找数字**——域名（`dsd.com.se`）和查询串里的数字会先命中，
+   拿它们当主键会让所有条目撞成同一个 id。
+2. **逗号选择器加载期拒绝**：`"a@href, b@href"` 会被当成**一个**选择器，
+   `@` 之后的部分全变成属性名（`"data-src, img@src"`），取到的永远是空串。
+   这类静默空值极难查，现在加载期直接报错并提示「候选选择器请写成数组」。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ **337 项**（本轮 +34） |
+| `cargo fmt --check` / `clippy -D warnings` | ✅ 干净 |
+| Dart 全量测试 | 280 通过 / 41 失败（基线 253 / 42，**净增 27、0 回归**） |
+| `flutter analyze` | ✅ 0 error / 0 warning |
+| `flutter build macos --debug` / `apk` | ✅ |
+| 官方规则仓库 | 8 个包，端到端安装测试通过 |
+
+### 未做
+
+- P2 其余四源（黄豆 / 剧果 / 野果 / 黄果）：黄豆是 AES-CBC + gzip + SHA256 签名，
+  属代码插件；剧果与野果需先确认页面结构；黄果有旧 API 兼容问题；
+- 弹幕与推荐的真实站点验证：本机代理关闭后站点不可达，只做了结构级测试；
+- 榜单与联想的真实请求同样未验证（同上）。
+
+---
+
+## 第十四轮：插件生态闭环（2026-10-20）
+
+目标：把「插件宿主」从能加载组件，推进到**用户真的能装、能管、能卸**。
+
+### 决策 A 落地（D7）
+
+`bridge` 现在真正依赖 `guo-plugin-wasm`，`builtin_registry()` 会加载已安装插件。
+这一步是决策 A 的实质：只声明依赖不建立调用链时，LTO 会把整个运行时裁掉，
+体积测量与功能验证都会失真。
+
+| 项 | 实测 |
+| --- | --- |
+| macOS dylib | 8,315,984 → 20,872,096 B（+11.97 MiB） |
+| iOS staticlib | 15,112,384 → 26,225,976 B（+10.60 MiB） |
+| Android arm64（debug 构建） | 16,330,952 → 44,996,304 B（debug 无 LTO，不代表发布体积） |
+
+### 修掉的缺陷
+
+| 缺陷 | 影响 | 修法 |
+| --- | --- | --- |
+| `PluginState` 用 `derive(Default)` | `enabled` 恒为 `false`，**新装插件默认停用**，装完不能用 | 手写 `Default`，补两条回归测试 |
+| 插件目录状态存了两份 | `api::plugins` 与 `sources::builtin` 各一个 `OnceLock`，设置一处另一处看不见 | 收敛到 `sources::builtin` 一处 |
+| `PluginManifest` 公钥错误丢上下文 | 只报「base64 解码失败」，用户不知道改哪个字段 | 包装成「仓库公钥」 |
+
+### 仓库客户端（`runtime/repo_client.rs`）
+
+| 能力 | 说明 |
+| --- | --- |
+| `fetch_manifest` / `fetch_index` | `repo.toml` → `index.json`，相对路径按仓库目录解析 |
+| 验签顺序 | **先取签名并校验，再解析结构**——先解析后验签等于信任了未验证数据 |
+| `download_package` | 返回前就校验大小与 SHA-256，调用方没有机会跳过 |
+| `.sig` 两种形态 | 裸 64 字节与 base64 文本都接受（很多人用 `base64 > file`） |
+| 错误可测 | 用假 `Transport` 驱动，12 项测试覆盖签名缺失/错误/顺序/哈希不符/尺寸不符 |
+
+### 官方规则仓库
+
+`cargo run -p guo-plugin-host --bin pack_rules -- dist/rules rules` 把 7 条随包规则
+打成标准插件包，同时生成 `index.json` 与 `repo.toml`。产物不进版本管理
+（改规则后忘记重新打包是常见事故）。
+
+`tests/official_repo.rs` 用**同一套安装器**逐个安装生成物，并断言：
+
+1. 索引声明的 `size` 与实际字节一致；
+2. 每个包都能安装、默认启用、出现在已安装列表；
+3. **包内规则与 `engine/rules/*.json` 逐字节相同**（防止改了规则没重新打包）。
+
+### 插件管理 UI
+
+| 文件 | 职责 |
+| --- | --- |
+| `lib/data/plugin_repository.dart` | 引擎插件的 Dart 入口（解析、安装、卸载、启停、回滚） |
+| `lib/ui/features/plugins/controllers/plugins_controller.dart` | 状态与动作；版本比较、错误归一、站源同步 |
+| `lib/ui/features/plugins/views/plugins_screen.dart` | 仓库地址输入、可安装列表、已安装列表（开关/卸载） |
+
+站源页右上角新增入口（`/sources/plugins`）。插件管理单独成页而不是塞进站源页：
+站源页看「当前能用什么」，插件页管「从哪装、装哪个版本」，两者失败域不同——
+插件装坏了不该让站源列表也起不来。
+
+`test/plugins_controller_test.dart` 12 项覆盖：版本比较（含 `1.9.0 < 1.10.0` 这类字符串比较陷阱）、
+仓库不可用、安装失败、卸载后站源失效。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ **303 项** |
+| `cargo fmt --check` / `clippy -D warnings` | ✅ 干净 |
+| Dart 全量测试 | 274 通过 / 41 失败（基线 253 / 42，**净增 21 项、0 回归**） |
+| `flutter analyze` | ✅ 0 error / 0 warning |
+| `flutter build macos --debug` | ✅ |
+| `flutter build apk --debug` | ✅ |
+
+### 未做
+
+- 插件更新的批量检查与灰度（P2）；
+- 卸载插件后的本地数据清理策略（当前只从列表消失，数据保留）；
+- 官方仓库的真实发布（需要一个独立 Git 仓库与 CI 打包）。
+
+---
+
+## 第十三轮：P1 地基（2026-10-20）
+
+目标：把「一个 crate 里堆所有东西」拆成可维护的边界，并让插件体系从纸面变成能跑的代码。
+
+### 工作区拆分（`bridge` 只留桥接）
+
+| crate | 职责 | 依赖方向 |
+| --- | --- | --- |
+| `guo-source-api` | 模型、错误、`FetchRequest/Response`、`SourcePlugin`、MD5 | 零 IO（async-trait / serde / serde_json） |
+| `guo-media` | m3u8 解析、AES-128 分片解密 | 纯计算 |
+| `guo-rule-engine` | 规则 schema、模板渲染、CSS / JSONPath 提取 | → source-api |
+| `guo-host` | reqwest 传输层、QuickJS 沙箱 | → source-api |
+| `guo-plugin-host` | 清单、zip 解包防护、仓库协议、Ed25519、安装落盘 | → source-api |
+| `guo-plugin-wasm` | wasmtime + WIT 组件宿主、能力注入、资源上限 | → source-api |
+| `guo-runtime` | 目录缓存、下载调度、规则源适配 | → host / media / rule-engine |
+| `guo-source-maoguo` / `guo-source-hongguo` | 代码站源 | → source-api / media |
+| `guo_engine`（`bridge/`） | FRB 边界与内置装配 | → 全部 |
+
+依赖方向由 `crates/source-api/tests/dependency_direction.rs` 断言：清单里出现
+`tokio` / `reqwest` / `wasmtime` / `rquickjs` / `scraper` / `cssparser` 即失败。
+
+### 插件体系（从设计到可运行）
+
+| 模块 | 内容 |
+| --- | --- |
+| `manifest` | `plugin.toml` 解析 + 加载期校验（id 正则、kind/entry/rules 互斥、路径穿越、网络白名单、脚本预算） |
+| `package` | zip 解包：条目数 / 单文件 / 总量上限、路径穿越、重复条目、清单声明文件必须存在、SHA-256（**强制**） |
+| `repository` | `repo.toml` + `index.json`（Kazumi 字段别名）、每 id 取最高版本、Ed25519 校验、三种信任标签 |
+| `installer` | 索引 ↔ 包交叉校验（id / 版本 / 类型 / API level / 大小 / 哈希）、宿主版本区间、code 插件 `\0asm` 头 |
+| `store` | `installed/<id>/<version>/`、`state.json`、`repos.json`、`install.log`；staging + 原子 rename；损坏状态文件降级 |
+
+### 代码插件宿主
+
+- WIT 契约落盘 `crates/plugin-wasm/wit/source-plugin.wit`，`bindgen!` 直接生成绑定；
+- `ComponentSource` 把组件包装成 `SourcePlugin`：每次调用新建 store（fuel / 内存 / epoch 预算按调用重置），
+  `Component` 与 `InstancePre` 复用；
+- 能力注入：`fetch` 走 `permissions.network` 白名单，`Host`/`Cookie`/`Content-Length` 等头被丢弃，
+  `store-*` 走命名空间白名单，`random` / `now-ms` 由宿主提供；
+- 导入白名单 `guo:source/*`：`wasi:*` 在**加载期**拒绝，不是运行时。
+
+### 插件模板的两步编译（踩坑记录）
+
+`wasm32-wasip2` 直接编译最省事，但 `wit-bindgen` 会拖进 `wasi:cli` / `wasi:io` / `wasi:clocks`
+共 15 个导入，宿主白名单会拒绝。实测有效的路径是：
+
+```bash
+cargo build --target wasm32-unknown-unknown --release
+wasm-tools component new target/.../guo_plugin_template.wasm -o plugin.wasm
+```
+
+组件化后导入集合只剩 `guo:source/types@1.0.0`，产物 43,234 字节。
+`examples/plugin-template/build.sh` 固化此流程，`tests/component_host.rs` 断言导入集合。
+
+### 红果主源（D4 的能力面）
+
+| 能力 | 实现 | 与 Go 的一致点 |
+| --- | --- | --- |
+| X-Gorgon 签名 | `sign.rs`，纯函数 | 5 组固定向量对拍（含中文 query、带/不带 body） |
+| 网页目录 | `_ROUTER_DATA` → `category_page` | 四路由聚合、按标题排序、`totalPages` 决定 `hasMore` |
+| 网页详情 | `detail_page.seriesDetail` | `vid_list` → `hongguo-cenc://<vid>`，空 vid 跳过，无 ID 报错 |
+| 取流 | `player_page.video_player_info` | **vid/series 不一致即拒绝**，避免把试看集当目标集 |
+| 字段映射 | `router.rs` | `video_data` 优先、`series_id` 必须纯数字、完结状态/热度/上线日期换算 |
+
+App 接口（`api5-normal-sinfonlineb.fqnovel.com`）的签名与请求构造已实现
+（`signed_app_request`，含 20 个公共参数与 `_rticket`），但设备注册状态机尚未接入，
+因此 `catalog()` 目前只走网页路径，App 路径留到 P2。
+
+### 模板 token 白名单（`spec 2` 的第一块）
+
+之前未知 token 会被原样保留，`{foo}` 直接发到站点，返回 200 + 空列表，
+看起来像「源站改版」——最难查的一类静默失败。本轮改成**加载期拒绝**：
+
+| token | 说明 |
+| --- | --- |
+| `{page}` `{category}` `{keyword}` `{id}` `{idFirst}` `{idRest}` `{base}` | 原有 |
+| `{ts}` `{ts10}` | 毫秒 / 秒级时间戳 |
+| `{md5:<inner>}` `{sha256:<inner>}` | 摘要，inner 先递归渲染 |
+| `{upper:<inner>}` `{lower:<inner>}` `{trim:<inner>}` | 文本变换（签名常需大小写归一） |
+| `{hmac:sha256:<key>:<inner>}` | HMAC-SHA256，key 走 UTF-8 字节 |
+
+配套的三条约束：
+
+1. `base` 里出现任何占位符即报错（它是常量前缀，`{base}` 只应出现在请求模板里）；
+2. `id` 必须是小写字母 / 数字 / `_` / `-`（插件 id 与规则 id 共用一套命名）；
+3. 校验覆盖 catalog / search / detail / resolve 四个动作的地址候选、Referer 与请求头值。
+
+SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`），
+理由与 MD5 相同：契约层只允许 `async-trait` / `serde` / `serde_json`，
+加 `sha2` 会让依赖方向守卫失败。HMAC 按 RFC 2104 实现，测试用 RFC 4231 Case 2 向量。
+
+### Dart 站源列表接入引擎
+
+`SourceSite.values` 从 `static const` 改成 getter，合并两部分：
+
+- `SourceSite.builtins`：编译期常量（`ALL_SOURCES` 开关在这里生效），离线可用；
+- 引擎上报：`EngineRepository.syncSourceCatalog()` 把 `source_catalog()` 里
+  **内置清单之外**的 id 登记进来（即插件安装的源）。
+
+内置 id 不会被引擎覆盖名称——那是产品文案，不该被技术标识替换。
+`test/plugin_repository_test.dart` 覆盖了追加、去重、内置保护与清空五条路径。
+
+`main.dart` 启动时新增两件事：`setPluginDirectory('${support.path}/engine/plugins')`
+与 `syncSourceCatalog()`。插件目录与缓存同级但不叫 cache：它随应用数据清理，
+不该被「清理缓存」按钮删掉。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ **278 项** |
+| `cargo fmt --all --check` | ✅ |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| Dart 引擎测试 | ✅ 15 项（`engine_bridge_test` + `engine_model_parity_test` + `plugin_repository_test`） |
+| Dart 全量测试 | 262 通过 / 41 失败（基线 253 / 42，**净增 9 项通过、0 回归**） |
+| `flutter build macos --debug` | ✅ `duanju_app.app` 内含新 `rust_lib_guo_engine.framework` |
+| `flutter build apk --debug` | ✅ `libguo_engine.so`：arm64 16,300,888 B / v7a 6,906,360 B / x86_64 18,940,520 B |
+| 代码插件真实链路 | ✅ 模板组件加载 → `describe` / `catalog` / `detail` / `resolve` 全通 |
+| Go 参考测试 | ✅ `go test ./...` 全绿（33 s）；最后一项为夹具缺陷，已修 |
+
+### Dart 全量测试的 41 项失败（既有问题，非本轮引入）
+
+用「回退我的三处 Dart 改动再跑一遍」的方式做了对照：
+
+| 状态 | 通过 | 失败 |
+| --- | --- | --- |
+| 回退 `models.dart` / `engine_repository.dart` / `main.dart` 的改动 | 253 | 42 |
+| 保留本轮改动 | **262** | **41** |
+
+失败集中在 `interface_test`（`catalog-refresh` 找不到、`DownloadsScreen` 的
+`Null check operator used on a null value`）、`cover_image_test` 与
+`app_build_test` 的 edition 过滤——都属于「UI 组件重构后测试选择器/空断言未同步」，
+与本轮引擎改动无关，也没有因为这些失败而降低任何门禁。**修它们属于独立任务**，
+不应混进引擎迁移里，否则无法判断引擎改动是否引入回归。
+
+### 踩坑记录
+
+1. **`bindgen!` 的 WIT 语法**：`types.response` 这种「接口.类型」引用不被接受，必须
+   在每个接口里写 `use types.{response, error};`；导出函数不能与类型同名
+   （`descriptor` → `describe`，`detail` → `fetch-detail`）。
+2. **`wasm32-unknown-unknown` 产物是 core module**，不是 component；
+   直接喂给 `Component::from_binary` 会报 "attempted to parse a wasm module with a component parser"。
+3. **`wasm32-wasip2` 产物带 wasi 导入**，必须拒绝——否则插件能绕开宿主的网络白名单。
+4. **Dart 侧 `ioDirectory`**：codegen 按 `rust_root` 推出 `engine/bridge/target/release/`，
+   但工作区共享 `engine/target/`；每次重新生成都要手工改回（已在配置注释里写明）。
+5. **Android 插件缓存**：`shared_preferences_android` 的 Kotlin 类未编译时，
+   报错表现为 `:app:compileDebugJavaWithJavac` 找不到 `SharedPreferencesPlugin`，
+   与 Dart/Rust 改动无关；删掉 `build/shared_preferences_android` 重新构建即恢复。
+
+### Go 侧收尾（D5 的只读规格来源）
+
+`go test ./core` 之前有 6 项失败 + 一次 panic 中止，本轮全部修完：
+
+| 失败 | 根因 | 处理 |
+| --- | --- | --- |
+| `TestNativeCatalogCacheFreshnessPagingAndRefresh` | mock 只允许 `ai-duanju`，实现聚合四分类 | 夹具补 `aiSlugBase` 与四分类断言 |
+| `TestNativeHongguoCursorRestartsPerCatalog` 等三项 | 游标每页写进 `client.state`，`saveCatalogCache` 又用提交前快照覆盖 | 新增 `pendingFeeds`，提交前合并 |
+| 目录翻页 offset 飙到 900 | `page` 没传给取数层，首屏翻完 50 页 | `libraryPageKey` + 每请求 `pageLimit = 1`（40 s → 0.59 s） |
+| `TestNativeHLSExtensionlessPlaylistsAndRedirectBase` | 无后缀播放列表被当成 `video/mp4` | 按内容前缀 `#EXTM3U` 判定，前缀用 `io.MultiReader` 回放 |
+| 审计同期：`TestNativeCatalogCacheFreshnessPagingAndRefresh` 的 `close(paused)` panic | 多个子用例重复关闭同一 channel | `sync.Once` |
+
+`TestRankingCacheAndStaleRecovery` 的失败是夹具问题：第 1 页地址不带 `?page=`，
+夹具按 0 处理，于是产生 `pageNum: 0`；未改动的 `reference/` 快照复现同一失败，
+证明与实现无关。修完后 `go test ./...` 33 秒全绿。
+
+### 未做
+
+- 12 个官方规则包的打包与仓库发布（P1 剩余项）；
+- 红果 App 接口的设备注册与榜单 / 推荐 / 联想 / 弹幕（D4 中依赖 App 接口的部分）；
+- 声明式规则从 `schema 1.0` 升级到 `spec 2` 的**动作化结构**（`actions`、`session`、`assert`）；
+  本轮只补了模板 token 白名单与 `{sha256:…}` / `{hmac:…}` / `{upper:…}`，结构仍是扁平的；
+- Dart 站源列表的「删除插件后清理本地数据」尚未实现（当前只是从列表消失，数据保留）；
+- wasmtime 体积决策（A/B/C）仍未拍板，当前按 A 执行。
+
+---
 
 ## 第十二轮：P0 基线（2026-10-19）
 
@@ -74,33 +403,55 @@
 
 ---
 
-## 已落地代码
+## 已落地代码（截至第十三轮）
 
 ```
 engine/
-  src/model.rs        Drama/Chapter/Page/Media/Detail
-  src/error.rs        SourceError 类型化错误（替代 Go 的 472 处字符串错误）
-  src/env.rs          SourceEnv + Transport/Store/ScriptHost 能力白名单
-  src/source.rs       SourcePlugin trait + SourceRegistry
-  src/crypto.rs       纯 Rust MD5（猫果签名、观果 clientInfo 共用）
-  src/rule/rules.rs   规则 schema + 加载期校验（html / json / next 三类）
-  src/rule/executor.rs CSS 提取引擎（支持候选选择器）+ 按 kind 分发
-  src/rule/jsonpath.rs 接口 JSON 路径取值（`a.b[]`、`a[2]`、`$`）
-  src/rule/json_executor.rs 接口站源与内嵌 JSON 取数
-  src/rule/embedded.rs 页面内嵌 `__NEXT_DATA__` 提取
-  src/transport.rs    reqwest 传输层
-  rules/wuguo.json    伍果真实规则（20 行）
-  rules/huaguo.json   花果：哈希 class 名前缀用属性子串匹配
-  rules/fanguo.json   饭果：接口 + 复合主键 `{id}#{source}`
-  rules/guanguo.json  观果：POST JSON 体 + `{md5:{ts10}}` + 多清晰度取高
-  rules/xingguo.json  星果：固定鉴权参数 + 递归查找分集地址
-  rules/heguo.json    河果：`__NEXT_DATA__` 页面 + 分集页面延迟取流
-  tests/real_sites.rs 真实站点 fixture 测试
-  tests/json_site_rules.rs 声明式站源离线夹具对拍（含内置规则加载校验）
-  tests/fixtures/     伍果 / 皮果真实页面快照
+  Cargo.toml                    虚清单：member = bridge + crates/*
+  bridge/src/
+    lib.rs                      薄索引：定向重导出，`mod env` 供 FRB 生成物使用
+    api/mod.rs                  FRB 入口：目录/详情/搜索/取流/下载/缓存
+    api/plugins.rs              插件安装、启用、回滚、仓库记录
+    sources/builtin.rs          内置装配：红果主源 + 猫果 + 7 条随包规则
+    frb_generated.rs            生成物（hand-edit 仅 ioDirectory）
+  crates/source-api/src/
+    model.rs error.rs           数据模型与类型化错误
+    request.rs env.rs           FetchRequest/Response、Transport/Store/ScriptHost/LogSink
+    plugin.rs                   SourcePlugin trait + SourceRegistry + 能力位
+    md5.rs                      纯 Rust MD5（签名与模板共用）
+  crates/media/src/lib.rs       m3u8 解析、AES-128 分片解密
+  crates/rule-engine/src/
+    rules.rs render(内嵌)       规则 schema、模板渲染、加载期校验
+    executor.rs                 CSS 提取 + 按 kind 分发
+    jsonpath.rs json_executor.rs 接口 JSON 路径与内嵌 JSON 取数
+    embedded.rs                 `__NEXT_DATA__` / `_ROUTER_DATA` 提取
+  crates/host/src/
+    transport.rs                reqwest 传输层（流式截断、连接池单例）
+    script.rs                   QuickJS 沙箱（MD5 + JSON 原语）
+  crates/plugin-host/src/
+    manifest.rs package.rs      清单校验、zip 解包防护、SHA-256
+    repository.rs               仓库协议、Ed25519、TOFU 指纹
+    installer.rs store.rs       交叉校验、原子安装、状态与日志
+  crates/plugin-wasm/
+    wit/source-plugin.wit       代码插件 ABI
+    src/sandbox.rs              运行时配置、导入白名单、能力注入、资源上限
+    src/bindings.rs             host 函数实现（fetch/store/log/random/now）
+    src/component.rs            ComponentSource：组件 → SourcePlugin
+  crates/runtime/src/
+    source.rs(→source-api)      注册表已上移；此处保留装配逻辑
+    rule_source.rs              声明式规则 → SourcePlugin
+    cache.rs download.rs scheduler.rs  目录缓存、下载、调度
+  crates/source-hongguo/src/
+    sign.rs                     X-Gorgon 签名（Go 向量对拍）
+    router.rs                   `_ROUTER_DATA` 与字段映射
+    source.rs                   目录/详情/取流/分类 + App 请求构造
+  crates/source-maoguo/src/     猫果签名源
+  rules/*.json                  7 条随包声明式规则（迁移期保留）
+  examples/plugin-template/     代码插件模板（build.sh 两步编译）
 ```
 
-代码量：引擎侧约 5,400 行，规则清单约 830 行（均不含测试、fixture 与 FRB 生成绑定）。
+代码量：引擎侧约 9,500 行实现（`crates/` + `bridge/`，不含测试与 FRB 生成物；
+含测试约 14,700 行），规则清单约 830 行。
 
 ## 声明式规则的三类取数
 

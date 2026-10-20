@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+guo-source-api = { path = "../source-api" }
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt", "time"] }
 wasmtime = { version = "=49.0.2", default-features = false, features = [
     "component-model",
     "cranelift",
@@ -13,3 +16,6 @@ wasmtime = { version = "=49.0.2", default-features = false, features = [
     "pulley",
     "std",
 ] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

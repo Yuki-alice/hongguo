@@ -134,7 +134,12 @@ func TestRankingCacheAndStaleRecovery(t *testing.T) {
 		if fail.Load() {
 			return rankingHTTPResponse(request, 503, "temporarily unavailable"), nil
 		}
-		page, _ := strconv.Atoi(request.URL.Query().Get("page"))
+		// 第 1 页的地址不带 `?page=`（真实站点即如此），缺失时必须按 1 处理，
+		// 否则夹具会把 pageNum 写成 0，看起来像「榜单分页变了」。
+		page := 1
+		if raw := request.URL.Query().Get("page"); raw != "" {
+			page, _ = strconv.Atoi(raw)
+		}
 		return rankingHTTPResponse(request, 200, rankingFixture(board, page, rankingRows(page))), nil
 	})
 	ctx := context.Background()

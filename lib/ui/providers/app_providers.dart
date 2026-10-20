@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app_layout.dart';
-import '../../core_bridge.dart';
-import '../../local_store.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/data/plugin_repository.dart';
+import 'package:duanju_app/ui/core/app_layout.dart';
 
 /// 应用级依赖的 Provider 根。
 ///
@@ -12,6 +13,15 @@ import '../../local_store.dart';
 /// 测试同样用 override 注入假仓库，因此业务代码不感知实现来源。
 final repositoryProvider = Provider<AppRepository>(
   (ref) => throw UnimplementedError('repositoryProvider 必须被 override'),
+);
+
+/// 插件仓库入口。引擎不可用时返回未初始化实例，页面仍可打开并显示原因。
+///
+/// 单独一个 Provider 而不是挂在 `AppRepository` 上：
+/// 插件管理属于「引擎能力」，与站源取数是两条独立的失败域，
+/// 插件装坏了不应该让站源列表也起不来。
+final pluginRepositoryProvider = Provider<PluginRepository>(
+  (ref) => PluginRepository(),
 );
 
 /// 当前登录用户的数据仓库。

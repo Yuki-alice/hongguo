@@ -1,0 +1,14 @@
+[package]
+name = "guo-source-maoguo"
+description = "猫果站源（多签名 + 自定义分页）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+guo-media = { path = "../media" }
+guo-source-api = { path = "../source-api" }
+async-trait.workspace = true
+serde_json.workspace = true
+# 重试间隔用的 `sleep`；只是计时器，不构成对宿主运行时的依赖。
+tokio = { workspace = true, features = ["time"] }

@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app_bottom_navigation.dart';
-import '../../../../app_layout.dart';
-import '../../../../catalog_filters.dart';
-import '../../../../catalog_sort.dart';
-import '../../../../drama_actions.dart';
-import '../../../../downloads_screen.dart';
-import '../../../../local_store.dart';
-import '../../../../models.dart';
-import '../../../../recommendations_screen.dart';
-import '../../../../remote_widgets.dart';
-import '../../../../saved_library.dart';
-import '../../../../vip_icon.dart';
-import '../../../../widgets.dart';
-import '../../../theme/md3_tokens.dart';
-import '../controllers/catalog_controller.dart';
-import '../widgets/catalog_search_header.dart';
-import '../widgets/catalog_selection_bar.dart';
+import 'package:duanju_app/ui/core/app_bottom_navigation.dart';
+import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:duanju_app/ui/core/catalog_filters.dart';
+import 'package:duanju_app/domain/catalog_sort.dart';
+import 'package:duanju_app/ui/core/drama_actions.dart';
+import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/core/l10n_labels.dart';
+import 'package:duanju_app/ui/features/discover/views/recommendations_screen.dart';
+import 'package:duanju_app/ui/core/remote_widgets.dart';
+import 'package:duanju_app/ui/features/home/widgets/saved_library.dart';
+import 'package:duanju_app/ui/core/vip_icon.dart';
+import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:duanju_app/ui/theme/md3_tokens.dart';
+import 'package:duanju_app/ui/features/discover/controllers/catalog_controller.dart';
+import 'package:duanju_app/ui/features/discover/widgets/catalog_search_header.dart';
+import 'package:duanju_app/ui/features/discover/widgets/catalog_selection_bar.dart';
 
 /// 发现页骨架：应用栏 + 导航 + 内容区。
 ///
@@ -119,17 +121,20 @@ class _DiscoverViewState extends State<DiscoverView> {
   CatalogController get controller => widget.controller;
   LocalStore get store => widget.store;
 
-  List<(int, IconData, IconData, String)> get _destinations => [
-    (0, Icons.explore_outlined, Icons.explore_rounded, '发现'),
-    (1, Icons.bookmark_border_rounded, Icons.bookmark_rounded, '追剧'),
-    (2, Icons.history_outlined, Icons.history_rounded, '最近观看'),
+  List<(int, IconData, IconData, String)> _destinations(
+    AppLocalizations l10n,
+  ) => [
+    (0, Icons.explore_outlined, Icons.explore_rounded, l10n.discoverTitle),
+    (1, Icons.bookmark_border_rounded, Icons.bookmark_rounded, l10n.follows),
+    (2, Icons.history_outlined, Icons.history_rounded, l10n.recentlyWatched),
     if (store.canDownload)
-      (3, Icons.download_outlined, Icons.download_rounded, '下载'),
+      (3, Icons.download_outlined, Icons.download_rounded, l10n.download),
   ];
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      final l10n = AppLocalizations.of(context);
       final television = AppLayout.isTelevision(context);
       final width = constraints.maxWidth;
       final desktop = Md3WindowClass.usesRail(width);
@@ -155,7 +160,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                 selectedIndex: widget.tabIndex,
                 onDestinationSelected: widget.onChangeTab,
                 destinations: [
-                  for (final entry in _destinations)
+                  for (final entry in _destinations(l10n))
                     NavigationDestination(
                       icon: Icon(entry.$2),
                       selectedIcon: Icon(entry.$3),
@@ -167,59 +172,69 @@ class _DiscoverViewState extends State<DiscoverView> {
     },
   );
 
-  Widget _rail(BuildContext context) => NavigationRail(
-    selectedIndex: widget.tabIndex,
-    onDestinationSelected: widget.onChangeTab,
-    groupAlignment: -.8,
-    leading: Padding(
-      padding: const EdgeInsets.only(top: Md3Spacing.sm),
-      child: Icon(
-        Icons.play_circle_fill_rounded,
-        color: Theme.of(context).colorScheme.primary,
-        size: 32,
-      ),
-    ),
-    destinations: [
-      for (final entry in _destinations)
-        NavigationRailDestination(
-          icon: Icon(entry.$2),
-          selectedIcon: Icon(entry.$3),
-          label: Text(entry.$4),
+  Widget _rail(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return NavigationRail(
+      selectedIndex: widget.tabIndex,
+      onDestinationSelected: widget.onChangeTab,
+      groupAlignment: -.8,
+      leading: Padding(
+        padding: const EdgeInsets.only(top: Md3Spacing.sm),
+        child: Icon(
+          Icons.play_circle_fill_rounded,
+          color: Theme.of(context).colorScheme.primary,
+          size: 32,
         ),
-    ],
-  );
+      ),
+      destinations: [
+        for (final entry in _destinations(l10n))
+          NavigationRailDestination(
+            icon: Icon(entry.$2),
+            selectedIcon: Icon(entry.$3),
+            label: Text(entry.$4),
+          ),
+      ],
+    );
+  }
 
-  Widget _televisionNavigation() => SizedBox(
-    width: 132,
-    child: RemoteList(
-      key: widget.navKey,
-      itemKeys: [for (final entry in _destinations) '${entry.$1}'],
-      itemExtent: 60,
-      spacing: 14,
-      padding: EdgeInsets.zero,
-      autofocus: true,
-      onExitRight: widget.tabIndex == 0
-          ? () => widget.gridKey.currentState?.focusCurrent()
-          : null,
-      itemBuilder: (_, index, node, onFocus) {
-        final entry = _destinations[index];
-        return RemoteButton(
-          key: ValueKey('tv-nav-${entry.$1}'),
-          label: entry.$4,
-          icon: entry.$2,
-          selected: widget.tabIndex == entry.$1,
-          focusNode: node,
-          onFocus: onFocus,
-          onPressed: () => widget.onChangeTab(entry.$1),
-        );
-      },
-    ),
-  );
+  Widget _televisionNavigation() {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      width: 132,
+      child: RemoteList(
+        key: widget.navKey,
+        itemKeys: [for (final entry in _destinations(l10n)) '${entry.$1}'],
+        itemExtent: 60,
+        spacing: 14,
+        padding: EdgeInsets.zero,
+        autofocus: true,
+        onExitRight: widget.tabIndex == 0
+            ? () => widget.gridKey.currentState?.focusCurrent()
+            : null,
+        itemBuilder: (_, index, node, onFocus) {
+          final entry = _destinations(l10n)[index];
+          return RemoteButton(
+            key: ValueKey('tv-nav-${entry.$1}'),
+            label: entry.$4,
+            icon: entry.$2,
+            selected: widget.tabIndex == entry.$1,
+            focusNode: node,
+            onFocus: onFocus,
+            onPressed: () => widget.onChangeTab(entry.$1),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _body(bool desktop, bool television) {
+    final l10n = AppLocalizations.of(context);
     if (widget.tabIndex == 0) {
       if (store.sources.isEmpty) {
-        return const StatusPanel(title: '暂无可用站源', message: '请联系管理员为当前用户开放站源。');
+        return StatusPanel(
+          title: l10n.noAvailableSources,
+          message: l10n.noSourcesHint,
+        );
       }
       return _catalog(selectionInBody: desktop || television);
     }
@@ -248,6 +263,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   Widget _catalog({required bool selectionInBody}) {
+    final l10n = AppLocalizations.of(context);
     final items = controller.visibleItems;
     final television = AppLayout.isTelevision(context);
     return Column(
@@ -285,7 +301,7 @@ class _DiscoverViewState extends State<DiscoverView> {
             children: [
               if (controller.supportsVipFilter)
                 IconButton(
-                  tooltip: store.hideVip ? 'VIP：隐藏' : 'VIP：显示',
+                  tooltip: store.hideVip ? l10n.vipHide : l10n.vipShow,
                   onPressed: widget.onToggleVip,
                   icon: VipIcon(hidden: store.hideVip),
                 ),
@@ -334,27 +350,28 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   Widget _catalogBody(List<Drama> items, bool television) {
+    final l10n = AppLocalizations.of(context);
     if (controller.loading && controller.items.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: Md3Spacing.lg),
-            Text('正在加载剧集'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: Md3Spacing.lg),
+            Text(l10n.loadingDramas),
           ],
         ),
       );
     }
     if (controller.items.isEmpty && controller.error != null) {
       return StatusPanel(
-        title: '暂时无法加载',
+        title: l10n.loadFailed,
         message: controller.error!,
         onRetry: widget.onRetryCatalog,
         secondaryAction: controller.repository.supportsSourceManagement
             ? TextButton(
                 onPressed: widget.onManageSources,
-                child: const Text('站源诊断'),
+                child: Text(l10n.sourceDiagnostics),
               )
             : null,
         icon: Icons.wifi_off_rounded,
@@ -362,14 +379,14 @@ class _DiscoverViewState extends State<DiscoverView> {
     }
     if (items.isEmpty) {
       return StatusPanel(
-        title: '没有找到匹配的短剧',
+        title: l10n.noMatchingDramas,
         message: controller.hideVip
-            ? '可以换个搜索词，或显示 VIP 内容。'
+            ? l10n.searchEmptyHint
             : store.sources.length > 1
-            ? '可以换个搜索词或切换站源。'
-            : '可以换个搜索词，或刷新后重试。',
+            ? l10n.sourceEmptyHint
+            : l10n.errorEmptyHint,
         onRetry: controller.canLoadMore ? widget.onLoadMore : null,
-        action: '加载更多',
+        action: l10n.loadMore,
       );
     }
     return LayoutBuilder(
@@ -386,11 +403,11 @@ class _DiscoverViewState extends State<DiscoverView> {
                     ? const CircularProgressIndicator()
                     : controller.hasMore
                     ? RemoteButton(
-                        label: '加载更多',
+                        label: l10n.loadMore,
                         icon: Icons.expand_more,
                         onPressed: widget.onLoadMore,
                       )
-                    : const Text('已经看到这里的全部剧集'),
+                    : Text(l10n.allCaughtUp),
               ),
             ),
           );
@@ -432,10 +449,10 @@ class _DiscoverViewState extends State<DiscoverView> {
                         ? OutlinedButton.icon(
                             onPressed: widget.onLoadMore,
                             icon: const Icon(Icons.expand_more_rounded),
-                            label: const Text('加载更多'),
+                            label: Text(l10n.loadMore),
                           )
                         : Text(
-                            '已经看到这里的全部剧集',
+                            l10n.allCaughtUp,
                             style: TextStyle(
                               color: Theme.of(
                                 context,
@@ -516,12 +533,13 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   AppBar _appBar(BuildContext context, double width, bool television) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     return AppBar(
       toolbarHeight: television ? 64 : null,
       titleSpacing: Md3Spacing.md,
       title: widget.selectionMode
-          ? const Text('选择短剧', maxLines: 1, overflow: TextOverflow.ellipsis)
+          ? Text(l10n.selectDrama, maxLines: 1, overflow: TextOverflow.ellipsis)
           : widget.tabIndex != 0
           ? const Text(appName)
           : _sourceSwitcher(context),
@@ -532,26 +550,28 @@ class _DiscoverViewState extends State<DiscoverView> {
             onPressed: widget.selectedDramas.isEmpty
                 ? null
                 : widget.onClearSelection,
-            child: const Text('清空'),
+            child: Text(l10n.clear),
           ),
           TextButton(
             key: const ValueKey('cancel-catalog-selection'),
             focusNode: widget.appBarFocus,
             onPressed: widget.onCancelSelection,
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
         ] else ...[
           if (widget.tabIndex == 1)
             IconButton(
               key: const ValueKey('follow-lan-sync'),
-              tooltip: '追剧同步',
+              tooltip: l10n.lanSyncTitle,
               onPressed: widget.onOpenLanSync,
               icon: const Icon(Icons.sync_rounded),
             ),
           if (widget.tabIndex == 0) ...[
             if (!controller.showRecommendations)
               IconButton(
-                tooltip: '排序与筛选 · ${store.catalogView.sort.label}',
+                tooltip: l10n.sortAndFilter(
+                  catalogSortLabel(store.catalogView.sort, l10n),
+                ),
                 onPressed: widget.onChooseCatalogView,
                 color:
                     store.catalogView.sort != CatalogSort.source ||
@@ -562,7 +582,7 @@ class _DiscoverViewState extends State<DiscoverView> {
               ),
             IconButton(
               key: const ValueKey('open-rankings'),
-              tooltip: '榜单',
+              tooltip: l10n.rankingsTitle,
               onPressed: store.sources.isEmpty ? null : widget.onOpenRankings,
               icon: const Icon(Icons.leaderboard_outlined),
             ),
@@ -571,13 +591,15 @@ class _DiscoverViewState extends State<DiscoverView> {
                 controller.repository.supportsDownloads)
               IconButton(
                 key: const ValueKey('select-catalog-dramas'),
-                tooltip: '多选下载',
+                tooltip: l10n.multiDownload,
                 onPressed: widget.onEnterSelectionMode,
                 icon: const Icon(Icons.checklist_rounded),
               ),
             IconButton(
               key: const ValueKey('toggle-search'),
-              tooltip: controller.searchVisible ? '收起搜索' : '搜索',
+              tooltip: controller.searchVisible
+                  ? l10n.closeSearch
+                  : l10n.search,
               icon: Icon(
                 controller.searchVisible
                     ? Icons.search_off_rounded
@@ -596,19 +618,22 @@ class _DiscoverViewState extends State<DiscoverView> {
                   controller.loadingMore ||
                   controller.categoriesLoading ||
                   widget.updatesBusy,
-              tooltip: '更新剧库',
+              tooltip: l10n.refreshLibrary,
               onPressed: store.sources.isEmpty ? null : widget.onRefreshCatalog,
             ),
           PopupMenuButton<String>(
-            tooltip: '更多',
+            tooltip: l10n.more,
             onSelected: widget.onMoreMenu,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'update', child: Text('更新剧库')),
-              PopupMenuItem(value: 'sources', child: Text('站源管理')),
-              PopupMenuItem(value: 'settings', child: Text('设置与备份')),
-              PopupMenuItem(value: 'users', child: Text('用户管理')),
-              PopupMenuItem(value: 'display', child: Text('界面模式')),
-              PopupMenuItem(value: 'about', child: Text('关于')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'update', child: Text(l10n.refreshLibrary)),
+              PopupMenuItem(
+                value: 'sources',
+                child: Text(l10n.sourceManagement),
+              ),
+              PopupMenuItem(value: 'settings', child: Text(l10n.settingsTitle)),
+              PopupMenuItem(value: 'users', child: Text(l10n.userManagement)),
+              PopupMenuItem(value: 'display', child: Text(l10n.displayMode)),
+              PopupMenuItem(value: 'about', child: Text(l10n.about)),
             ],
           ),
         ],
@@ -617,11 +642,12 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   Widget _sourceSwitcher(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final groups = controller.sourceGroups;
     final current = controller.group;
     return PopupMenuButton<SourceGroup>(
       key: const ValueKey('source-switch'),
-      tooltip: '切换站源',
+      tooltip: l10n.switchSource,
       enabled: groups.length > 1,
       onSelected: widget.onChangeGroup,
       itemBuilder: (_) => [

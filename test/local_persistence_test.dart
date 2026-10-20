@@ -1,11 +1,12 @@
 import 'dart:convert';
 
-import 'package:duanju_app/local_profiles.dart';
-import 'package:duanju_app/local_snapshot.dart';
-import 'package:duanju_app/local_store.dart';
-import 'package:duanju_app/models.dart';
-import 'package:duanju_app/playback_preferences.dart';
-import 'package:duanju_app/profiles_screen.dart';
+import 'package:duanju_app/data/local_profiles.dart';
+import 'package:duanju_app/data/local_snapshot.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/domain/playback_preferences.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/features/profiles/views/profiles_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -263,7 +264,11 @@ void main() {
     (tester) async {
       final (store, _) = await create({'profiles': 'bad'});
       await tester.pumpWidget(
-        MaterialApp(home: ProfilesScreen(store: store, locked: true)),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ProfilesScreen(store: store, locked: true),
+        ),
       );
       expect(find.text('从备份恢复'), findsOneWidget);
       expect(find.text('重新读取配置'), findsOneWidget);

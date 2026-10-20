@@ -1,0 +1,12 @@
+[package]
+name = "guo-rule-engine"
+description = "声明式规则 DSL：schema、模板渲染与 CSS / JSON 提取"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+guo-source-api = { path = "../source-api" }
+scraper.workspace = true
+serde.workspace = true
+serde_json.workspace = true

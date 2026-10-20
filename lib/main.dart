@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
@@ -11,21 +10,23 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'core_bridge.dart';
-import 'engine_repository.dart';
-import 'engine_backed_repository.dart';
-import 'engine_routing.dart';
-import 'app_layout.dart';
-import 'app_orientation.dart';
-import 'app_theme.dart';
-import 'local_store.dart';
-import 'media_library.dart';
-import 'package_smoke.dart';
-import 'lan_controller.dart';
-import 'ui/providers/app_providers.dart';
-import 'ui/routing/route_args.dart';
-import 'ui/routing/app_router.dart';
-import 'video_enhancement_assets.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/data/engine_backed_repository.dart';
+import 'package:duanju_app/data/engine_routing.dart';
+import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:duanju_app/ui/core/app_orientation.dart';
+import 'package:duanju_app/ui/core/app_theme.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:duanju_app/data/media/media_library.dart';
+import 'package:duanju_app/package_smoke.dart';
+import 'package:duanju_app/data/lan/lan_controller.dart';
+import 'package:duanju_app/ui/providers/app_providers.dart';
+import 'package:duanju_app/ui/routing/route_args.dart';
+import 'package:duanju_app/ui/routing/app_router.dart';
+import 'package:duanju_app/data/video_enhancement/video_enhancement_assets.dart';
 
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,6 +116,10 @@ class _AppBootstrapState extends State<AppBootstrap>
       // 缓存目录与应用数据目录同级，卸载后随应用数据一起清理。
       final support = await getApplicationSupportDirectory();
       await engine.setCacheDirectory('${support.path}/engine');
+      // 插件根目录与缓存同级：两者都随应用数据清理，但插件不能被当缓存删掉。
+      await engine.setPluginDirectory('${support.path}/engine/plugins');
+      // 把引擎上报的站源（含已安装插件）并入 SourceSite，供 UI 列表使用。
+      await engine.syncSourceCatalog();
       return EngineBackedRepository(
         delegate: core,
         engine: engine,
@@ -310,13 +315,14 @@ class _AppShell extends ConsumerWidget {
       routerConfig: router,
       title: appName,
       debugShowCheckedModeBanner: false,
-      locale: const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      locale: const Locale('zh'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: AppTheme.mode(themeMode),
       builder: (context, child) {
+        AppL10n.current = AppLocalizations.of(context);
         final theme = Theme.of(context);
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: AppTheme.systemBars(theme.brightness),

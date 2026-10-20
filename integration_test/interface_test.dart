@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:duanju_app/home_screen.dart';
+import 'package:duanju_app/ui/features/home/views/home_screen.dart';
 import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/local_store.dart';
+import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/main.dart';
-import 'package:duanju_app/models.dart';
-import 'package:duanju_app/widgets.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

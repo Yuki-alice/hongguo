@@ -1,0 +1,14 @@
+[package]
+name = "guo-host"
+description = "宿主能力实现：传输、脚本沙箱、限流与存储"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+guo-source-api = { path = "../source-api" }
+async-trait.workspace = true
+reqwest.workspace = true
+rquickjs.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

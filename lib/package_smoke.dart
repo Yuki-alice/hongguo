@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:media_kit/media_kit.dart';
 
-import 'core_bridge.dart';
-import 'media_pipeline.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/media/media_pipeline.dart';
 
 Future<void> runPackageSmoke(List<String> arguments) async {
   if (arguments.length != 3) exit(2);

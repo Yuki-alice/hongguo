@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:duanju_app/engine_repository.dart';
+import 'package:duanju_app/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 真实下载验证：从站源取流后下载到临时目录。

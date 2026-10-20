@@ -1,12 +1,13 @@
 import 'dart:convert';
 
-import 'package:duanju_app/app_bottom_navigation.dart';
-import 'package:duanju_app/app_theme.dart';
-import 'package:duanju_app/home_screen.dart';
-import 'package:duanju_app/local_store.dart';
+import 'package:duanju_app/ui/core/app_bottom_navigation.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/core/app_theme.dart';
+import 'package:duanju_app/ui/features/home/views/home_screen.dart';
+import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/main.dart';
-import 'package:duanju_app/player_screen.dart';
-import 'package:duanju_app/settings_screen.dart';
+import 'package:duanju_app/ui/features/player/views/player_screen.dart';
+import 'package:duanju_app/ui/features/settings/views/settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -167,6 +168,8 @@ void main() {
         var selected = 0;
         await tester.pumpWidget(
           MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: AppTheme.light,
             home: StatefulBuilder(
               builder: (context, setState) => MediaQuery(
@@ -238,6 +241,8 @@ void main() {
       final detail = await repository.detail(FixtureRepository.free);
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: AppTheme.light,
           home: PlayerScreen(
             detail: detail,

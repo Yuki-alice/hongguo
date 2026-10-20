@@ -1,5 +1,5 @@
-import 'package:duanju_app/engine_repository.dart';
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 用真实 Rust 引擎驱动 `EngineRepository`，验证它产出应用既有模型。
@@ -21,7 +21,10 @@ void main() {
 
   test('supports() reflects engine capability', () async {
     expect(await repository.supports('wuguo'), isTrue);
-    expect(await repository.supports('hongguo'), isFalse);
+    // 红果是随包分发的主源（ARCHITECTURE.md §5），引擎实现它之后必须上报。
+    expect(await repository.supports('hongguo'), isTrue);
+    // 未安装的站源与空 id 仍应返回 false。
+    expect(await repository.supports('huangdou'), isFalse);
     expect(await repository.supports(''), isFalse);
   });
 

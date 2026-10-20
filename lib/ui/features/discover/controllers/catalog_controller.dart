@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core_bridge.dart';
-import '../../../../catalog_browser.dart';
-import '../../../../catalog_sort.dart';
-import '../../../../local_store.dart';
-import '../../../../models.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/catalog_browser.dart';
+import 'package:duanju_app/domain/catalog_sort.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/ui/core/app_l10n.dart';
 
 /// 发现页的浏览状态与取数逻辑。
 ///
@@ -81,7 +82,8 @@ class CatalogController extends ChangeNotifier {
   List<SourceGroup> get sourceGroups {
     final groups = SourceGroup.fromSources(_store.sources);
     return [
-      if (groups.length > 1) SourceGroup('all', '全部站源', _store.sources),
+      if (groups.length > 1)
+        SourceGroup('all', AppL10n.current.allSources, _store.sources),
       ...groups,
     ];
   }
@@ -100,9 +102,11 @@ class CatalogController extends ChangeNotifier {
     final online = group.sources
         .where((source) => source.onlineSearch)
         .toList();
-    if (online.isEmpty) return '筛选本机已更新剧库';
+    if (online.isEmpty) return AppL10n.current.filterUpdatedLibrary;
     final names = online.map((source) => source.name).join('、');
-    return online.length == group.sources.length ? '搜索$names' : '搜索$names及本机剧库';
+    return online.length == group.sources.length
+        ? AppL10n.current.searchSources(names)
+        : AppL10n.current.searchSourcesLocal(names);
   }
 
   String get category => _categorySelections[group.id] ?? '';
@@ -113,7 +117,7 @@ class CatalogController extends ChangeNotifier {
   List<CatalogCategory> get displayCategories => [
     CatalogCategory.all,
     if (group.id == 'hongguo')
-      const CatalogCategory(recommendationCategory, '推荐'),
+      CatalogCategory(recommendationCategory, AppL10n.current.recommendations),
     ...categories.where((entry) => entry.id.isNotEmpty),
   ];
 

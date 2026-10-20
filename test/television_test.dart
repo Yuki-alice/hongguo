@@ -1,8 +1,8 @@
-import 'package:duanju_app/app_layout.dart';
-import 'package:duanju_app/local_store.dart';
+import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/main.dart';
-import 'package:duanju_app/models.dart';
-import 'package:duanju_app/remote_widgets.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/ui/core/remote_widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

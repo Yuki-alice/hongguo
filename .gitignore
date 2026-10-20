@@ -42,6 +42,11 @@ ios/DuanjuCore/*.xcframework/
 # Rust engine build artifacts
 engine/target/
 engine/Cargo.lock.bak
+# 插件模板是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）
+engine/examples/plugin-template/target/
+# 官方规则仓库的构建产物：由 pack_rules 从 rules/*.json 重新生成，
+# 不进版本管理（否则改规则时容易忘记重新打包）
+engine/dist/
 
 # Rust 引擎构建产物
 # cargokit 构建工具的本地产物

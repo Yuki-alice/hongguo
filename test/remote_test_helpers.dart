@@ -1,4 +1,5 @@
-import 'package:duanju_app/app_layout.dart';
+import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,8 @@ void focusRemote(WidgetTester tester, Finder finder) {
 }
 
 Widget televisionHost({required Widget child}) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   theme: televisionTheme(ThemeData.dark()),
   builder: (_, child) => AppLayout(
     television: true,

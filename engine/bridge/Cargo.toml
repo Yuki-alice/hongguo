@@ -12,20 +12,20 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }
 
 [dependencies]
+guo-host = { path = "../crates/host" }
+guo-media = { path = "../crates/media" }
+guo-plugin-host = { path = "../crates/plugin-host" }
+# 体积决策 A（2026-10-20 已定）：三端全量引入 wasmtime，不为体积做平台分层。
+guo-plugin-wasm = { path = "../crates/plugin-wasm" }
+guo-rule-engine = { path = "../crates/rule-engine" }
+guo-runtime = { path = "../crates/runtime" }
 guo-source-api = { path = "../crates/source-api" }
-aes.workspace = true
+guo-source-hongguo = { path = "../crates/source-hongguo" }
+guo-source-maoguo = { path = "../crates/source-maoguo" }
 async-trait.workspace = true
-cbc.workspace = true
-cipher.workspace = true
-cssparser.workspace = true
 flutter_rust_bridge = "=2.13.0"
-hex.workspace = true
-reqwest.workspace = true
-rquickjs.workspace = true
-scraper.workspace = true
-serde.workspace = true
+semver.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

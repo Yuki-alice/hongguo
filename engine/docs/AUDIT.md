@@ -19,6 +19,24 @@ CI 中没有任何 Rust 步骤（`checks` / `android` / `ios` 三个 job 均为 
 
 ---
 
+## 0.1 修复进度（2026-10-20 更新）
+
+| 条目 | 状态 |
+| --- | --- |
+| 1.1 CI 不验证 Rust | ✅ 已修：`.github/workflows/build.yml` 新增 `rust` job（fmt / clippy / test / 依赖方向守卫） |
+| 1.1 `engine/` 未进 Git | ✅ 已修：`engine/`、`rust_builder/` 已纳入版本管理 |
+| 1.2 Go 参考测试失败 | ✅ 已修：`go test ./...` 全绿（33 s）。最后一项 `TestRankingCacheAndStaleRecovery` 是夹具缺陷——第 1 页请求不带 `?page=`，夹具却按 0 处理，于是把 `pageNum: 0` 写进数据；未修改的 `reference/` 仍可复现同一失败，证明是测试侧问题而非实现回归 |
+| 2.x 单一 crate / 全局单例 | ✅ 已拆：9 crate 工作区，`bridge` 只留 FRB 边界 |
+| 3.1 全量缓冲 | ✅ 已修：`max_bytes` + `chunk()` 流式截断；HLS 探测只读 1 KiB 前缀 |
+| 3.2 下载删除路径 | ✅ 已修 |
+| 3.3 HLS 断点续传 / validator | ✅ 已修：分片签名 + 已完成数，`If-Range` 有值 |
+| 3.4 `panic = "abort"` | ✅ 已修：改回 `unwind` 并注释原因 |
+| 4.x 无插件概念 | ✅ 已落地：`plugin-host`（包/仓库/安装器）+ `plugin-wasm`（组件宿主）+ 模板与真实组件测试 |
+
+未完成项见 `PROGRESS.md` 第十三轮「未做」小节。
+
+---
+
 ## 1. 阻断级问题（P0，先修）
 
 ### 1.1 CI 完全不验证 Rust

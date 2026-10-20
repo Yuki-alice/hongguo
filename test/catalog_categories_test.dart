@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/catalog_browser.dart';
-import 'package:duanju_app/core_bridge.dart';
-import 'package:duanju_app/local_store.dart';
+import 'package:duanju_app/data/catalog_browser.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/main.dart';
-import 'package:duanju_app/models.dart';
-import 'package:duanju_app/ranking_models.dart';
-import 'package:duanju_app/widgets.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/domain/ranking_models.dart';
+import 'package:duanju_app/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

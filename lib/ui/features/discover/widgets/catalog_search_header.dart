@@ -1,7 +1,8 @@
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 
-import '../../../theme/md3_tokens.dart';
-import '../../../../search_input.dart';
+import 'package:duanju_app/ui/theme/md3_tokens.dart';
+import 'package:duanju_app/ui/core/search_input.dart';
 
 /// 发现页顶部的搜索区：搜索框 + 最近搜索 chips。
 ///
@@ -87,7 +88,7 @@ class CatalogSearchHeader extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: '清空最近搜索',
+                  tooltip: AppLocalizations.of(context).clearRecentSearches,
                   onPressed: onClearRecent,
                   icon: const Icon(Icons.delete_outline_rounded, size: 20),
                 ),

@@ -1,11 +1,13 @@
 [package]
 name = "guo-source-api"
-description = "站源插件契约：数据模型、能力位与错误类型"
+description = "站源插件契约：数据模型、能力位、错误类型与 SourcePlugin trait"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# 只允许契约层需要的最小集合：序列化、错误、async trait 宏。
+# 出现 tokio / reqwest / wasmtime / scraper 即视为越界（§6.3）。
+async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-

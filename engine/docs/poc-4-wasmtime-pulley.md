@@ -1,8 +1,8 @@
 # P0 探针：wasmtime + Pulley 三端可行性
 
-日期：2026-10-19
-结论：**技术上可行，但体积超出预算 30–50%，需要一次决策**。
-关联：`ARCHITECTURE.md` §9.3、决策 D1。
+日期：2026-10-19（测量）· 2026-10-20（决策）
+结论：**技术可行；体积超出软预算，已决定采用 A（接受增量）**。
+关联：`ARCHITECTURE.md` §9.3、决策 D1、D7（本轮新增）。
 
 ---
 
@@ -143,3 +143,47 @@ cargo build --release -p guo-plugin-wasm --target aarch64-linux-android
 # 冷启动
 cargo run --release -p guo-plugin-wasm --example measure
 ```
+
+
+---
+
+## 8. 决策结果（2026-10-20）：采用 A
+
+**D7 已定：接受 wasmtime 的体积增量，不做平台分层、不做运行时裁剪。**
+
+理由：
+
+1. **一套代码的收益大于包体成本**。B（平台分层）会让 iOS 与其它平台长期分叉，
+   插件行为在不同端不一致，后续每次改动都要三份验证；
+2. **C 的不确定性太高**。它要求插件由仓库分发 Pulley 预编译字节码，
+   等于把「插件作者必须配好工具链」升级成「插件作者必须用我们的构建管线」，
+   与「社区可自行发布插件」的目标冲突；
+3. **实测增量没有探针阶段担心的那么糟**（见下），且只在安装包含代码插件时才有意义。
+
+### 决策后的复测（真实调用点，非空壳链接）
+
+把 `guo-plugin-wasm` 真正接进 `guo_engine` 的注册表（`builtin_registry()` 会加载已安装的
+代码插件）后重新测量。这一步很关键：只声明依赖不建立调用链时，LTO 会把整个运行时裁掉。
+
+| 产物 | 不含 wasmtime | 含 wasmtime | 增量 |
+| --- | --- | --- | --- |
+| macOS `libguo_engine.dylib` | 8,315,984 B（7.93 MiB） | 20,872,096 B（19.91 MiB） | **+11.97 MiB** |
+| iOS `libguo_engine.a`（staticlib） | 15,112,384 B（14.41 MiB） | 26,225,976 B（25.01 MiB） | **+10.60 MiB** |
+
+对比探针阶段的 10.47 MiB / 9.2 MB：接上真实 `ComponentSource` 与 WIT 宿主胶水后，
+增量比空壳测量**更大**，说明之前那组数字是偏乐观的估计。
+
+### 已知的构建约束（不是本轮引入）
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| `cargo build -p guo_engine --target aarch64-apple-ios`（动态库）链接失败：`___chkstk_darwin` 未定义 | 来自 `rquickjs_sys`（QuickJS），与本轮无关；iOS 实际只需要 `staticlib` | 用 `--crate-type staticlib` 构建；fluter 侧走的也是 staticlib |
+| `cargo build --target aarch64-linux-android` 报 `'stdio.h' file not found` | `rquickjs-sys` 的 bindgen 需要 NDK sysroot，命令行交叉编译没带 | 走 `flutter build apk`（Gradle 提供完整 NDK 环境） |
+
+### 后续触发条件
+
+出现下列任一情况时重新评估（而不是现在就优化）：
+
+- 安装包体积成为商店审核或用户投诉的实际问题；
+- 代码插件在真实设备上的占比远低于预期（那就该考虑把插件改为可选下载模块）；
+- wasmtime 上游提供 feature 级的运行时裁剪（届时 C 的成本会大幅下降）。

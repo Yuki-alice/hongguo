@@ -1,6 +1,7 @@
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 
-import '../../../theme/md3_tokens.dart';
+import 'package:duanju_app/ui/theme/md3_tokens.dart';
 
 /// 多选下载时的底部操作条（Material 3 bottom app bar 变体）。
 ///
@@ -23,6 +24,7 @@ class CatalogSelectionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final summary = Semantics(
@@ -32,14 +34,14 @@ class CatalogSelectionBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            count == 0 ? '点选要下载的短剧' : '已选 $count 部',
+            count == 0 ? l10n.selectDramasHint : l10n.selectedDramas(count),
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: Md3Spacing.xs),
           Text(
-            count == 0 ? '最多 $maxCount 部' : '下一步选择分集和画质',
+            count == 0 ? l10n.maxDramas(maxCount) : l10n.nextStepHint,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -58,7 +60,7 @@ class CatalogSelectionBar extends StatelessWidget {
           vertical: Md3Spacing.md,
         ),
       ),
-      child: const Text('下一步'),
+      child: Text(l10n.nextStep),
     );
     return Material(
       color: colors.surface,

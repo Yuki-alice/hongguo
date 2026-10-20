@@ -1,0 +1,1682 @@
+{
+  "@@locale": "zh",
+  "storageTitle": "下载目录与空间",
+  "storageUsed": "已使用 {size}",
+  "@storageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "storageFree": "剩余 {free} · {files} 个文件",
+  "@storageFree": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "files": {
+        "type": "int"
+      }
+    }
+  },
+  "storageCurrentDirectory": "当前下载目录",
+  "copyPath": "复制路径",
+  "storageCleanupHint": "在下载页删除不需要的分集，在本地媒体页删除合并成品或 Emby 导出，可释放空间。",
+  "storageMigrating": "正在迁移，请保持应用运行…",
+  "storageChangeDirectory": "更改并迁移目录",
+  "storageRefresh": "刷新用量",
+  "storageChooseDirectory": "选择下载位置",
+  "storageInternal": "应用内部存储",
+  "storageShared": "设备共享存储（应用目录）",
+  "storageSdCard": "SD 卡 {index}（应用目录）",
+  "@storageSdCard": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "storageDocuments": "文件 App 可见目录",
+  "storageMigrateTitle": "迁移已下载内容？",
+  "storageMigrateMessage": "将视频、合并成品及导出内容迁移到：\n{path}\n\n下载会先暂停，复制成功后清理旧目录。请保证目标有足够空间，并在完成后继续下载。",
+  "@storageMigrateMessage": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "取消",
+  "migrate": "迁移",
+  "unlockApp": "解锁{appName}",
+  "@unlockApp": {
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "userManagement": "用户管理",
+  "recoverLocalConfig": "需要恢复本地配置",
+  "restoreFromBackup": "从备份恢复",
+  "exportOriginalConfig": "导出原始配置",
+  "reloadConfig": "重新读取配置",
+  "chooseUserAndPin": "选择用户并输入密码",
+  "currentUser": "当前用户：{name}",
+  "@currentUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profilesIsolationHint": "各用户的追剧和观看记录独立保存，下载文件由本机共享。",
+  "requireLoginOnStartup": "启动时需要登录",
+  "requireLoginOnSubtitle": "每次打开应用先解锁当前受保护用户",
+  "requireLoginOffSubtitle": "保留密码，仅切换用户或手动锁定时验证",
+  "editUser": "编辑用户",
+  "addUser": "添加用户",
+  "lockCurrentUser": "锁定当前用户",
+  "restoreProfilesTitle": "从备份恢复用户与记录？",
+  "restoreProfilesBody": "将使用这份备份替换损坏的用户配置、追剧、观看记录和偏好。建议先导出原始配置；已下载视频保留。",
+  "continueRestore": "继续恢复",
+  "loginTitle": "登录 {name}",
+  "@loginTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "password": "密码",
+  "login": "登录",
+  "username": "用户名",
+  "setPassword": "设置密码（至少 6 位）",
+  "keepPasswordHint": "留空保留原密码",
+  "confirmPassword": "再次输入密码",
+  "clearUserPin": "取消此用户密码",
+  "allowedSources": "允许访问的站源",
+  "allowDownloads": "允许下载和本地媒体",
+  "downloadAllowedSubtitle": "可下载、合并和导出",
+  "onlineOnlySubtitle": "仅在线观看，隐藏下载入口",
+  "adminHint": "管理员可以访问全部站源和功能。创建其他用户前需要先设置管理员密码。",
+  "saving": "正在保存…",
+  "save": "保存",
+  "deleteUser": "删除用户",
+  "deleteUserTitle": "删除此用户？",
+  "deleteUserBody": "会同时删除该用户的追剧和观看记录。下载文件会保留。",
+  "delete": "删除",
+  "permissionsAdmin": "管理员 · 全部权限",
+  "noSources": "未开放站源",
+  "downloadAllowed": "可下载",
+  "onlineOnly": "仅在线观看",
+  "adminBackupPassword": "管理员（原配置或备份中的密码）",
+  "sourcesTitle": "站源管理",
+  "sourcesIntro": "各站源可分别更新和检测。更新会查找新剧、继续加载一页历史内容，并分批补齐资料；离开此页后任务继续。",
+  "sourcesEmpty": "当前用户没有可用站源",
+  "sourceHuangguoGroup": "黄果",
+  "sourceGroupSummary": "{count} 个入口 · {total} 部",
+  "@sourceGroupSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceCount": "{count} 部",
+  "@sourceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceLastUpdated": "最近更新：{value}",
+  "@sourceLastUpdated": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceUpdate": "更新",
+  "sourceCheck": "检测连接与播放",
+  "sourceStop": "停止",
+  "sourceMoreActions": "{name}更多操作",
+  "@sourceMoreActions": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceLoadMore": "继续加载一页",
+  "sourceFillMetadata": "补齐资料",
+  "sourceFillVip": "补齐 VIP 资料（{count} 部）",
+  "@sourceFillVip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceCheckCatalog": "仅检测目录",
+  "sourceRetrySave": "重试保存",
+  "sourceCopyDiagnostics": "复制诊断信息",
+  "sourceSample": "检测剧集：{value}",
+  "@sourceSample": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceStep": "{name}：{message}",
+  "@sourceStep": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceStepHost": "{host} · HTTP {status} · {elapsed} ms",
+  "@sourceStepHost": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "status": {
+        "type": "int"
+      },
+      "elapsed": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceCfRay": "CF Ray: {value}",
+  "@sourceCfRay": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceNotTested": "尚未检测连接",
+  "diagnosticsCopied": "诊断信息已复制",
+  "sourceNoRecord": "尚无记录",
+  "sourceDiagnostics": "站源诊断",
+  "sourceCacheSummary": "缓存 {count} 部，更新 {updated}",
+  "@sourceCacheSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceHealthSummary": "{label} · {checked}",
+  "@sourceHealthSummary": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "checked": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceLoadedPage": "已加载至第 {page} 页",
+  "@sourceLoadedPage": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceCanLoadMore": "可继续加载",
+  "sourcePageComplete": "当前分页已加载完",
+  "sourceRetryIn": "请在 {seconds} 秒后重试",
+  "@sourceRetryIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcePreparing": "准备中",
+  "sourceAdded": "新增 {count} 部",
+  "@sourceAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceCollapseHealth": "收起检测详情",
+  "sourceExpandHealth": "展开检测详情",
+  "sourceStepHostNoStatus": "{host} · {elapsed} ms",
+  "@sourceStepHostNoStatus": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadPickerTitle": "下载选集",
+  "downloadPickerMax": "一次最多加入 500 集，请分批下载",
+  "onlyNonVip": "仅非 VIP",
+  "originalQualityHint": "保存源站原始视频；指定画质不可用时自动使用可用版本。",
+  "selectAll": "全选",
+  "clearSelection": "清空",
+  "cancelSelectAll": "取消全选",
+  "addDownloadsCount": "加入下载 · {count} 集",
+  "@addDownloadsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectedCount": "已选 {count}",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vipTrialHint": "已选 VIP 集可能只能下载试看内容。",
+  "selectedFirst500": "已选前 500 集；可清空后按分组选择其他集数，或从发现页使用整剧批量下载",
+  "addingDownloads": "正在加入下载…",
+  "quality": "画质",
+  "autoHigh": "自动 · 高清",
+  "aiDrama": "AI 剧",
+  "realDrama": "真人剧",
+  "comicDrama": "漫剧",
+  "recommendationTitle": "红果推荐",
+  "recommendationLoaded": "公开推荐 · 已加载 {count} 部",
+  "@recommendationLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "refreshRecommendations": "刷新推荐",
+  "refreshForNew": "刷新获取新推荐",
+  "recommendationNoPermission": "当前用户未开放红果",
+  "recommendationNoPermissionHint": "可在用户管理中调整站源权限。",
+  "recommendationLoadFailed": "推荐暂时无法加载",
+  "recommendationEmpty": "暂无推荐",
+  "recommendationEnded": "本轮推荐已看完，刷新获取新推荐",
+  "recommendationLater": "稍后刷新可获取新的推荐。",
+  "recommendationMore": "继续推荐",
+  "retry": "重试",
+  "clearHistoryTitle": "清空观看记录？",
+  "clearHistoryBody": "这会删除当前用户的观看进度，追剧状态和手动已看标记会保留。",
+  "clear": "清空",
+  "savedHeader": "{title} · {count}",
+  "@savedHeader": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recentlyWatched": "最近观看",
+  "myFollows": "我的追剧",
+  "clearHistoryTooltip": "清空观看记录",
+  "searchHistoryHint": "搜索观看记录",
+  "searchFollowsHint": "搜索追剧",
+  "clearSearch": "清空搜索",
+  "filterAll": "全部",
+  "filterUpdates": "有更新",
+  "followPlanned": "想看",
+  "followWatching": "在看",
+  "followWatched": "已看",
+  "continueWatchingTitle": "继续观看 · {name}",
+  "@continueWatchingTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "episodeProgress": "第 {episode} 集 · {position}",
+  "@episodeProgress": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      },
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "noHistory": "还没有观看记录",
+  "noFollows": "还没有追剧",
+  "noMatches": "没有匹配的记录",
+  "emptyHistoryHint": "去发现页，挑一部喜欢的短剧。",
+  "emptyFilterHint": "可以更换搜索词或筛选条件。",
+  "followManual": "已看 · 手动标记",
+  "followUpdateEpisodes": "{count} 集更新",
+  "@followUpdateEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "followUpdateSeasons": "新季 {count} 部",
+  "@followUpdateSeasons": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mergeQueueTitle": "合并队列",
+  "addMultipleDramas": "添加多部剧",
+  "addDramas": "添加剧集",
+  "currentUserSwitched": "当前用户已切换",
+  "reopenMergeQueue": "请返回后重新打开合并队列。",
+  "noMergeTasks": "还没有合并任务",
+  "mergeQueueEmptyHint": "选择多部剧加入队列，依次合并已下载的连续分集。",
+  "selectMergeDramas": "选择要合并的剧",
+  "mergeQueueIntro": "按已有的连续集数合并，每次最多加入 50 部。中断后可从保存的步骤继续。",
+  "needTwoContinuous": "请先下载至少两集连续视频",
+  "downloadedEpisodesRange": "已下载 {count} 集 · 第 {first}–{last} 集",
+  "@downloadedEpisodesRange": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "cleanupOriginals": "完成后删除原分集",
+  "cleanupHint": "仅在成品通过完整解码并保存后删除；默认保留原视频。",
+  "joinDramas": "加入 {count} 部",
+  "@joinDramas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addedDramas": "已加入 {count} 部，已有合并任务自动跳过",
+  "@addedDramas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pause": "暂停",
+  "resume": "继续",
+  "cancelTask": "取消任务",
+  "cleanRecords": "清理记录",
+  "mergeCleaned": "完成后清理分集",
+  "mergeEpisodeRange": "第 {first}–{last} 集 · {label}{cleanup}",
+  "@mergeEpisodeRange": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      },
+      "cleanup": {
+        "type": "String"
+      }
+    }
+  },
+  "batchDownloadTitle": "批量下载",
+  "downloadPermissionChanged": "下载权限已变更",
+  "reselectDramas": "请返回后重新选择短剧。",
+  "batchIntro": "先读取分集，再加入下载。默认选择非 VIP 集，已有任务自动跳过。",
+  "batchCount": "{count} 部短剧",
+  "@batchCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadQuality": "下载画质",
+  "autoHighPriority": "自动 · 优先高清",
+  "includeVip": "包含 VIP 分集",
+  "vipPreviewHint": "VIP 集可能只能下载试看内容",
+  "readingEpisodes": "正在读取分集",
+  "waitingEpisodes": "等待读取分集",
+  "noNonVip": "没有非 VIP 分集，可手动选择包含 VIP",
+  "selectedEpisodes": "已选 {count} 集",
+  "@selectedEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "excludedVip": "排除 {count} 集 VIP",
+  "@excludedVip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addedEpisodes": "新增 {count} 集",
+  "@addedEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "existingEpisodes": "已有 {count} 集",
+  "@existingEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queued": "已加入队列",
+  "addingDramas": "正在添加",
+  "readingDramas": "正在读取",
+  "batchRetry": "{count} 部需重试",
+  "@batchRetry": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchStopped": "已停止后续添加，已加入任务继续下载",
+  "readRemaining": "读取剩余 / 重试",
+  "viewDownloads": "查看下载",
+  "stopReading": "停止读取",
+  "stopAdding": "停止添加",
+  "stopping": "正在停止",
+  "continueAdding": "继续添加",
+  "addDownloads": "加入下载",
+  "batchSubmit": "{action} · {count} 集",
+  "@batchSubmit": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "localMediaTitle": "本地媒体",
+  "localMediaRefresh": "刷新",
+  "mergedProducts": "合并成品",
+  "embyExports": "Emby 导出",
+  "mergeDownloadedEpisodes": "合并已下载分集",
+  "exportDownloadedEpisodes": "导出已下载分集",
+  "mergeProductsEmpty": "合并成品会显示在这里，可直接播放和续播。",
+  "noExportedMedia": "暂未导出媒体",
+  "embyFolderHint": "将 exports 目录加入 Emby 电视节目库，可读取分集名称和海报元数据。自动导出可在设置中开启。",
+  "copyEmbyDirectory": "复制 Emby 媒体目录",
+  "exportToEmbySpecial": "导出到 Emby 特别篇",
+  "exportWhichDrama": "导出哪部剧到 Emby？",
+  "allDownloaded": "全部已下载 · {count} 集",
+  "@allDownloaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadedEpisodesCount": "已下载 {count} 集",
+  "@downloadedEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadEpisodesFirst": "请先下载分集",
+  "deleteMediaTitle": "删除此媒体文件？",
+  "deleteMediaBody": "将删除此成品文件。已单独保存的原分集不受影响。",
+  "deleteMediaKeepHint": "此分集不再自动导出，需要时可手动重新导出。",
+  "keep": "保留",
+  "deleteProduct": "删除成品",
+  "copyFilePath": "复制文件路径",
+  "playAll": "全集播放",
+  "localPlay": "本地播放",
+  "mergedEpisodes": "已合并 {count} 集",
+  "@mergedEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "specialRange": "特别篇 {number} · 第 {first}–{last} 集",
+  "@specialRange": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeSingle": "第 {first} 集",
+  "@episodeSingle": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      }
+    }
+  },
+  "transcodeSummary": "视频转码 {video} 集 · 音轨处理 {audio} 集",
+  "@transcodeSummary": {
+    "placeholders": {
+      "video": {
+        "type": "int"
+      },
+      "audio": {
+        "type": "int"
+      }
+    }
+  },
+  "mergedVideo": "合并视频",
+  "localMediaNoPermission": "当前用户无权读取此视频",
+  "localMediaMissing": "本地成品文件缺失，请重新生成。",
+  "localMediaOnly": "此成品仅支持本地播放",
+  "resourceSettingsTitle": "网络与资源",
+  "adminRequired": "需要管理员权限",
+  "switchToAdmin": "请返回后切换管理员。",
+  "connectionMode": "连接方式",
+  "proxyAuto": "自动",
+  "proxyDirect": "直连",
+  "proxyManual": "手动代理",
+  "systemProxyHint": "使用系统静态代理；未配置时使用环境变量或直连。",
+  "proxyAddress": "代理地址",
+  "proxyHint": "支持 HTTP、HTTPS、SOCKS5；仅保存在本机，不进入配置备份。",
+  "showProxy": "显示代理地址",
+  "hideProxy": "隐藏代理地址",
+  "catalogConcurrency": "目录请求并发",
+  "catalogInterval": "目录请求间隔 · {value} 毫秒",
+  "@catalogInterval": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "intervalMs": "{value} 毫秒",
+  "@intervalMs": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadConcurrency": "同时下载数量",
+  "downloadBySource": "按站源分类保存",
+  "downloadBySourceHint": "新任务放入各站源的子目录，已有下载继续使用原位置。",
+  "settingsReadFailed": "无法读取设置",
+  "settingsSaved": "设置已保存，将用于后续请求和下载任务",
+  "downloadPrefsTitle": "下载偏好",
+  "defaultQuality": "默认画质",
+  "defaultQualityHint": "指定画质不可用时，使用源站提供的可用版本。",
+  "includeVipDefault": "默认包含 VIP 集",
+  "includeVipHint": "VIP 集可能仅提供试看内容；下载前仍可调整选择。",
+  "prefsSavedHint": "偏好保存在当前用户中，应用于下载选集、批量下载和更新本剧。",
+  "settingsTitle": "设置与备份",
+  "appearanceTheme": "外观主题",
+  "followSystemTheme": "随设备的深色模式自动切换",
+  "deviceInterop": "设备互联",
+  "lanAutoSyncHint": "同步追剧、观看状态和这些剧目的续播进度",
+  "sourceManagement": "站源管理",
+  "sourceManageHint": "独立更新、连接与播放检测",
+  "currentProfile": "当前：{name}",
+  "@currentProfile": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "storageEntryHint": "查看存储用量、迁移已下载文件",
+  "networkResourcesHint": "代理、目录请求间隔、下载并发与站源目录",
+  "autoExportEmby": "下载完成后自动导出 Emby",
+  "autoExportEmbyShort": "自动导出 Emby",
+  "autoExportOn": "已开启 · 在 exports 目录生成视频与海报元数据",
+  "autoExportOff": "已关闭 · 按确认开启",
+  "autoExportHint": "在下载目录的 exports 中生成视频和海报 URL 元数据，可将该目录加入 Emby 媒体库。",
+  "exportPosters": "导出海报文件",
+  "exportPostersTogether": "同时导出海报文件",
+  "exportPostersOn": "已开启 · 同时写入海报文件",
+  "exportPostersOff": "已关闭 · 只写海报 URL",
+  "exportPostersHint": "默认只写海报 URL。源站海报需要解密或外部读取失败时可开启。",
+  "exportBackupTitle": "导出配置备份",
+  "exportBackupHint": "包含本地用户、追剧、历史和设置，不含视频文件",
+  "restoreBackupTitle": "恢复配置备份",
+  "restoreBackupHint": "从备份文件恢复用户与设置",
+  "restoreConfirmTitle": "恢复备份？",
+  "restoreThisBackup": "恢复这套备份",
+  "restore": "恢复",
+  "backupTooLarge": "备份文件过大或无法读取",
+  "backupProfilesSummary": "包含 {count} 个用户。将替换本机的用户、追剧、观看记录和偏好设置；已下载视频保留。恢复后使用备份内的管理员密码登录。",
+  "@backupProfilesSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "iosForegroundHint": "iOS 下载和媒体处理需要保持应用在前台；切到后台会暂停，回到前台后可继续。",
+  "detailVipContent": "VIP 内容",
+  "detailFreeContent": "免费内容",
+  "detailVipPending": "VIP 状态待补齐",
+  "detailEpisodeCount": "共 {count} 集",
+  "@detailEpisodeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailGroup": "分组",
+  "detailUnavailable": "剧集信息暂时不可用",
+  "detailUnavailableHint": "可以更新剧集信息后重试。",
+  "detailFollow": "加入追剧",
+  "detailUnfollow": "取消追剧",
+  "detailTryPlay": "尝试播放",
+  "detailExpand": "展开",
+  "detailExpandSynopsis": "展开简介",
+  "detailCollapse": "收起",
+  "detailCollapseSynopsis": "收起简介",
+  "detailNoPlayable": "暂时没有可播放的集数",
+  "detailRefreshInfo": "更新剧集信息",
+  "detailSaveFailed": "未能保存，请检查存储空间和权限后重试。",
+  "detailView": "查看",
+  "detailHeat": "热度 {value}",
+  "@detailHeat": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "detailRelated": "相关推荐",
+  "detailPlayNow": "立即播放",
+  "detailVipWarning": "站源可能只提供试看或限制播放。",
+  "detailResumeEpisode": "继续播放 · 第 {number} 集",
+  "@detailResumeEpisode": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "detailNoAccess": "当前用户无权访问",
+  "detailNoAccessHint": "请返回剧库后重新选择。",
+  "detailVipDialogTitle": "这是一集 VIP 内容",
+  "detailFollowStatus": "追剧与观看状态",
+  "detailEpisodeSelector": "选集 · {count} 集{current}",
+  "@detailEpisodeSelector": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "detailCurrentNumber": " · 当前第 {number} 集",
+  "@detailCurrentNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "detailOnlineDate": "{value} 上线",
+  "@detailOnlineDate": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "detailMarkRead": "{label} · 标为已读",
+  "@detailMarkRead": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "detailAdded": "已加入 {count} 集，已有任务自动跳过",
+  "@detailAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailAlreadyQueued": "所选集数已在下载列表中",
+  "detailPlayViews": "播放 {value}",
+  "@detailPlayViews": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "detailTotalEpisodes": "共 {count} 集",
+  "@detailTotalEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverTitle": "发现",
+  "switchSource": "切换站源",
+  "search": "搜索",
+  "closeSearch": "收起搜索",
+  "vipShow": "VIP：显示",
+  "vipHide": "VIP：隐藏",
+  "download": "下载",
+  "about": "关于",
+  "loadMore": "加载更多",
+  "noMatchingDramas": "没有找到匹配的短剧",
+  "searchEmptyHint": "可以换个搜索词，或显示 VIP 内容。",
+  "errorEmptyHint": "可以换个搜索词，或刷新后重试。",
+  "sourceEmptyHint": "可以换个搜索词或切换站源。",
+  "multiDownload": "多选下载",
+  "allCaughtUp": "已经看到这里的全部剧集",
+  "sortAndFilter": "排序与筛选 · {value}",
+  "@sortAndFilter": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "noAvailableSources": "暂无可用站源",
+  "loadFailed": "暂时无法加载",
+  "more": "更多",
+  "refreshLibrary": "更新剧库",
+  "loadingDramas": "正在加载剧集",
+  "displayMode": "界面模式",
+  "noSourcesHint": "请联系管理员为当前用户开放站源。",
+  "follows": "追剧",
+  "lanSyncTitle": "追剧同步",
+  "selectDrama": "选择短剧",
+  "rankingsTitle": "榜单",
+  "switchRankingSource": "切换榜单站源",
+  "allRankingsShown": "已显示全部榜单",
+  "noRankingsHint": "当前站源暂无可显示的榜单。",
+  "noRankings": "暂无榜单内容",
+  "refreshRankings": "更新榜单",
+  "rankingsLoadFailed": "榜单暂时无法加载",
+  "rankingsLoadingHint": "正在获取榜单，数据未完整返回时会自动重试",
+  "rankLabel": "第 {rank} 名，{title}{metric}",
+  "@rankLabel": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      },
+      "title": {
+        "type": "String"
+      },
+      "metric": {
+        "type": "String"
+      }
+    }
+  },
+  "homeMaxSelection": "一次最多选择 50 部短剧，请分批下载",
+  "displayPhoneComputer": "手机 / 电脑",
+  "searchGroup": "搜索{name}短剧",
+  "@searchGroup": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "searchOpenSources": "搜索已开放站源",
+  "cacheReadError": "更新后读取缓存失败：{error}",
+  "@cacheReadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "appIntro": "独立运行，打开即可浏览和播放。观看记录与追剧收藏保存在当前设备。",
+  "displayTelevision": "电视 / 遥控器",
+  "autoDetectDevice": "自动识别设备",
+  "filterLoadedDramas": "筛选当前已加载短剧",
+  "prevEpisode": "上一集",
+  "nextEpisode": "下一集",
+  "speed": "倍速",
+  "danmakuOff": "关闭弹幕",
+  "danmakuOn": "打开弹幕",
+  "compareOriginal": "原画对比",
+  "comparingOriginal": "原画对比中，点击恢复增强",
+  "startPlayback": "开始播放",
+  "pausePlayback": "暂停播放",
+  "danmakuShort": "弹",
+  "restoreVolume": "恢复音量",
+  "push": "推送",
+  "pushTo": "推送到 {name}",
+  "@pushTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rotateFullscreen": "旋转与全屏",
+  "clarity": "清晰度",
+  "pictureInPicture": "画中画",
+  "back": "返回",
+  "exitFullscreen": "退出全屏",
+  "episodes": "选集",
+  "mute": "静音",
+  "volume": "音量",
+  "play": "播放",
+  "playbackProgress": "播放进度，左右键快进或后退十秒",
+  "fullscreenControlsHint": "控制条隐藏后：左右快进 10 秒，上下或确认键显示控制条",
+  "nextPreloadOn": "下一集预加载：开",
+  "nextPreloadOff": "下一集预加载：关",
+  "danmakuEnabledLabel": "弹幕：开",
+  "danmakuDisabledLabel": "弹幕：关",
+  "autoAdvanceOn": "自动连播：开",
+  "autoAdvanceOff": "自动连播：关",
+  "autoHighParen": "自动（优先高清）",
+  "restoreEnhancement": "恢复增强",
+  "seekPauseHint": "左右快进 · 确认暂停",
+  "returnPlayback": "返回播放",
+  "episodeTotal": "选集 · 共 {count} 集",
+  "@episodeTotal": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retryDanmaku": "重试弹幕",
+  "playbackSettings": "播放设置",
+  "playerMenuHint": "上下滑切集；长按画面临时 3 倍速，松开恢复。竖屏轻点暂停，横屏轻点显示控制；双击播放或暂停。",
+  "preloadNext": "下一集预加载",
+  "useAvailableQuality": "使用源站可用画质",
+  "autoAdvanceStopHint": "关闭后，播放结束停在当前集",
+  "closeMenu": "关闭菜单",
+  "qualityPrefFallback": "已保存 {count}P 偏好，本集暂无此画质。",
+  "@qualityPrefFallback": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "danmaku": "弹幕",
+  "actualQuality": "当前播放 {count}P",
+  "@actualQuality": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playbackSpeed": "播放倍速",
+  "saveSettingsFailed": "未能保存设置，请检查存储空间后重试。",
+  "localNoPreload": "本地播放不预取网络视频",
+  "localQualityHint": "本集正在播放本地原画，画质偏好用于后续在线播放。",
+  "keyboardHelp": "空格：播放 / 暂停\\n左右键：后退 / 快进 5 秒\\n长按右键或画面：临时 3 倍速\\n上下键：音量 ±5%，M：静音\\nF、F11、Ctrl+F：全屏\\nEsc：先关闭菜单，再退出全屏",
+  "autoAdvance": "自动连播",
+  "downloadsTitle": "下载合集",
+  "confirmDelete": "确认删除",
+  "filterDownloads": "筛选下载合集",
+  "taskStatus": "任务状态",
+  "episodeStatusFilter": "剧集状态",
+  "apply": "应用",
+  "selectAllCurrent": "全选当前",
+  "exitSelection": "退出多选",
+  "multiSelectDownloads": "多选下载任务",
+  "localMediaMerge": "本地媒体与合并",
+  "queueActions": "队列操作",
+  "pauseAll": "全部暂停",
+  "resumeAll": "全部继续",
+  "archiveCompleted": "清理已完成任务，保留视频",
+  "refreshRecords": "刷新记录",
+  "collectionActions": "{title} · 合集操作",
+  "@collectionActions": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCollectionFull": "更新本剧 · 补充新增与缺失",
+  "selectCollection": "选择本合集",
+  "pauseCollection": "暂停本合集",
+  "resumeCollection": "继续 / 重试本合集",
+  "restoreList": "恢复到任务列表",
+  "removeCollection": "取消任务并删除视频",
+  "episodeActions": "分集操作",
+  "resumeRetry": "继续 / 重试",
+  "stopBatch": "停止批量操作",
+  "retryFailed": "重试失败项",
+  "searchDownloads": "搜索下载合集",
+  "updateDrama": "更新本剧",
+  "cleanupCompleted": "清理已完成任务",
+  "episodeTitle": "第 {number} 集",
+  "@episodeTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "episodeTitleVip": "第 {number} 集 · VIP",
+  "@episodeTitleVip": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "noAccessDownloads": "当前用户无权访问下载",
+  "returnRetry": "请返回后重新操作。",
+  "downloadsSearchHint": "搜索剧名、站源或分类",
+  "noReadDownloads": "无法读取下载记录",
+  "noTasksHint": "在剧集详情选择下载，或调整筛选查看已保留的视频。",
+  "collectionActionTitle": "合集操作",
+  "collectionActionHint": "更新本剧、选择、暂停、继续、清理或删除整部剧",
+  "deleteVideo": "删除视频",
+  "cancelDownload": "取消下载",
+  "cleanupTaskKeep": "清理任务，保留视频",
+  "restoreTask": "恢复任务",
+  "keepVideo": "保留",
+  "localPlayback": "本地播放",
+  "archivedVideos": "已保留视频",
+  "downloadedState": "已下载",
+  "noSuitableTasks": "暂无符合条件的任务",
+  "noDownloadTasks": "还没有下载任务",
+  "selectedItems": "已选 {count} 项",
+  "@selectedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsSummary": "{collections} 部 · {episodes} 集",
+  "@downloadsSummary": {
+    "placeholders": {
+      "collections": {
+        "type": "int"
+      },
+      "episodes": {
+        "type": "int"
+      }
+    }
+  },
+  "archivedFilterHint": " · 已清理任务，视频仍保留",
+  "collectionDownloaded": "{completed}/{total} 集已下载 · {size}",
+  "@collectionDownloaded": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "collectionActive": " · {count} 项进行中",
+  "@collectionActive": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionFailed": " · {count} 项失败",
+  "@collectionFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionSelected": "{selected}/{total} 集已选 · ",
+  "@collectionSelected": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "expandedState": " · 已展开",
+  "expandHint": " · 按确认展开分集",
+  "selectedState": "已选",
+  "unselectedState": "未选",
+  "stop": "停止",
+  "filterAllTasks": "全部任务",
+  "filterPending": "未完成",
+  "filterActive": "进行中",
+  "filterPaused": "已暂停",
+  "filterFailed": "失败",
+  "releaseOngoing": "连载中",
+  "releaseFinished": "已完结",
+  "filterLabel": "筛选",
+  "filterSet": "筛选：已设置",
+  "multiSelect": "多选",
+  "deleteSelectedVideos": "删除所选视频？",
+  "cancelSelectedDownloads": "取消所选下载？",
+  "confirmRemoveBody": "共 {count} 项{completed}，文件也会删除。\\n需要保留视频时，请选择“清理任务，保留视频”。",
+  "@confirmRemoveBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "completed": {
+        "type": "String"
+      }
+    }
+  },
+  "completedIncluded": "，包含 {count} 个已下载视频",
+  "@completedIncluded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "supplementEpisodes": "补充新增与缺失的分集",
+  "addWholeCollection": "把整部剧加入多选",
+  "keepVideoRemove": "保留视频，从任务列表移除",
+  "archiveDescription": "从任务列表移除，保留已下载视频",
+  "pauseAllDescription": "暂停所有进行中的下载任务",
+  "resumeAllDescription": "继续或重试可恢复的任务",
+  "refreshRecordsDescription": "重新读取本机下载记录",
+  "searchWith": "搜索：{query}",
+  "@searchWith": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsArchivedFilterHint": " · 已清理任务，视频仍保留",
+  "collectionSelectedRatio": "{selected}/{total} 集已选 · ",
+  "@collectionSelectedRatio": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionDownloadedRatio": "{completed}/{total} 集已下载 · {size}",
+  "@collectionDownloadedRatio": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lanNotReady": "设备互联尚未就绪",
+  "lanDeviceName": "设备名称",
+  "lanDirectHint": "同一局域网直连，接收端无需点击确认",
+  "lanLocalUser": "本机用户 · {name}",
+  "@lanLocalUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanRenameDevice": "修改设备名称",
+  "lanDeviceActions": "设备操作",
+  "lanDisconnect": "断开连接",
+  "lanForgetPairing": "忘记配对",
+  "lanAutoSync": "自动同步",
+  "lanConflictsPending": "{count} 项记录待处理",
+  "@lanConflictsPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lanConflictsKeptHint": "两端同时修改的内容已保留，选择要继续使用的记录",
+  "lanManualSync": "手动同步",
+  "lanManualSyncHint": "双向合并、覆盖对方或覆盖本机",
+  "lanAddressHelp": "本机地址与连接帮助",
+  "lanCopyAddress": "复制地址",
+  "lanNoAddress": "尚未取得局域网地址，请检查 Wi-Fi 或网线连接。",
+  "lanRescan": "重新搜索",
+  "lanDiscoveryHint": "只发现一台设备时自动连接；多台时选择接收设备，对方无需确认。",
+  "lanManualAddress": "输入地址连接",
+  "lanConnect": "连接",
+  "lanLocalDevice": "本机 · {name}",
+  "@lanLocalDevice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanConflictsTitle": "处理记录冲突",
+  "lanNoConflicts": "没有待处理的冲突",
+  "lanUseRecord": "使用这条记录",
+  "lanSwitchRemoteTitle": "切换对方正在播放的内容？",
+  "lanSwitchRemoteBody": "对方正在播放“{title}”，继续后将接续本机当前分集。",
+  "@lanSwitchRemoteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "lanPushPlay": "推送播放",
+  "lanFollowList": "追剧列表",
+  "lanWatchStatus": "观看状态",
+  "lanResumeProgress": "续播进度",
+  "lanClose": "关闭",
+  "lanSwitchDevice": "切换设备",
+  "lanDeviceConnectable": "可连接",
+  "lanOtherUser": "对方用户 · ",
+  "lanLocalLabel": "本机：",
+  "lanRemoteLabel": "对方：",
+  "lanRecordsKept": " 条记录会保留",
+  "lanFollowsSuffix": " 部追剧。",
+  "lanEpisodeSeparator": " 集 · ",
+  "lanWatching": "在看",
+  "lanPlanned": "想看",
+  "lanWatched": "已看",
+  "lanWatchedManual": "已看 · 手动标记",
+  "lanSyncPreview": "同步预览",
+  "lanStartSync": "开始同步",
+  "lanSyncNow": "立即同步",
+  "lanCancelSync": "取消本次同步",
+  "lanCancelPush": "取消推送",
+  "lanComplete": "完成",
+  "lanViewPreview": "查看预览",
+  "lanReceiveDevice": "接收设备 · ",
+  "lanRemoteDisplayAddress": "对方显示的本机地址",
+  "lanAutoPauseHint": "对方实际开播后，本机自动暂停。",
+  "lanBothEnabledHint": "两台设备都需开启设备互联并保持前台。发现失败时，可在另一端输入下列地址；Windows 需允许本应用通过专用网络防火墙。",
+  "lanKeepOutsideRecords": "保留范围外记录：",
+  "lanClearResume": "清空续播进度",
+  "lanWaitingForeground": "请让另一台设备也开启设备互联并保持应用在前台。",
+  "lanCancelling": "正在取消",
+  "lanEnabling": "正在开启设备互联",
+  "lanDiscovering": "正在发现同一网络中的设备",
+  "lanConnectionLost": "连接已断开",
+  "lanCurrentUserChanged": "当前用户已变更",
+  "lanDeviceChanged": "设备或用户已变更，请关闭面板后重新操作",
+  "lanMergeRecords": "本机 ↔ {name} · 合并双方记录",
+  "@lanMergeRecords": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanReplaceRemote": "本机 → {name} · 以本机记录替换对方",
+  "@lanReplaceRemote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanReplaceLocal": "{name} → 本机 · 以对方记录替换本机",
+  "@lanReplaceLocal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanReplaceRemoteShort": "将覆盖 {name} 的当前用户记录；移除 ",
+  "@lanReplaceRemoteShort": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lanReplaceLocalShort": "将覆盖本机当前用户记录；移除 ",
+  "lanScopeOutside": "双方范围外的 ",
+  "lanSelectDevice": "选择设备",
+  "lanConnectDevice": "连接设备",
+  "lanLastConnected": "上次连接的设备",
+  "lanOtherLabel": "对方",
+  "lanLastSync": "最近同步 · ",
+  "lanPushTo": "推送到 ",
+  "lanPush": "推送",
+  "lanOtherDeviceDisplay": "对方显示的本机地址",
+  "lanKeepFollow": "保留追剧",
+  "lanCancelFollow": "取消追剧",
+  "lanEpisodePrefix": "第 ",
+  "lanDisplayNameHint": "在其他设备上显示的名称",
+  "lanSingleAutoHint": "仅发现一台设备时自动连接，多台时由发起端选择",
+  "lanConnected": "已连接",
+  "playerVipTrial": " · VIP 试看",
+  "playerEpisodePrefix": " · 第 ",
+  "playerEpisodeSuffix": " 集",
+  "playerRouteSuffix": " · 线路 {index}",
+  "@playerRouteSuffix": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "playerDownload": "下载",
+  "playerDownloadUnavailable": "下载不可用",
+  "playerEpisodesLabel": "剧集",
+  "playerLastEpisode": "已经是最后一集",
+  "playerFirstEpisode": "已经是第一集",
+  "playerDanmakuPrefFailed": "弹幕偏好未能保存，请重试",
+  "playerDanmakuRetryFailed": "弹幕重试失败，请稍后再试",
+  "playerPipUnsupported": "当前平台不支持画中画",
+  "playerUserChanged": "当前用户已变更",
+  "playerLocalDownloadUnavailable": "当前用户或当前环境未开放本地下载。",
+  "playerDevicePipUnsupported": "当前设备不支持画中画",
+  "playerHandoffUserChanged": "接收用户已变更，推送已取消",
+  "playerHandoffOperated": "接收端已操作播放",
+  "playerHandoffChanged": "接收端已更换播放内容",
+  "playerHandoffSeeked": "接收端已调整播放位置",
+  "playerHandoffExited": "接收端已退出播放",
+  "playerHandoffUserChangedShort": "接收端用户已变更",
+  "playerPrefFailed": "播放偏好未能保存，请重试",
+  "playerHandoffCancelled": "播放接收已取消",
+  "playerSwitchOnline": "改为在线播放",
+  "playerFullscreenFailed": "无法切换全屏，请重试",
+  "playerPlayFailed": "无法播放这一集，请重试或换一集。",
+  "playerPipEnterFailed": "无法进入画中画，请检查系统权限",
+  "playerNoSynopsis": "暂无简介",
+  "playerCannotPlay": "暂时无法播放",
+  "playerLocalProductFailed": "本地成品读取失败，请重试或重新生成。",
+  "playerLocalVideoFailed": "本地视频读取失败，请重试或重新下载；也可以手动改为在线播放。",
+  "playerContentChanged": "本机播放内容已变更",
+  "playerPreparing": "正在准备播放",
+  "playerSwitchingRoute": "正在切换备用线路",
+  "playerRefreshingUrl": "正在重新获取播放地址",
+  "playerNoUrl": "站源未返回播放地址，请重试",
+  "playerSynopsis": "简介",
+  "playerResumeTooLong": "续播位置超过接收端分集时长",
+  "playerRecoveryFailed": "自动恢复未成功，请检查网络后重试，也可换一集或选择其他清晰度。",
+  "playerJumpFailed": "跳转失败，请重试",
+  "playerFollowSaveFailed": "追剧记录未能保存，请检查存储空间后重试",
+  "playerRetryPlay": "重试播放",
+  "playerRetryLocal": "重试本地播放",
+  "playerLocalSuffix": " · 本地",
+  "episodeGroupSummary": "{title} · {count} 集",
+  "@episodeGroupSummary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previousEpisodeGroup": "上一组选集",
+  "nextEpisodeGroup": "下一组选集",
+  "locate": "定位",
+  "locateCurrent": "定位当前",
+  "episodeNotFound": "没有找到这一集，请输入已有集数",
+  "episodeRange": "第 {first}–{last} 集",
+  "@episodeRange": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "jumpToEpisode": "跳转到指定集数",
+  "jumpEpisode": "跳转集数",
+  "episodesTitle": "选集",
+  "episodeCountLabel": "集数",
+  "dramaActionsTitle": "{title} · 更多操作",
+  "@dramaActionsTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteWatchRecord": "删除这条观看记录",
+  "manualMarkHint": "手动标记已看会保留真实播放进度。",
+  "markRead": "标记 {label}已读",
+  "@markRead": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "markStatus": "标记{label}",
+  "@markStatus": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "continueWatching": "继续观看",
+  "cannotPlayRetry": "暂时无法播放，请重试",
+  "noPlayableEpisodes": "暂时没有可播放的集数",
+  "enteringPlayback": "正在进入播放",
+  "enhancementContentHint": "{content}；分类不准确时可手动切换。",
+  "@enhancementContentHint": {
+    "placeholders": {
+      "content": {
+        "type": "String"
+      }
+    }
+  },
+  "enhancementAnimeHint": "动漫档适用于动画和 AI 动漫；写实 AI 画面建议使用通用档。",
+  "enhancementTitle": "画质增强",
+  "contentType": "画面类型",
+  "enhancementModeHint": "自动按画面和设备选择增强；省电使用轻量缩放；清晰优先允许更高负载。建议先选择源站高清画质。",
+  "enhancementOffHint": "默认关闭，不改变视频输出；开启后再配置画面类型和原画对比。",
+  "enhancementOff": "关闭",
+  "enhancementAutomatic": "自动",
+  "enhancementEconomy": "省电增强",
+  "enhancementQuality": "清晰优先",
+  "contentAutomatic": "跟随分类",
+  "contentGeneral": "通用／真人",
+  "contentAnimation": "动漫／AI 动漫",
+  "updating": "正在更新",
+  "retryPoster": "重试海报",
+  "dramaSemantic": "{title}，{episodes}集{badge}",
+  "@dramaSemantic": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "episodes": {
+        "type": "int"
+      },
+      "badge": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHint": "输入剧名",
+  "returnHome": "返回首页",
+  "coverFormatFailed": "海报格式转换失败，请重试",
+  "coverProcessing": "海报正在处理，请稍后重试",
+  "coverCacheExpired": "海报缓存已失效，请重试",
+  "coverNoImage": "海报转换未生成有效图片",
+  "coverTimeout": "海报转换超时，请重试",
+  "sortAndFilterTitle": "排序与筛选",
+  "sortFilterHint": "排序和筛选作用于已加载的剧集；缺少排序资料的条目排在最后。",
+  "statusUnknown": "状态未知",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeSystem": "跟随系统",
+  "nextStep": "下一步",
+  "nextStepHint": "下一步选择分集和画质",
+  "selectedDramas": "已选 {count} 部",
+  "@selectedDramas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "maxDramas": "最多 {count} 部",
+  "@maxDramas": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectDramasHint": "点选要下载的短剧",
+  "clearRecentSearches": "清空最近搜索",
+  "mediaLibraryNotReady": "媒体库尚未就绪",
+  "lanNotReadyShort": "局域网服务尚未就绪",
+  "noBatchDramas": "没有选择要下载的短剧",
+  "invalidEpisodeEntry": "选集入口无效",
+  "invalidLink": "链接地址无效",
+  "backHome": "返回首页",
+  "sortDefault": "默认顺序",
+  "sortName": "名称",
+  "sortSeason": "自然季号",
+  "sortDate": "上线日期",
+  "sortHeat": "热度",
+  "sortViews": "播放量",
+  "storageUnavailable": "暂不可用",
+  "backupSaved": "备份已保存",
+  "allSources": "全部站源",
+  "recommendations": "推荐",
+  "searchSources": "搜索{names}",
+  "@searchSources": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "searchSourcesLocal": "搜索{names}及本机剧库",
+  "@searchSourcesLocal": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "filterUpdatedLibrary": "筛选本机已更新剧库",
+  "pinMismatch": "两次输入的密码不一致",
+  "downloadStoppedProcessed": "已停止，已处理 {count} 项",
+  "@downloadStoppedProcessed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadProcessed": "已处理 {count} 项",
+  "@downloadProcessed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadProcessedFailures": "已处理 {count} 项，{failed} 项失败：{error}",
+  "@downloadProcessedFailures": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadArchivedProcessed": "已清理 {count} 项任务，视频仍可本地播放",
+  "@downloadArchivedProcessed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadProcessing": "正在处理 {done}/{total} 项",
+  "@downloadProcessing": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noSuitableTasksController": "没有适合此操作的任务",
+  "danmakuLoaded": "已载入 {count} 条弹幕",
+  "@danmakuLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "danmakuDisabled": "弹幕已关闭",
+  "danmakuInvalidRange": "弹幕时间范围无效",
+  "danmakuUnavailable": "弹幕暂不可用，可重试",
+  "danmakuLocalDisabled": "本地播放不加载弹幕",
+  "danmakuEpisodeUnsupported": "本集暂不支持弹幕",
+  "danmakuLoading": "正在加载弹幕",
+  "danmakuWaiting": "等待播放",
+  "danmakuEmpty": "这段暂无弹幕",
+  "progressSaveFailed": "观看进度尚未保存，请检查存储空间后重试。",
+  "localOriginal": "本地原画",
+  "automatic": "自动",
+  "speedBoostRelease": "3 倍速 · 松开恢复",
+  "speedChangeFailed": "倍速调整失败，请重试",
+  "seekBackTo": "后退至 {value}",
+  "@seekBackTo": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "seekForwardTo": "快进至 {value}",
+  "@seekForwardTo": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "mutedState": "已静音",
+  "restoreSpeed": "恢复 {value} 倍速",
+  "@restoreSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "volumePercent": "音量 {value}%",
+  "@volumePercent": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsTitle": "插件仓库",
+  "pluginsIntro": "站源以插件形式分发：内置仓库按需安装，也可添加第三方仓库。每个包都会校验 SHA-256，签名仓库还会校验索引签名。",
+  "pluginsRefresh": "刷新",
+  "pluginsRepoSection": "仓库地址",
+  "pluginsRepoUrl": "repo.toml 的 URL",
+  "pluginsLoadRepo": "载入仓库",
+  "pluginsInstalled": "已安装",
+  "pluginsAvailable": "仓库可安装",
+  "pluginsEmpty": "还没有安装任何插件。载入仓库后选择需要的站源。",
+  "pluginsInstall": "安装",
+  "pluginsUpdate": "更新",
+  "pluginsInstalledAction": "已安装",
+  "pluginsUninstall": "卸载",
+  "pluginsKindCode": "代码插件",
+  "pluginsKindDeclarative": "声明式",
+  "pluginsSigned": "已签名",
+  "pluginsUnsigned": "未签名",
+  "pluginsInstallFailed": "安装失败，请查看错误信息",
+  "pluginsVersionLine": "{version} · {kind} · {trust}",
+  "@pluginsVersionLine": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "trust": {
+        "type": "String"
+      }
+    }
+  },
+  "pluginsInstalledDone": "已安装 {name}",
+  "@pluginsInstalledDone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pluginsUninstallConfirm": "确定卸载「{name}」？已下载的剧集与观看记录会保留。",
+  "@pluginsUninstallConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+}

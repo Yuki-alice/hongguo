@@ -1,4 +1,4 @@
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/src/rust/api.dart';
 import 'package:duanju_app/src/rust/frb_generated.dart';
 import 'package:flutter_test/flutter_test.dart';

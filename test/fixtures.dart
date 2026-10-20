@@ -1,5 +1,5 @@
-import 'package:duanju_app/core_bridge.dart';
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/domain/models.dart';
 
 class FixtureRepository extends AppRepository {
   int detailCalls = 0;

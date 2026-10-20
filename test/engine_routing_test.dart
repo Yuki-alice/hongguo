@@ -1,7 +1,7 @@
-import 'package:duanju_app/core_bridge.dart';
-import 'package:duanju_app/engine_backed_repository.dart';
-import 'package:duanju_app/engine_repository.dart';
-import 'package:duanju_app/engine_routing.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/engine_backed_repository.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/data/engine_routing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 双后端路由的纯逻辑测试：不触发网络或原生调用。

@@ -1,0 +1,16 @@
+# 代码插件模板：演示如何用 wasm32-wasip2 编译一个符合 guo:source 契约的组件。
+#
+# 独立 workspace：插件以 wasm 目标编译，不参与宿主的三端构建。
+[package]
+name = "guo-plugin-template"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.44"
+
+[workspace]

@@ -1,0 +1,132 @@
+// 代码插件 ABI（ARCHITECTURE.md §9.1）。
+//
+// 约束：插件只能导入本文件的 `host` 接口；`wasi:*` 一律拒绝。
+package guo:source@1.0.0;
+
+interface types {
+  record category {
+    id: string,
+    name: string,
+  }
+
+  record drama {
+    id: string,
+    source-id: string,
+    title: string,
+    description: string,
+    cover: string,
+    episodes: u32,
+    category: string,
+    tags: list<string>,
+    views: string,
+    heat: string,
+    release-status: string,
+  }
+
+  record query {
+    page: u32,
+    category: string,
+    keyword: string,
+    cursor: string,
+  }
+
+  record chapter {
+    id: string,
+    title: string,
+    video-url: string,
+    page-url: string,
+    referer: string,
+    vip: bool,
+  }
+
+  record detail {
+    drama: drama,
+    chapters: list<chapter>,
+  }
+
+  record page {
+    items: list<drama>,
+    has-more: bool,
+    page: u32,
+    cursor: string,
+  }
+
+  record resolve-request {
+    source-id: string,
+    chapter: chapter,
+  }
+
+  record media {
+    url: string,
+    referer: string,
+    segments: list<string>,
+    key-uri: string,
+    key-iv: string,
+  }
+
+  record descriptor {
+    id: string,
+    name: string,
+    group: string,
+    api-level: u32,
+    capabilities: list<string>,
+  }
+
+  record response {
+    status: u16,
+    url: string,
+    body: list<u8>,
+    content-type: string,
+    etag: string,
+  }
+
+  variant error {
+    unsupported(string),
+    network(string),
+    http(u16),
+    blocked(string),
+    session-failed(string),
+    parse-changed(string),
+    empty,
+  }
+}
+
+interface host {
+  use types.{response, error};
+
+  /// 唯一的出网口：宿主负责白名单、限流、冷却、代理、Cookie 与指纹。
+  fetch: func(
+    method: string,
+    url: string,
+    headers: list<tuple<string, string>>,
+    body: option<list<u8>>,
+  ) -> result<response, error>;
+
+  store-get: func(namespace: string, key: string) -> option<string>;
+  store-set: func(namespace: string, key: string, value: string) -> result<_, error>;
+  log: func(level: string, message: string);
+
+  random: func(len: u32) -> list<u8>;
+  now-ms: func() -> u64;
+
+  /// 提取原语：解析留在宿主的原生代码里，插件只拿结果（ADR-12）。
+  html-select: func(html: string, selector: string, attr: option<string>) -> list<string>;
+  json-path: func(json: string, path: string) -> list<string>;
+}
+
+interface source {
+  use types.{category, descriptor, detail, error, media, page, query, resolve-request};
+
+  describe: func() -> descriptor;
+  categories: func() -> result<list<category>, error>;
+  catalog: func(query: query) -> result<page, error>;
+  fetch-detail: func(source-id: string) -> result<detail, error>;
+  search: func(query: query) -> result<page, error>;
+  resolve: func(request: resolve-request) -> result<media, error>;
+  suggestions: func(keyword: string) -> result<list<string>, error>;
+}
+
+world plugin {
+  import host;
+  export source;
+}

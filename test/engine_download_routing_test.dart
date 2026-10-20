@@ -1,7 +1,7 @@
-import 'package:duanju_app/core_bridge.dart';
-import 'package:duanju_app/engine_backed_repository.dart';
-import 'package:duanju_app/engine_repository.dart';
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/engine_backed_repository.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 下载路由的纯逻辑测试：验证分流与回退，不触发网络。

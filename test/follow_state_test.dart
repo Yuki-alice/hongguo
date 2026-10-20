@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:duanju_app/follow_state.dart';
-import 'package:duanju_app/local_snapshot.dart';
-import 'package:duanju_app/local_store.dart';
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/domain/follow_state.dart';
+import 'package:duanju_app/data/local_snapshot.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';

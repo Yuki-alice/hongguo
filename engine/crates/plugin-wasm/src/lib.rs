@@ -1,23 +1,19 @@
-//! 代码插件宿主。
+//! 代码插件宿主：WASM 组件的加载、能力注入与资源限制。
 //!
-//! P0 阶段只验证运行时可在各端编译并实例化组件；能力注入与 ABI 绑定在 P1 落地。
-//! 运行策略见 ARCHITECTURE.md §9.3：统一 Pulley 解释器，关闭 wasmtime 的 `async` 特性。
+//! 设计要点（ARCHITECTURE.md §9）：
+//! - **统一 Pulley 解释器**：iOS 禁止可执行内存，三端只保留一条执行路径；
+//! - **能力注入**：插件只能看到 `guo:source/host` 这一组宿主函数，
+//!   `wasi:*` 在安装期就被 [`is_allowed_import`] 拒绝；
+//! - **资源上限**：fuel 限制指令数、`StoreLimits` 限制线性内存、响应体上限；
+//! - **解析留在宿主**：插件拿 `html-select` / `json-path` 的结果，不自己解析 HTML。
 
-/// 运行时配置：固定 Pulley 目标，禁止 JIT。
-pub fn engine_config() -> wasmtime::Config {
-    let mut config = wasmtime::Config::new();
-    config.wasm_component_model(true);
-    // iOS 不允许可执行内存，三端统一走解释器，避免出现两套执行路径。
-    config.target("pulley64").expect("pulley64 必须是有效目标");
-    config
-}
+mod bindings;
+mod component;
+mod sandbox;
 
-/// 组件引擎，供宿主复用。
-pub fn engine() -> wasmtime::Engine {
-    wasmtime::Engine::new(&engine_config()).expect("engine 配置在编译期已校验")
-}
-
-/// 运行时版本，用于诊断面板与包体核对。
-pub fn runtime_version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
+pub use bindings::{guo, Plugin};
+pub use component::{assert_allowed_imports, validate_network, ComponentSource};
+pub use sandbox::{
+    engine, engine_config, is_allowed_import, runtime_version, Capabilities, HostState,
+    SandboxLimits, ALLOWED_IMPORT_PREFIX,
+};

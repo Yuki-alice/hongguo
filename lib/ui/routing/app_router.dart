@@ -2,29 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../batch_download_screen.dart';
-import '../../core_bridge.dart';
-import '../../detail_screen.dart';
-import '../../download_picker.dart';
-import '../../download_preferences.dart';
-import '../../main.dart' show DuanjuBootstrap;
-import '../../downloads_screen.dart';
-import '../../home_screen.dart';
-import '../../lan_controller.dart';
-import '../../lan_screen.dart';
-import '../../local_profiles.dart';
-import '../../local_media_screen.dart';
-import '../../media_library.dart';
-import '../../merge_queue_screen.dart';
-import '../../models.dart';
-import '../../player_screen.dart';
-import '../../profiles_screen.dart';
-import '../../rankings_screen.dart';
-import '../../resource_settings_screen.dart';
-import '../../settings_screen.dart';
-import '../../sources_screen.dart';
-import '../providers/app_providers.dart';
-import 'route_args.dart';
+import 'package:duanju_app/ui/features/downloads/views/batch_download_screen.dart';
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/ui/features/detail/views/detail_screen.dart';
+import 'package:duanju_app/ui/features/downloads/widgets/download_picker.dart';
+import 'package:duanju_app/domain/download_preferences.dart';
+import 'package:duanju_app/main.dart' show DuanjuBootstrap;
+import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
+import 'package:duanju_app/ui/features/home/views/home_screen.dart';
+import 'package:duanju_app/data/lan/lan_controller.dart';
+import 'package:duanju_app/ui/features/lan/views/lan_screen.dart';
+import 'package:duanju_app/data/local_profiles.dart';
+import 'package:duanju_app/ui/features/media/views/local_media_screen.dart';
+import 'package:duanju_app/data/media/media_library.dart';
+import 'package:duanju_app/ui/features/media/views/merge_queue_screen.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/ui/features/player/views/player_screen.dart';
+import 'package:duanju_app/ui/features/profiles/views/profiles_screen.dart';
+import 'package:duanju_app/ui/features/rankings/views/rankings_screen.dart';
+import 'package:duanju_app/ui/features/settings/views/resource_settings_screen.dart';
+import 'package:duanju_app/ui/features/settings/views/settings_screen.dart';
+import 'package:duanju_app/ui/features/plugins/views/plugins_screen.dart';
+import 'package:duanju_app/ui/features/sources/views/sources_screen.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/providers/app_providers.dart';
+import 'package:duanju_app/ui/routing/route_args.dart';
 
 /// 全局导航 key，供局域网推送等非 Widget 场景发起跳转。
 final appNavigatorKey = GlobalKey<NavigatorState>();
@@ -41,6 +43,7 @@ abstract final class AppRoutes {
   static const settings = '/settings';
   static const resourceSettings = '/settings/resources';
   static const sources = '/sources';
+  static const plugins = '/sources/plugins';
   static const rankings = '/rankings';
   static const lanSync = '/lan';
   static const batchDownload = '/batch-download';
@@ -175,20 +178,7 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
       routes: [
         GoRoute(
           path: AppRoutes.home,
-          builder: (context, state) {
-            final store = ref.read(storeProvider);
-            if (store == null) return const DuanjuBootstrap();
-            if (store.locked) {
-              return ProfilesScreen(store: store, locked: true);
-            }
-            return HomeScreen(
-              key: ValueKey(
-                'profile-${store.profile.id}-${store.profileEpoch}',
-              ),
-              repository: ref.read(repositoryProvider),
-              store: store,
-            );
-          },
+          builder: (context, state) => const _HomeRoute(),
         ),
         GoRoute(
           path: AppRoutes.profiles,
@@ -276,7 +266,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
                 ? extra.library
                 : MediaLibrary.current;
             if (library == null) {
-              return const _InvalidRoute(message: '媒体库尚未就绪');
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).mediaLibraryNotReady,
+              );
             }
             return MergeQueueScreen(
               library: library,
@@ -315,6 +307,11 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
           },
         ),
         GoRoute(
+          path: AppRoutes.plugins,
+          builder: (context, state) =>
+              PluginsScreen(repository: ref.read(pluginRepositoryProvider)),
+        ),
+        GoRoute(
           path: AppRoutes.rankings,
           builder: (context, state) => RankingsScreen(
             repository: ref.read(repositoryProvider),
@@ -327,7 +324,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
           builder: (context, state) {
             final controller = LanController.current;
             if (controller == null) {
-              return const _InvalidRoute(message: '局域网服务尚未就绪');
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).lanNotReadyShort,
+              );
             }
             return LanSyncScreen(controller: controller);
           },
@@ -351,7 +350,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
             // 视为非法入口。用 `push` 打开，`Navigator.pop` 回传选择结果。
             final extra = state.extra;
             if (extra is! DownloadPickerExtra) {
-              return const _InvalidRoute(message: '选集入口无效');
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).invalidEpisodeEntry,
+              );
             }
             return DownloadPicker(
               detail: extra.detail,
@@ -374,7 +375,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
           builder: (context, state) {
             final controller = state.extra;
             if (controller is! LanController) {
-              return const _InvalidRoute(message: '局域网服务尚未就绪');
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).lanNotReadyShort,
+              );
             }
             return LanConflictsScreen(controller: controller);
           },
@@ -387,7 +390,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
                 ? extra.dramas
                 : const <Drama>[];
             if (dramas.isEmpty) {
-              return const _InvalidRoute(message: '没有选择要下载的短剧');
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).noBatchDramas,
+              );
             }
             return BatchDownloadScreen(
               repository: ref.read(repositoryProvider),
@@ -407,6 +412,31 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(router.dispose);
   return router;
 });
+
+/// 首页入口。
+///
+/// go_router 不接 `refreshListenable`（刷新会按 URL 重新解析并丢失 extra），
+/// 所以用户就绪、切换用户、锁定这些原地变化必须在这里 watch，才能重新
+/// 选择加载页、用户页或首页。
+class _HomeRoute extends ConsumerWidget {
+  const _HomeRoute();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(storeProvider);
+    if (store == null) return const DuanjuBootstrap();
+    // LocalStore 通过 ChangeNotifier 原地修改字段，watch 计数才会重建。
+    ref.watch(storeRevisionProvider);
+    if (store.locked) {
+      return ProfilesScreen(store: store, locked: true);
+    }
+    return HomeScreen(
+      key: ValueKey('profile-${store.profile.id}-${store.profileEpoch}'),
+      repository: ref.read(repositoryProvider),
+      store: store,
+    );
+  }
+}
 
 DramaRef? _parseTarget(GoRouterState state) => DramaRef.tryParse(
   state.pathParameters['source'],
@@ -429,34 +459,37 @@ Drama _drama(Ref ref, DramaRef target) {
 
 /// 深链参数非法或前置条件缺失时的占位页。
 class _InvalidRoute extends StatelessWidget {
-  const _InvalidRoute({this.message = '链接地址无效'});
+  const _InvalidRoute({this.message});
 
-  final String message;
+  final String? message;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.link_off_rounded,
-              size: 48,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => context.go(AppRoutes.home),
-              child: const Text('返回首页'),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.link_off_rounded,
+                size: 48,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(message ?? l10n.invalidLink, textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go(AppRoutes.home),
+                child: Text(l10n.returnHome),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

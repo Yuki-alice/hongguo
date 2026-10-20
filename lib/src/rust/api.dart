@@ -3,15 +3,13 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'env.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `build_env`, `cache`, `join_url`, `scheduler`
-// These functions are ignored because they have generic arguments: `get`, `set`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MemoryStore`, `SilentLog`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `debug`, `warn`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `debug`, `from`, `from`, `from`, `from`, `get`, `set`, `warn`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_env`
 
 /// 初始化日志与运行时。Dart 侧在启动时调用一次。
 Future<void> initEngine() => RustLib.instance.api.crateApiInitEngine();
@@ -141,6 +139,61 @@ Future<MediaResult> fetchMedia({
   chapter: chapter,
 );
 
+/// 榜单看板列表。
+Future<List<RankingBoardItem>> fetchRankingBoards({required String sourceId}) =>
+    RustLib.instance.api.crateApiFetchRankingBoards(sourceId: sourceId);
+
+/// 榜单的一页。
+Future<RankingResult> fetchRanking({
+  required String sourceId,
+  required String boardId,
+  required int page,
+}) => RustLib.instance.api.crateApiFetchRanking(
+  sourceId: sourceId,
+  boardId: boardId,
+  page: page,
+);
+
+/// 推荐流的一页。
+Future<RecommendResult> fetchRecommend({
+  required String sourceId,
+  required int offset,
+  required String sessionId,
+  required String genre,
+}) => RustLib.instance.api.crateApiFetchRecommend(
+  sourceId: sourceId,
+  offset: offset,
+  sessionId: sessionId,
+  genre: genre,
+);
+
+/// 搜索联想词。
+Future<List<String>> fetchSuggestions({
+  required String sourceId,
+  required String keyword,
+}) => RustLib.instance.api.crateApiFetchSuggestions(
+  sourceId: sourceId,
+  keyword: keyword,
+);
+
+/// 一集的分段弹幕。
+Future<List<DanmakuItem>> fetchDanmaku({
+  required String sourceId,
+  required ChapterInput chapter,
+  required PlatformInt64 startMs,
+}) => RustLib.instance.api.crateApiFetchDanmaku(
+  sourceId: sourceId,
+  chapter: chapter,
+  startMs: startMs,
+);
+
+/// 找出同一部剧的其它季。
+Future<List<SeasonItem>> fetchSeasons({
+  required String sourceId,
+  required DramaInput drama,
+}) =>
+    RustLib.instance.api.crateApiFetchSeasons(sourceId: sourceId, drama: drama);
+
 /// 登记一个下载任务。
 Future<BigInt> enqueueDownload({required DownloadRequest request}) =>
     RustLib.instance.api.crateApiEnqueueDownload(request: request);
@@ -156,13 +209,6 @@ Future<List<DownloadSnapshot>> downloadSnapshot() =>
 /// 暂停 / 继续 / 重试 / 删除。
 Future<bool> controlDownload({required String command, required String id}) =>
     RustLib.instance.api.crateApiControlDownload(command: command, id: id);
-
-/// 构造站源执行环境。
-///
-/// 传输层构建失败属于可上报的环境错误，不在此处 panic（C-UNWRAP）。
-/// 供示例与集成测试构造执行环境。
-Future<SourceEnv> debugEnv({required String sourceId}) =>
-    RustLib.instance.api.crateApiDebugEnv(sourceId: sourceId);
 
 /// 站源分类项。
 class CategorySummary {
@@ -280,6 +326,31 @@ class ChapterList {
           runtimeType == other.runtimeType &&
           drama == other.drama &&
           chapters == other.chapters;
+}
+
+/// 一条弹幕。
+class DanmakuItem {
+  final PlatformInt64 timeMs;
+  final String text;
+  final String color;
+
+  const DanmakuItem({
+    required this.timeMs,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  int get hashCode => timeMs.hashCode ^ text.hashCode ^ color.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DanmakuItem &&
+          runtimeType == other.runtimeType &&
+          timeMs == other.timeMs &&
+          text == other.text &&
+          color == other.color;
 }
 
 /// 下载登记参数。
@@ -560,6 +631,238 @@ class MediaResult {
           playlist == other.playlist &&
           keyUri == other.keyUri &&
           keyIv == other.keyIv;
+}
+
+/// 可安装 / 已安装插件的摘要。`installed` 与 `enabled` 共同决定 UI 上的按钮状态。
+class PluginSummary {
+  final String id;
+  final String name;
+  final String version;
+
+  /// `declarative` 或 `component`。
+  final String kind;
+  final bool installed;
+  final bool enabled;
+
+  /// 来源仓库是否签名（未签名仓库每次升级都要用户确认，见 D3）。
+  final bool signed;
+
+  const PluginSummary({
+    required this.id,
+    required this.name,
+    required this.version,
+    required this.kind,
+    required this.installed,
+    required this.enabled,
+    required this.signed,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      version.hashCode ^
+      kind.hashCode ^
+      installed.hashCode ^
+      enabled.hashCode ^
+      signed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PluginSummary &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          version == other.version &&
+          kind == other.kind &&
+          installed == other.installed &&
+          enabled == other.enabled &&
+          signed == other.signed;
+}
+
+/// 榜单看板。
+class RankingBoardItem {
+  final String id;
+  final String name;
+  final String group;
+
+  const RankingBoardItem({
+    required this.id,
+    required this.name,
+    required this.group,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode ^ group.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RankingBoardItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          group == other.group;
+}
+
+/// 榜单条目。
+class RankingEntry {
+  final int rank;
+  final DramaItem drama;
+  final String metric;
+
+  const RankingEntry({
+    required this.rank,
+    required this.drama,
+    required this.metric,
+  });
+
+  @override
+  int get hashCode => rank.hashCode ^ drama.hashCode ^ metric.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RankingEntry &&
+          runtimeType == other.runtimeType &&
+          rank == other.rank &&
+          drama == other.drama &&
+          metric == other.metric;
+}
+
+/// 榜单的一页。
+class RankingResult {
+  final List<RankingEntry> items;
+  final bool hasMore;
+  final int page;
+  final String updatedText;
+  final bool stale;
+  final String warning;
+
+  const RankingResult({
+    required this.items,
+    required this.hasMore,
+    required this.page,
+    required this.updatedText,
+    required this.stale,
+    required this.warning,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^
+      hasMore.hashCode ^
+      page.hashCode ^
+      updatedText.hashCode ^
+      stale.hashCode ^
+      warning.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RankingResult &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          hasMore == other.hasMore &&
+          page == other.page &&
+          updatedText == other.updatedText &&
+          stale == other.stale &&
+          warning == other.warning;
+}
+
+/// 推荐流的一页。
+class RecommendResult {
+  final List<DramaItem> items;
+  final int offset;
+  final String sessionId;
+  final bool hasMore;
+
+  const RecommendResult({
+    required this.items,
+    required this.offset,
+    required this.sessionId,
+    required this.hasMore,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ offset.hashCode ^ sessionId.hashCode ^ hasMore.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecommendResult &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          offset == other.offset &&
+          sessionId == other.sessionId &&
+          hasMore == other.hasMore;
+}
+
+/// 仓库摘要。
+class RepoSummary {
+  final String id;
+  final String name;
+
+  /// 索引路径，可能是相对路径或绝对 URL。
+  final String index;
+  final bool signed;
+
+  /// `ed25519:<base64>`；未签名仓库为空。
+  final String fingerprint;
+
+  const RepoSummary({
+    required this.id,
+    required this.name,
+    required this.index,
+    required this.signed,
+    required this.fingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      index.hashCode ^
+      signed.hashCode ^
+      fingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RepoSummary &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          index == other.index &&
+          signed == other.signed &&
+          fingerprint == other.fingerprint;
+}
+
+/// 一季。
+class SeasonItem {
+  final int season;
+  final String title;
+  final String sourceId;
+
+  const SeasonItem({
+    required this.season,
+    required this.title,
+    required this.sourceId,
+  });
+
+  @override
+  int get hashCode => season.hashCode ^ title.hashCode ^ sourceId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SeasonItem &&
+          runtimeType == other.runtimeType &&
+          season == other.season &&
+          title == other.title &&
+          sourceId == other.sourceId;
 }
 
 /// Dart 可见的站源摘要。

@@ -1,43 +1,53 @@
-//! 真果鉴本地引擎。
+//! 真果鉴本地引擎（Flutter 桥接层）。
 //!
 //! 对外只暴露两类入口：
 //! - [`api`]：`flutter_rust_bridge` 生成的 Dart 绑定调用点；
-//! - 站源契约（[`SourcePlugin`]）、数据模型（[`Drama`] 等）与错误（[`SourceError`]）。
+//! - 站源契约（`SourcePlugin`）、数据模型（`Drama` 等）与错误（`SourceError`）的重导出，
+//!   供集成测试与示例直接使用。
 //!
-//! 内部实现模块保持私有，在根级做定向重导出，避免「扁平的 lib.rs + 通配重导出」反模式。
+//! 真正的实现分布在 `crates/` 下的六个 crate，这里保持薄索引（ARCHITECTURE.md §6.5）。
 
 pub mod api;
 
-/// P0 体积探针：仅用于测量链接 wasmtime 后的产物大小。
-mod cache;
-mod crypto;
-mod download;
-mod env;
-mod media;
-mod rule;
-mod scheduler;
-mod script;
-mod source;
 mod sources;
-mod transport;
 
-pub use cache::{catalog_key, merge, replace_first_page, CatalogCache, CatalogDisk, CatalogState};
-pub use download::{
-    commit, discard, download_file, download_hls, playlist_signature, DownloadOutcome, FileState,
-    HlsKey,
-};
-pub use env::{
-    FetchRequest, FetchResponse, LogSink, Method, RequestPriority, ScriptHost, SourceEnv,
-    SourceStore, Transport,
-};
-pub use guo_source_api::SourceError;
-pub use guo_source_api::{Category, Chapter, Detail, Drama, Media, Page};
-pub use media::{extract_media_url, parse_playlist, Playlist};
-pub use rule::{RuleDocument, RuleExecutor, TemplateCtx};
-pub use scheduler::{Job, JobState, Scheduler};
-pub use script::QuickJsHost;
-pub use source::{Capability, SourceMeta, SourcePlugin, SourceRegistry, CURRENT_API_LEVEL};
-pub use sources::{builtin_registry, MaoguoSource, RuleSource};
-pub use transport::{HttpTransport, DEFAULT_USER_AGENT};
+/// `flutter_rust_bridge` 生成的代码以 `crate::env::*` 引入站源契约类型。
+/// 拆 crate 后这些类型住在 `guo-source-api`，这里保留一个窄别名，
+/// 避免每次重新生成都要手工改生成物（`frb_generated.rs` 里只保留 `ioDirectory` 一处手改）。
+#[allow(unused_imports)]
+mod env {
+    pub use guo_source_api::*;
+}
 
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
+
+pub use sources::{builtin_registry, last_load_report, plugin_directory, set_plugin_directory};
+
+// 契约层：类型与 trait
+pub use guo_source_api::{
+    md5_hash, md5_hex, Capability, Category, Chapter, Detail, Drama, FetchRequest, FetchResponse,
+    HeaderMap, LogSink, Media, Method, Page, RequestPriority, ScriptHost, SourceEnv, SourceError,
+    SourceMeta, SourcePlugin, SourceRegistry, SourceStore, Transport, CURRENT_API_LEVEL,
+};
+
+// 宿主能力实现
+pub use guo_host::{HttpTransport, QuickJsHost, DEFAULT_USER_AGENT};
+
+// 声明式规则
+pub use guo_rule_engine::{
+    JsonRuleExecutor, RuleDocument, RuleExecutor, RuleFields, RuleKind, SelectorList, TemplateCtx,
+};
+
+// HLS / 媒体
+pub use guo_media::{extract_media_url, parse_playlist, Playlist};
+
+// 运行时装配
+pub use guo_runtime::{
+    catalog_key, commit, discard, download_file, download_hls, merge, playlist_signature,
+    replace_first_page, CatalogCache, CatalogDisk, CatalogState, DownloadOutcome, FileState,
+    HlsKey, Job, JobState, RuleSource, Scheduler,
+};
+
+// 内置代码源
+pub use guo_source_hongguo::HongguoSource;
+pub use guo_source_maoguo::MaoguoSource;

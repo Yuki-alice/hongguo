@@ -1,0 +1,13 @@
+[package]
+name = "guo-media"
+description = "HLS 播放列表解析与分片解密（纯计算）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+aes.workspace = true
+cbc.workspace = true
+cipher.workspace = true
+hex.workspace = true

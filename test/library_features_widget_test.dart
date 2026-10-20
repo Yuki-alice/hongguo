@@ -1,21 +1,28 @@
 import 'dart:async';
 
-import 'package:duanju_app/batch_download_screen.dart';
-import 'package:duanju_app/detail_screen.dart';
-import 'package:duanju_app/follow_state.dart';
-import 'package:duanju_app/home_screen.dart';
-import 'package:duanju_app/local_store.dart';
-import 'package:duanju_app/models.dart';
-import 'package:duanju_app/saved_library.dart';
+import 'package:duanju_app/ui/features/downloads/views/batch_download_screen.dart';
+import 'package:duanju_app/ui/features/detail/views/detail_screen.dart';
+import 'package:duanju_app/domain/follow_state.dart';
+import 'package:duanju_app/ui/features/home/views/home_screen.dart';
+import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:duanju_app/ui/features/home/widgets/saved_library.dart';
 import 'package:duanju_app/ui/routing/app_router.dart';
 import 'package:duanju_app/ui/routing/route_args.dart';
-import 'package:duanju_app/widgets.dart';
+import 'package:duanju_app/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_feature_fixtures.dart';
 import 'router_harness.dart';
+
+Widget _app({required Widget home}) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: home,
+);
 
 void main() {
   const first = LibraryFeatureRepository.first;
@@ -55,7 +62,7 @@ void main() {
       await store.setFollowStatus(first, FollowStatus.watched);
       final continued = <String>[];
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: Scaffold(
             body: SavedLibrary(
               repository: repository,
@@ -107,7 +114,7 @@ void main() {
         ),
       );
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: Scaffold(
             body: SavedLibrary(
               repository: LibraryFeatureRepository(),
@@ -168,7 +175,7 @@ void main() {
         10,
       );
     await tester.pumpWidget(
-      MaterialApp(
+      _app(
         home: Scaffold(
           body: SavedLibrary(
             repository: repository,
@@ -234,7 +241,7 @@ void main() {
         10,
       );
     await tester.pumpWidget(
-      MaterialApp(
+      _app(
         home: DetailScreen(
           drama: seasonOne,
           repository: repository,
@@ -257,7 +264,7 @@ void main() {
       await store.toggleFavorite(first);
       final repository = LibraryFeatureRepository();
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: HomeScreen(repository: repository, store: store),
         ),
       );
@@ -337,7 +344,7 @@ void main() {
       final repository = LibraryFeatureRepository()
         ..pendingDetail = Completer<DramaDetail>();
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: HomeScreen(repository: repository, store: store),
         ),
       );
@@ -364,7 +371,7 @@ void main() {
       final store = await create();
       await store.setFollowStatus(first, FollowStatus.planned);
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: Scaffold(
             body: SavedLibrary(
               repository: LibraryFeatureRepository(),
@@ -379,7 +386,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(
-        MaterialApp(
+        _app(
           home: BatchDownloadScreen(
             repository: LibraryFeatureRepository(),
             store: store,

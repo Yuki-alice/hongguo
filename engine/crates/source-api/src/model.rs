@@ -117,3 +117,106 @@ mod tests {
         assert!(!json.contains("description"));
     }
 }
+
+/// 榜单单条目：名次 + 剧目 + 展示用指标。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankingItem {
+    pub rank: u32,
+    pub drama: Drama,
+    /// 榜单展示的热度 / 播放量文本，直接来自站点。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub metric: String,
+}
+
+/// 榜单的一页。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankingPage {
+    pub items: Vec<RankingItem>,
+    #[serde(default)]
+    pub has_more: bool,
+    #[serde(default)]
+    pub page: u32,
+    /// 站点标注的更新时间，例如「9月13日已更新」。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub updated_text: String,
+    /// 使用上一次成功结果的缓存数据时置位，UI 据此提示「可能不是最新」。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stale: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub warning: String,
+}
+
+/// 榜单看板（站点的固定榜单入口）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankingBoard {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+}
+
+/// 搜索联想词。`kind` 是站点给出的词性，可能为空。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Suggestion {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub kind: String,
+}
+
+/// 一条弹幕。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Danmaku {
+    /// 出现时间（毫秒）。
+    pub time_ms: i64,
+    pub text: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub color: String,
+}
+
+/// 一集按时间轴切分的弹幕分段。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DanmakuPage {
+    pub items: Vec<Danmaku>,
+    /// 本段结束时间（毫秒）；等于视频时长表示已到末尾。
+    pub end_ms: i64,
+    pub has_more: bool,
+}
+
+/// 系列剧的季信息：同一部剧的不同季。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeriesSeason {
+    pub season: u32,
+    /// 该季在站点的标题。
+    pub title: String,
+    /// 对应剧目的 source_id。
+    pub source_id: String,
+}
+
+/// 推荐流的游标。翻页靠 `offset` + `session_id`，与 Go 版一致。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecommendCursor {
+    #[serde(default)]
+    pub offset: u32,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub session_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub genre: String,
+}
+
+/// 推荐流的一页。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecommendPage {
+    pub items: Vec<Drama>,
+    pub cursor: RecommendCursor,
+    #[serde(default)]
+    pub has_more: bool,
+}

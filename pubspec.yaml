@@ -11,6 +11,9 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  # 生成的 l10n 代码直接 `import 'package:intl/intl.dart'`，显式声明避免依赖
+  # 「flutter_localizations 恰好带进来」这种隐式解析。
+  intl: any
   ffi: ^2.2.0
   media_kit: 1.2.6
   media_kit_video: 2.0.1
@@ -48,6 +51,9 @@ dependency_overrides:
     path: packages/media_kit_libs_windows_video
 
 flutter:
+  # l10n 代码由 `flutter gen-l10n` 生成到 lib/l10n/generated/，
+  # 必须显式开启 generate，否则该命令会拒绝执行。
+  generate: true
   config:
     enable-swift-package-manager: false
   uses-material-design: true

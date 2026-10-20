@@ -1,5 +1,5 @@
-import 'package:duanju_app/engine_repository.dart';
-import 'package:duanju_app/models.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 用真实 Rust 引擎验证取流链路。

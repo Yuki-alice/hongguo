@@ -1,0 +1,73 @@
+{
+  "schema": "1.0",
+  "id": "diguo",
+  "name": "帝果",
+  "group": "duanju",
+  "base": "https://www.dsd.com.se",
+  "kind": "html",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search",
+    "resolve"
+  ],
+  "catalog": {
+    "url": "index.php/vod/type/id/{category}/page/1.html",
+    "item": [
+      "a.video-item",
+      "a.video-surface"
+    ],
+    "fields": {
+      "id": "a@href",
+      "idTemplate": "{id}",
+      "title": [
+        ".video-desc",
+        ".surface-title",
+        ".video-title",
+        ".title"
+      ],
+      "cover": [
+        "img@data-src",
+        "img@src"
+      ],
+      "views": {
+        "paths": [
+          ".video-item-tag-hits",
+          ".counts"
+        ],
+        "suffix": "次"
+      },
+      "idPattern": "(\\d+)"
+    }
+  },
+  "detail": {
+    "url": "index.php/vod/detail/id/{id}.html",
+    "episodes": "a[href*='vod/play']",
+    "title": "h1",
+    "cover": ".video-cover img, meta[property='og:image']"
+  },
+  "search": {
+    "url": "index.php/vod/search/page/1/wd/{keyword}.html",
+    "item": [
+      "a.video-item",
+      "a.video-surface"
+    ],
+    "fields": {
+      "id": "a@href",
+      "title": [
+        ".video-desc",
+        ".surface-title",
+        ".video-title",
+        ".title"
+      ],
+      "cover": [
+        "img@data-src",
+        "img@src"
+      ],
+      "idPattern": "(\\d+)"
+    }
+  },
+  "resolve": {
+    "playerVar": "player_aaaa"
+  }
+}
