@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:duanju_app/ui/core/search_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,8 @@ void main() {
       final first = Completer<List<String>>();
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Padding(
               padding: const EdgeInsets.all(20),
@@ -63,6 +66,8 @@ void main() {
     final searches = <String>[];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SearchInput(
             controller: controller,

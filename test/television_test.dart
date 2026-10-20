@@ -1,5 +1,6 @@
 import 'package:duanju_app/ui/core/app_layout.dart';
 import 'package:duanju_app/data/local_store.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:duanju_app/main.dart';
 import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/ui/core/remote_widgets.dart';
@@ -109,7 +110,7 @@ void main() {
 
   for (final dimensions in [const Size(960, 540), const Size(1280, 720)]) {
     testWidgets(
-      'TV sources, details, VIP confirmation and back retain remote focus at $dimensions',
+      'TV sources, direct playback, VIP confirmation and back retain remote focus at $dimensions',
       (tester) async {
         size(tester, dimensions);
         final store = await makeStore();
@@ -137,16 +138,12 @@ void main() {
         focusRemote(tester, find.byKey(ValueKey(FixtureRepository.free.id)));
         await tester.pumpAndSettle();
         await press(tester, LogicalKeyboardKey.select);
-        expect(repository.detailCalls, 1);
-        expect(find.byKey(const ValueKey('start-play')), findsOneWidget);
-        focusRemote(tester, find.byKey(const ValueKey('episode-1')));
         await tester.pumpAndSettle();
-        await press(tester, LogicalKeyboardKey.select);
+        expect(repository.detailCalls, 1);
         expect(find.text('这是一集 VIP 内容'), findsOneWidget);
-        await press(tester, LogicalKeyboardKey.goBack);
-        expect(find.text('这是一集 VIP 内容'), findsNothing);
-        expect(FocusManager.instance.primaryFocus?.debugLabel, 'remote-1');
         await press(tester, LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(find.text('这是一集 VIP 内容'), findsNothing);
         expect(
           FocusManager.instance.primaryFocus?.debugLabel,
           'remote-${FixtureRepository.free.id}',
@@ -163,6 +160,8 @@ void main() {
       var loaded = 0;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: RemoteGrid(
               itemKeys: List.generate(59, (index) => '$index'),
@@ -204,6 +203,8 @@ void main() {
     size(tester, const Size(960, 540));
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: RemoteGrid(
             itemKeys: List.generate(160, (index) => '$index'),

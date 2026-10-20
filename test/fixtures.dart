@@ -4,6 +4,9 @@ import 'package:duanju_app/domain/models.dart';
 class FixtureRepository extends AppRepository {
   int detailCalls = 0;
   bool fail = false;
+  bool downloadsSupported = false;
+  @override
+  bool get supportsDownloads => downloadsSupported;
   final requests = <String>[];
   final pages = <int>[];
   final forced = <bool>[];

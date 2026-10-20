@@ -9,6 +9,7 @@ import 'package:duanju_app/data/playback/playback_loader.dart';
 import 'package:duanju_app/ui/features/player/views/player_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -133,6 +134,38 @@ Widget _app({
   home: home,
 );
 
+/// 下载页里的「本地播放」走 `context.push`，需要祖先中存在 `GoRouter`。
+/// 这里只提供下载页与播放页两条路由，播放页由调用方注入的 `playerBuilder`
+/// 接管，避免在测试里创建真实播放器。
+Widget _routerHost({required Widget child, ThemeData? theme}) {
+  final router = GoRouter(
+    initialLocation: AppRoutes.downloads,
+    routes: [
+      GoRoute(path: AppRoutes.downloads, builder: (_, _) => child),
+      GoRoute(
+        path: AppRoutes.player,
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is! PlayerRouteExtra) return const SizedBox.shrink();
+          final builder = extra.playerBuilder;
+          if (builder == null) return const SizedBox.shrink();
+          return builder(
+            extra.detail,
+            extra.initialIndex,
+            extra.initialPosition,
+          );
+        },
+      ),
+    ],
+  );
+  return MaterialApp.router(
+    routerConfig: router,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    theme: theme,
+  );
+}
+
 void main() {
   Future<LocalStore> makeStore() async {
     SharedPreferences.setMockInitialValues({});
@@ -152,6 +185,25 @@ void main() {
     for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
+  }
+
+  Future<void> episodeAction(
+    WidgetTester tester,
+    int number,
+    String label,
+  ) async {
+    final task = find.byKey(ValueKey('download-task-$number'));
+    await tester.tap(
+      find.descendant(of: task, matching: find.byType(PopupMenuButton<String>)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(PopupMenuItem<String>),
+        matching: find.text(label),
+      ),
+    );
+    await tester.pumpAndSettle();
   }
 
   test(
@@ -341,26 +393,42 @@ void main() {
       ),
     );
     await tick(tester);
-    await tester.tap(find.byKey(const ValueKey('pause-1')));
+    await tester.tap(find.text('测试短剧'));
+    await tester.pumpAndSettle();
+    await episodeAction(tester, 1, '暂停');
     await tick(tester);
     expect(repository.commands, ['pause:1']);
-    await tester.tap(find.byKey(const ValueKey('resume-1')));
+    await episodeAction(tester, 1, '继续 / 重试');
     await tick(tester);
     expect(repository.commands.last, 'resume:1');
-    await tester.tap(find.text('已下载').first);
+    await tester.tap(find.byTooltip('筛选下载合集'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '进行中'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '应用'));
     await tick(tester);
-    expect(find.byKey(const ValueKey('download-task-1')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('remove-2')));
+    expect(find.byKey(const ValueKey('download-task-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('download-task-2')), findsNothing);
+    await tester.tap(find.byTooltip('筛选下载合集'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '全部任务'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '应用'));
+    await tick(tester);
+    if (find.byKey(const ValueKey('download-task-2')).evaluate().isEmpty) {
+      await tester.tap(find.text('测试短剧').first);
+      await tester.pumpAndSettle();
+    }
+    await episodeAction(tester, 2, '删除视频');
     await tester.pumpAndSettle();
     await tester.tap(find.text('保留'));
     await tester.pumpAndSettle();
     expect(repository.commands, isNot(contains('remove:2')));
-    await tester.tap(find.byKey(const ValueKey('remove-2')));
+    await episodeAction(tester, 2, '删除视频');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('删除'));
+    await tester.tap(find.text('确认删除'));
     await tester.pumpAndSettle();
     expect(repository.commands.last, 'remove:2');
-    expect(find.text('暂无符合条件的任务'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     expect(tester.takeException(), isNull);
   });
@@ -385,9 +453,9 @@ void main() {
         ),
       );
       await tester.pumpWidget(
-        _app(
+        _routerHost(
           theme: ThemeData.dark(),
-          home: DownloadsScreen(
+          child: DownloadsScreen(
             repository: repository,
             store: store,
             playerBuilder: (detail, index, position) {
@@ -400,7 +468,9 @@ void main() {
         ),
       );
       await tick(tester);
-      await tester.tap(find.byKey(const ValueKey('local-play-3')));
+      await tester.tap(find.text('测试短剧'));
+      await tester.pumpAndSettle();
+      await episodeAction(tester, 3, '本地播放');
       await tester.pumpAndSettle();
       expect(find.text('offline player'), findsOneWidget);
       expect(repository.detailCalls, 0);
@@ -510,16 +580,18 @@ void main() {
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.select);
       await tester.pumpAndSettle();
-      focusRemote(tester, find.byKey(const ValueKey('download-task-1')));
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pumpAndSettle();
-      for (var i = 0; i < 12; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 14; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
         await tester.pumpAndSettle();
       }
       await tester.sendKeyEvent(LogicalKeyboardKey.select);
       await tester.pumpAndSettle();
-      expect(find.text('测试短剧 · 第 13 集').last, findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      expect(find.text('第 13 集'), findsWidgets);
+      await tester.tap(find.text('继续 / 重试').last);
       await tick(tester);
       expect(repository.commands.last, 'resume:13');
       await tester.pumpWidget(const SizedBox.shrink());

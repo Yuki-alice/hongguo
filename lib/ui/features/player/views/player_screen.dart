@@ -119,6 +119,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   double _aspectRatio = 9 / 16;
   bool _rotating = false;
   bool _television = false;
+  bool _bootstrapped = false;
   AppOrientationController? _orientationController;
   bool get _pictureInPictureVisible =>
       _pictureInPictureActive || _pictureInPictureRequested;
@@ -319,6 +320,18 @@ class _PlayerScreenState extends State<PlayerScreen>
         if (_handoffOwned && !_closed) await _stopForLan();
       };
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_closed) {
+        widget.repository.catalogUpdates.publish(
+          widget.repository.catalogUpdates.current(widget.detail.drama),
+          retryCover: true,
+        );
+      }
+    });
+  }
+
+  void _bootstrapPlayback() {
+    final handoff = widget.handoff;
     if (_profileEpoch != widget.store.profileEpoch ||
         handoff?.cancelled == true) {
       handoff?.fail(l10n.playerHandoffUserChanged);
@@ -332,14 +345,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         handoffPlan: handoff?.plan,
       );
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_closed) {
-        widget.repository.catalogUpdates.publish(
-          widget.repository.catalogUpdates.current(widget.detail.drama),
-          retryCover: true,
-        );
-      }
-    });
   }
 
   void _progressChanged() {
@@ -732,6 +737,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
     _lastOrientation = orientation;
     _scheduleSystemUi();
+    if (!_bootstrapped) {
+      _bootstrapped = true;
+      _bootstrapPlayback();
+    }
   }
 
   void _scheduleSystemUi() {

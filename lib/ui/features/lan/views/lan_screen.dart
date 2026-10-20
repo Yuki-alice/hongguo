@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:duanju_app/data/lan/lan_controller.dart';
+import 'package:duanju_app/ui/features/lan/controllers/lan_sync_controller.dart';
 import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/ui/core/remote_widgets.dart';
@@ -94,31 +95,31 @@ class LanSyncScreen extends StatefulWidget {
 
 class _LanSyncScreenState extends State<LanSyncScreen> {
   AppLocalizations get l10n => AppLocalizations.of(context);
-  bool _busy = false;
-  bool _cancelling = false;
-  String? _error;
+  late final LanSyncController _actions;
   LanController get link => widget.controller;
 
   @override
   void initState() {
     super.initState();
     ensureTelevisionFocus(context);
+    _actions = LanSyncController(link: widget.controller)
+      ..addListener(_actionsChanged);
   }
 
-  Future<void> _perform(Future<void> Function() action) async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  @override
+  void dispose() {
+    _actions
+      ..removeListener(_actionsChanged)
+      ..dispose();
+    super.dispose();
   }
+
+  void _actionsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _perform(Future<void> Function() action) =>
+      _actions.perform(action);
 
   Future<void> _rename() async {
     final epoch = link.store.profileEpoch;
@@ -155,17 +156,7 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
     }
   }
 
-  Future<void> _cancel() async {
-    if (_cancelling) return;
-    setState(() => _cancelling = true);
-    try {
-      await link.cancelSync();
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
-    } finally {
-      if (mounted) setState(() => _cancelling = false);
-    }
-  }
+  Future<void> _cancel() => _actions.cancelSync();
 
   Future<void> _manual() async {
     final epoch = link.store.profileEpoch;
@@ -195,7 +186,10 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
         conflicts = link.conflictCount;
       } catch (_) {}
       final controlsEnabled =
-          !_busy && !_cancelling && !link.syncing && !link.store.locked;
+          !_actions.busy &&
+          !_actions.cancelling &&
+          !link.syncing &&
+          !link.store.locked;
       return Scaffold(
         appBar: AppBar(title: Text(l10n.lanSyncTitle)),
         body: Center(
@@ -212,7 +206,7 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                         title: Text(l10n.deviceInterop),
                         subtitle: Text(l10n.lanDirectHint),
                         value: link.enabled,
-                        onChanged: _busy || link.store.locked
+                        onChanged: _actions.busy || link.store.locked
                             ? null
                             : (value) => _perform(() => link.setEnabled(value)),
                       ),
@@ -224,7 +218,7 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                         ),
                         trailing: IconButton(
                           tooltip: l10n.lanRenameDevice,
-                          onPressed: _busy ? null : _rename,
+                          onPressed: _actions.busy ? null : _rename,
                           icon: const Icon(Icons.edit_outlined),
                         ),
                       ),
@@ -282,7 +276,7 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                                 ? l10n.lanSelectDevice
                                 : l10n.lanSwitchDevice,
                           ),
-                          onPressed: _busy || link.store.locked
+                          onPressed: _actions.busy || link.store.locked
                               ? null
                               : () => chooseLanDevice(
                                   context,
@@ -365,10 +359,12 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                             link.syncing ? l10n.lanCancelSync : l10n.lanSyncNow,
                           ),
                           onPressed: link.syncing
-                              ? _cancelling
+                              ? _actions.cancelling
                                     ? null
                                     : _cancel
-                              : remote == null || _busy || _cancelling
+                              : remote == null ||
+                                    _actions.busy ||
+                                    _actions.cancelling
                               ? null
                               : () => _perform(() => link.synchronize()),
                         ),
@@ -395,7 +391,7 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                   enabled: remote != null && controlsEnabled,
                   onTap: remote != null && controlsEnabled ? _manual : null,
                 ),
-                if (_error ?? link.error case final message?)
+                if ((_actions.error ?? link.error) case final message?)
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(

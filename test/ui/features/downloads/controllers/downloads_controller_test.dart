@@ -1,4 +1,5 @@
 import 'package:duanju_app/domain/download_collections.dart';
+import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
 import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/domain/models.dart';
@@ -162,6 +163,8 @@ void main() {
     addTearDown(store.dispose);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: DownloadsScreen(
           repository: _DownloadsRepository([
             _job('1', 'paused'),

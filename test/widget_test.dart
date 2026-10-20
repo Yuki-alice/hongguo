@@ -2,6 +2,8 @@ import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/main.dart';
 import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/app_build.dart';
+import 'package:duanju_app/domain/follow_state.dart';
+import 'package:duanju_app/ui/core/remote_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +24,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final repository = FixtureRepository();
+      final repository = FixtureRepository()..downloadsSupported = true;
       final local = await store();
       await tester.pumpWidget(DuanjuApp(repository: repository, store: local));
       await tester.pumpAndSettle();
@@ -45,13 +47,26 @@ void main() {
         expect(find.text('黄豆'), findsNothing);
       }
       expect(find.text('会员测试剧'), findsNothing);
-      await tester.tap(find.text('测试短剧'));
+      await tester.tap(
+        find.byKey(ValueKey('drama-actions-${FixtureRepository.free.id}')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('下载选集'));
       await tester.pumpAndSettle();
       expect(repository.detailCalls, 1);
+      if (find.text('展开').evaluate().isNotEmpty) {
+        await tester.tap(find.text('展开'));
+        await tester.pumpAndSettle();
+      }
       expect(find.byKey(const ValueKey('episode-2')), findsOneWidget);
-      await tester.tap(find.byTooltip('加入追剧'));
+      await tester.tap(find.byKey(const ValueKey('follow-status')));
       await tester.pumpAndSettle();
-      expect(local.isFavorite(FixtureRepository.free.id), isTrue);
+      await tester.tap(find.widgetWithText(CheckedPopupMenuItem<String>, '在看'));
+      await tester.pumpAndSettle();
+      expect(
+        local.following(FixtureRepository.free.id)?.status,
+        FollowStatus.watching,
+      );
       for (final episode in [1, 2]) {
         await local.saveWatch(
           WatchEntry(
@@ -63,15 +78,12 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('继续第 $episode 集'), findsOneWidget);
+        expect(find.text('继续播放 · 第 $episode 集'), findsOneWidget);
         for (final number in [1, 2]) {
-          final button = tester.widget<OutlinedButton>(
+          final button = tester.widget<RemoteEpisodeButton>(
             find.byKey(ValueKey('episode-$number')),
           );
-          expect(
-            button.style?.backgroundColor?.resolve({}),
-            number == episode ? isNotNull : isNull,
-          );
+          expect(button.current, number == episode);
         }
       }
       await local.clearHistory();

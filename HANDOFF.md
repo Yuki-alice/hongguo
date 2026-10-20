@@ -1,8 +1,8 @@
 # 交接文档 · Flutter 技术栈现代化
 
 > 生成时间：2026-10-20
-> 分支：`main` · 版本：`0.2.57+63`
-> 状态：**路由迁移已完成；P1 逻辑页面已 ViewModel 化；P2 测试改造已完成；剩余 LAN / 首页 / 播放器 UI 状态**
+> 分支：`main` · 版本：`0.2.58+64`
+> 状态：**路由迁移已完成；P1 逻辑页面已 ViewModel 化；P2 测试改造已完成；全量测试 328 通过 / 0 失败；剩余 LAN / 首页 / 播放器 UI 状态**
 
 ---
 
@@ -365,17 +365,40 @@ lib/
 
 ## 4. 验证结果（截至交接）
 
+### 4.0 全量测试归零（0.2.58+64 本轮）
+
+本轮把全量 Dart 测试从 **44 失败 / 256 通过** 清到 **0 失败 / 328 通过（跳过 1）**，
+`dart analyze lib test integration_test test_driver` 为 **0 error / 0 warning**（80 条历史
+`info` 级 lint 保留）。
+
+失败分三类，处理方式不同：
+
+| 类别 | 数量 | 根因 | 处理 |
+| --- | --- | --- | --- |
+| 真实产品缺陷 | 9 | `_PlayerScreenState` 在 `initState` 中调用 `l10n` getter，间接触发 `AppLocalizations.of(context)` → `dependOnInheritedWidgetOfExactType`。Flutter 明令禁止在 `initState` 期间建立 inherited 依赖，断言直接抛出并让播放启动失败 | 把起播逻辑移到 `didChangeDependencies` 的一次性引导（`_bootstrapped` 闸门），播放器与弹幕相关 9 项测试全部转绿 |
+| 测试环境缺少依赖 | 4 | `search_input_test` / `television_test` / `downloads_controller_test` 用裸 `MaterialApp`，没有注册 `AppLocalizations.localizationsDelegates`，`AppLocalizations.of` 的空断言崩溃 | 三处补齐 delegates 与 `supportedLocales` |
+| 陈旧用例（交互已变） | 31 | 点卡片改为**直接播放**、详情页分集**默认折叠**、追剧改为**下拉菜单**、下载页改为**合集展开 + 弹层菜单**、筛选改为**弹窗**、电视端分集行不再暴露 `download-task-*` key | 按新交互重写断言，覆盖同样的用户路径 |
+| 环境 | 1 | `engine_hls_download_test` 的 `tearDownAll` 在 Windows 删除临时目录，引擎仍持有分片句柄 | 清理容忍 `FileSystemException` |
+
+引擎侧 8 个 `engine_*` 测试此前因 `frb_generated` 与 release 动态库内容哈希不一致而整组
+`setUpAll` 失败，本机执行 `cargo build -p guo_engine --release` 后全部通过——这是构建前置
+条件，不是代码缺陷。
+
 ### 4.1 静态检查
 
 ```
-dart analyze lib test   →   0 errors, 0 warnings
+dart analyze lib test integration_test test_driver   →   0 errors, 0 warnings
 ```
 
-（92 条 `info` 级 lint 为项目历史遗留，与本次迁移无关。）
+（80 条 `info` 级 lint 为项目历史遗留，与本次迁移无关。）
 
 ### 4.2 测试
 
-本轮新增 95 条控制器 / 页面 / 纯逻辑测试，全部通过：
+```
+flutter test   →   +328 ~1   （0 失败）
+```
+
+此前一轮新增 95 条控制器 / 页面 / 纯逻辑测试，全部通过：
 
 ```
 flutter test test/ui/features/detail/controllers/detail_controller_test.dart test/ui/features/downloads/controllers/downloads_controller_test.dart \
@@ -473,7 +496,7 @@ flutter build apk --release --no-pub --target-platform android-arm64
 
 | 文件 | `setState` 数 | 状态 |
 | --- | --- | --- |
-| `lan_screen.dart` | 24 | 待迁移（4 个面板的表单 / 选择 / 任务状态） |
+| `lan_screen.dart` | 19 | 部分迁移（`LanSyncController` 接管主面板的忙碌 / 取消 / 错误） |
 | `player_screen.dart` | 18 | 部分迁移（进度 + 会话 + 偏好） |
 | `home_screen.dart` | 12 | 待迁移（tab / 多选 / 缓存更新） |
 | `resource_settings_screen.dart` | 1 | 已拆分（仅剩代理可见性） |
@@ -486,6 +509,11 @@ flutter build apk --release --no-pub --target-platform android-arm64
 > 是面板选择、表单编辑、全屏/PiP 等**页面本地 UI 状态**，不需要强行下沉。
 > 下一步只迁移其中的数据操作与跨组件状态，避免为“清零 setState”而制造
 > 无意义的 ViewModel。
+>
+> 本轮只把 `LanSyncScreen` 的**动作状态**（busy / cancelling / error）收进
+> `LanSyncController`，并补 7 条单元测试。`_LanDevices`、`_LanManual` 与
+> `_LanPushPanel` 的状态与 `LanController` 生命周期、弹层关闭时机强耦合，
+> 强行下沉会把「关闭弹层」这类导航副作用塞进控制器，因此保持原样。
 
 **最大债务**：`_PlayerScreenState` 现有约 **32 个字段**，主要剩播放器/弹幕
 控制器、恢复与健康检查，以及全屏、弹层、PiP、生命周期等页面状态。
@@ -518,6 +546,7 @@ test/ui/features/
   detail/controllers/       detail_controller_test.dart
   downloads/controllers/    downloads_controller_test.dart
   downloads/views/          downloads_test.dart
+  lan/controllers/          lan_sync_controller_test.dart
   media/controllers/        local_media_controller_test.dart
   player/controllers/       playback_*_controller_test.dart
   player/views/             player_screen_test.dart、television_player_test.dart、danmaku_*
@@ -617,6 +646,7 @@ test/ui/features/
 | `lib/data/` | 仓库、本地存储、引擎路由、媒体 / LAN / 播放 / 增强服务 |
 | `lib/data/media/media_library.dart` | 媒体合并、导出与目录任务 |
 | `lib/data/lan/lan_controller.dart` | 设备互联与同步 |
+| `lib/ui/features/lan/controllers/lan_sync_controller.dart` | 同步页动作状态（忙碌 / 取消 / 错误） |
 | `lib/data/playback/` | 播放取流、预加载与恢复 |
 | `lib/data/video_enhancement/` | 画质增强策略与 MPV 集成 |
 | `lib/domain/` | 剧集、榜单、LAN、偏好等纯领域模型 |

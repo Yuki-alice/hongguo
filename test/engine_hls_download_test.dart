@@ -14,7 +14,11 @@ void main() {
   });
 
   tearDownAll(() {
-    if (workdir.existsSync()) workdir.deleteSync(recursive: true);
+    try {
+      if (workdir.existsSync()) workdir.deleteSync(recursive: true);
+    } on FileSystemException {
+      // Windows 上引擎可能仍持有分片句柄，临时目录由系统回收即可。
+    }
   });
 
   test('resolve exposes HLS segments and key material', () async {
