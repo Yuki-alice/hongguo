@@ -1,0 +1,85 @@
+{
+  "schema": "1.0",
+  "id": "wangguo",
+  "name": "网果",
+  "group": "duanju",
+  "base": "https://www.duanju2.com",
+  "kind": "html",
+  "capabilities": [
+    "catalog",
+    "detail",
+    "search",
+    "resolve"
+  ],
+  "categories": [
+    { "id": "女频恋爱", "name": "女频恋爱" },
+    { "id": "脑洞悬疑", "name": "脑洞悬疑" },
+    { "id": "年代穿越", "name": "年代穿越" },
+    { "id": "古装仙侠", "name": "古装仙侠" },
+    { "id": "现代都市", "name": "现代都市" },
+    { "id": "反转", "name": "反转" },
+    { "id": "爽文", "name": "爽文" },
+    { "id": "短剧", "name": "短剧" }
+  ],
+  "catalog": {
+    "urls": [
+      { "url": "show/duanju---{category}-----{page}---.html", "when": "category" },
+      { "url": "show/duanju--------{page}---.html" }
+    ],
+    "item": [
+      "article.post",
+      "div.entry-wrapper"
+    ],
+    "fields": {
+      "id": [
+        "div.entry-media a@href",
+        "header.entry-header a@href"
+      ],
+      "title": [
+        "header.entry-header a@title",
+        "div.entry-media a@title"
+      ],
+      "cover": [
+        "img@data-src",
+        "img@src"
+      ],
+      "category": [
+        "span.meta-views a"
+      ],
+      "description": [
+        "span.meta-post-type2"
+      ]
+    },
+    "next": "div.pagination a.next"
+  },
+  "detail": {
+    "url": "vod/{id}.html",
+    "episodes": [
+      "a[href*='/play/']"
+    ]
+  },
+  "search": {
+    "url": "search/{keyword}----------1---.html",
+    "item": [
+      "article.post",
+      "div.entry-wrapper"
+    ],
+    "fields": {
+      "id": [
+        "div.entry-media a@href",
+        "header.entry-header a@href"
+      ],
+      "title": [
+        "header.entry-header a@title",
+        "div.entry-media a@title"
+      ],
+      "cover": [
+        "img@data-src",
+        "img@src"
+      ]
+    }
+  },
+  "resolve": {
+    "playerVar": "player_aaaa"
+  }
+}
