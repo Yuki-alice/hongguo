@@ -41,6 +41,9 @@ ios/DuanjuCore/*.xcframework/
 
 # Rust engine build artifacts
 engine/target/
+# 桥接 crate 的同步目录：`scripts/prepare_engine.py` 在这里放一份产物，
+# 让 FRB 按 rust_root 推出的路径也能加载。
+engine/bridge/target/
 engine/Cargo.lock.bak
 # 插件模板是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）
 engine/examples/plugin-template/target/

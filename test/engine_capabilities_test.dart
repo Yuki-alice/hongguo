@@ -1,3 +1,5 @@
+import 'engine_support.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:duanju_app/data/engine_repository.dart';
@@ -12,7 +14,8 @@ void main() {
   late EngineRepository engine;
 
   setUpAll(() async {
-    engine = await EngineRepository.create();
+    await initEngineForTest();
+    engine = EngineRepository(initialized: true);
   });
 
   group('榜单', () {

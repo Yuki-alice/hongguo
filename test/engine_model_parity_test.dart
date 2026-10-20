@@ -1,6 +1,7 @@
+import 'engine_support.dart';
+
 import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/src/rust/api.dart';
-import 'package:duanju_app/src/rust/frb_generated.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 结构对拍：Rust 引擎产出的数据必须能被现有 Dart 模型无损解析。
@@ -8,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// 这是「替换 Go 核心」的关键约束——UI 层不应感知后端换成了 Rust。
 void main() {
   setUpAll(() async {
-    await RustLib.init();
+    await initEngineForTest();
   });
 
   test('engine DramaItem maps onto the existing Dart Drama model', () async {

@@ -1,7 +1,7 @@
 # 交接文档 · Flutter 技术栈现代化
 
 > 生成时间：2026-10-20
-> 分支：`main` · 版本：`0.2.58+64`
+> 分支：`main` · 版本：`0.2.59+65`
 > 状态：**路由迁移已完成；P1 逻辑页面已 ViewModel 化；P2 测试改造已完成；全量测试 328 通过 / 0 失败；剩余 LAN / 首页 / 播放器 UI 状态**
 
 ---
@@ -606,16 +606,24 @@ test/ui/features/
 | 代码插件 | WIT 契约 `engine/crates/plugin-wasm/wit/source-plugin.wit`；模板 `engine/examples/plugin-template/`（`./build.sh`） |
 | 测试 | `cargo test --workspace` 263 项；Dart 引擎测试 9 项需先 `cargo build -p guo_engine --release` |
 
-**Dart 测试的前置条件**：`lib/src/rust/frb_generated.dart` 的 `ioDirectory` 是
-`engine/target/release/`，因此跑 `flutter test test/engine_bridge_test.dart` 之前
-必须先构建 release 动态库；否则报 `Failed to load dynamic library 'guo_engine.framework/guo_engine'`。
+**Dart 测试的前置条件**：跑引擎测试前先准备动态库：
 
-**重新生成绑定的两个手工步骤**（`flutter_rust_bridge_codegen generate` 之后）：
+```
+python scripts/prepare_engine.py          # release（推荐）
+python scripts/prepare_engine.py --debug  # 调试
+```
 
-1. 把 `lib/src/rust/frb_generated.dart` 的 `ioDirectory` 改回 `engine/target/release/`
-   （codegen 按 `rust_root: engine/bridge/` 推出 `engine/bridge/target/release/`，那是错的）；
-2. 若新增了 FRB 不可序列化的 Rust 类型，给对应函数加 `#[flutter_rust_bridge::frb(ignore)]`
-   （本轮 `debug_env`、`plugin_error_hint` 就是这么处理的）。
+脚本会构建并把产物同时放到 `engine/target/<profile>/` 与
+`engine/bridge/target/<profile>/`。生成代码的 `ioDirectory` 写的是前者，
+codegen 按 `rust_root` 推出的是后者——两侧都有库，所以重新生成绑定后
+**不需要再手工修改生成文件**。`test/engine_support.dart` 的
+`initEngineForTest()` 在库缺失时会直接给出上面这条命令，而不是让
+`RustLib.init()` 抛出 `Failed to load dynamic library`。
+
+**重新生成绑定**（`flutter_rust_bridge_codegen generate`）后：
+若新增了 FRB 不可序列化的 Rust 类型，给对应函数加
+`#[flutter_rust_bridge::frb(ignore)]`（`debug_env`、`plugin_error_hint`
+就是这么处理的）。`ioDirectory` 无需手工修改。
 
 ---
 
@@ -661,7 +669,7 @@ test/ui/features/
 | `engine/crates/source-hongguo/` | 红果主源（签名、`_ROUTER_DATA` 解析） |
 | `engine/docs/ARCHITECTURE.md` | 引擎架构与阶段划分（唯一权威设计文档） |
 | `engine/docs/PROGRESS.md` | 每轮落地内容与验证数据 |
-| `lib/src/rust/` | FRB 生成的 Dart 绑定（勿手改，除 `ioDirectory`） |
+| `lib/src/rust/` | FRB 生成的 Dart 绑定（勿手改，含 `ioDirectory`） |
 | `test/router_harness.dart` | 路由测试脚手架 |
 | `test/ui/features/detail/controllers/detail_controller_test.dart` | 详情控制器单元测试 |
 | `test/ui/features/downloads/controllers/downloads_controller_test.dart` | 下载控制器单元测试 |

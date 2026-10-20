@@ -1,3 +1,5 @@
+import 'engine_support.dart';
+
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +9,8 @@ void main() {
   late EngineRepository repository;
 
   setUpAll(() async {
-    repository = await EngineRepository.create();
+    await initEngineForTest();
+    repository = EngineRepository(initialized: true);
   });
 
   test('resolves a real chapter to a playable url', () async {

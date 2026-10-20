@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'engine_support.dart';
 
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +10,8 @@ void main() {
   late Directory workdir;
 
   setUpAll(() async {
-    repository = await EngineRepository.create();
+    await initEngineForTest();
+    repository = EngineRepository(initialized: true);
     workdir = Directory.systemTemp.createTempSync('guo-hls-dart');
   });
 

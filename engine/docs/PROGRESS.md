@@ -316,7 +316,8 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
    直接喂给 `Component::from_binary` 会报 "attempted to parse a wasm module with a component parser"。
 3. **`wasm32-wasip2` 产物带 wasi 导入**，必须拒绝——否则插件能绕开宿主的网络白名单。
 4. **Dart 侧 `ioDirectory`**：codegen 按 `rust_root` 推出 `engine/bridge/target/release/`，
-   但工作区共享 `engine/target/`；每次重新生成都要手工改回（已在配置注释里写明）。
+   但工作区共享 `engine/target/`。已由 `scripts/prepare_engine.py` 把产物同步到两侧，
+   重新生成后不再需要手工修改生成文件。
 5. **Android 插件缓存**：`shared_preferences_android` 的 Kotlin 类未编译时，
    报错表现为 `:app:compileDebugJavaWithJavac` 找不到 `SharedPreferencesPlugin`，
    与 Dart/Rust 改动无关；删掉 `build/shared_preferences_android` 重新构建即恢复。

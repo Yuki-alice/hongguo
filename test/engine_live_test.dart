@@ -1,5 +1,6 @@
+import 'engine_support.dart';
+
 import 'package:duanju_app/src/rust/api.dart';
-import 'package:duanju_app/src/rust/frb_generated.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 验证 Dart 可以真实驱动 Rust 引擎完成站源调度。
@@ -7,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// 这批用例需要网络。离线时会被 `skip` 标记，不影响本地回归。
 void main() {
   setUpAll(() async {
-    await RustLib.init();
+    await initEngineForTest();
   });
 
   test('engine lists both rule source and code plugin', () async {

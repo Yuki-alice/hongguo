@@ -9,14 +9,23 @@ from pathlib import Path
 @contextmanager
 def mirrored_pub_lockfile(root, environment):
     mirror = environment.get('PUB_HOSTED_URL', 'https://pub.dev').rstrip('/')
-    if mirror in {'https://pub.dev', 'https://pub.dartlang.org'}:
-        yield
-        return
+    if mirror.endswith('/'):
+        mirror = mirror[:-1]
+    canonical = 'https://pub.dev'
     lockfile = Path(root) / 'pubspec.lock'
     original = lockfile.read_bytes()
-    rewritten = re.sub(r'(?m)^([ \t]+url:[ \t]*)"?https://pub\.(?:dev|dartlang\.org)/?"?([ \t]*)$',
-                       lambda match: match[1] + json.dumps(mirror) + match[2],
-                       original.decode('utf-8')).encode('utf-8')
+    # 锁文件里的 url 必须与本次 `pub get` 使用的源一致，否则
+    # `--enforce-lockfile` 会判定依赖无法满足。因此两个方向都要改写：
+    # 镜像构建把 pub.dev 换成镜像，默认构建把残留的镜像地址换回 pub.dev。
+    # 行尾用 `[ \t]*\r?` 而非 `$`：Windows 上文本模式读出的锁文件是 CRLF，
+    # 紧贴 `$` 的空白类匹配不到 `\r`，会导致整段改写静默失效。
+    pattern = (r'(?m)^([ \t]+url:[ \t]*)"?https?://'
+               r'(?:pub\.dev|pub\.dartlang\.org|pub\.flutter-io\.cn)/?"?([ \t]*\r?)$')
+    rewritten = re.sub(
+        pattern,
+        lambda match: match[1] + json.dumps(mirror) + match[2],
+        original.decode('utf-8'),
+    ).encode('utf-8')
     if rewritten == original:
         yield
         return

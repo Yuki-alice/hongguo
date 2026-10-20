@@ -1,8 +1,8 @@
 import 'dart:io';
+import 'engine_support.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:duanju_app/src/rust/api.dart';
-import 'package:duanju_app/src/rust/frb_generated.dart';
 
 /// 验证 Rust 引擎已接入且可被 Dart 真实调用。
 ///
@@ -10,7 +10,7 @@ import 'package:duanju_app/src/rust/frb_generated.dart';
 /// 引擎在 Flutter 进程内被加载、初始化和调用。
 void main() {
   setUpAll(() async {
-    await RustLib.init();
+    await initEngineForTest();
   });
 
   test('engine reports a version', () async {
