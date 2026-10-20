@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ui/theme/md3_tokens.dart';
+
+
 export 'app_build.dart';
 
 const appVersion = '0.2.51';
@@ -36,7 +39,7 @@ ThemeData televisionTheme(ThemeData theme) {
     ),
     inputDecorationTheme: theme.inputDecorationTheme.copyWith(
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: Md3Shape.largeRadius,
         borderSide: BorderSide(color: colors.primary, width: 3),
       ),
     ),

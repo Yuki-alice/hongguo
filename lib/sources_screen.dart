@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core_bridge.dart';
 import 'local_store.dart';
 import 'models.dart';
 import 'remote_widgets.dart';
 import 'source_status.dart';
+import 'ui/routing/app_router.dart';
 
 String sourceTimestamp(DateTime? value) {
   if (value == null) return '尚无记录';
@@ -488,17 +490,8 @@ class SourceDiagnosticsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextButton.icon(
-    onPressed: () => Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SourcesScreen(
-          repository: repository,
-          store: store,
-          initialSource: drama.source,
-          drama: drama,
-        ),
-      ),
-    ),
+    onPressed: () =>
+        context.push(AppRoutes.sourcesOf(drama.source), extra: drama),
     icon: const Icon(Icons.network_check),
     label: const Text('站源诊断'),
   );

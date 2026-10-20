@@ -3,16 +3,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'app_layout.dart';
 import 'core_bridge.dart';
 import 'download_collections.dart';
 import 'local_store.dart';
-import 'local_media_screen.dart';
 import 'models.dart';
-import 'player_screen.dart';
 import 'remote_widgets.dart';
 import 'settings_screen.dart';
+import 'ui/routing/app_router.dart';
+import 'ui/routing/route_args.dart';
 import 'widgets.dart';
 
 class DownloadsScreen extends StatefulWidget {
@@ -249,19 +250,21 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final position = watch?.episode == job.episode.number && !watch!.finished
         ? watch.position
         : 0.0;
+    final ref = DramaRef.fromDramaId(job.drama.id);
+    if (ref == null) {
+      _opening = false;
+      return;
+    }
     try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) =>
-              widget.playerBuilder?.call(detail, index, position) ??
-              PlayerScreen(
-                detail: detail,
-                initialIndex: index,
-                initialPosition: position,
-                repository: widget.repository,
-                store: widget.store,
-                localOnly: true,
-              ),
+      // 本地已下载内容只依赖本地文件，播放时不再请求详情。
+      await context.push(
+        AppRoutes.playerOf(ref),
+        extra: PlayerRouteExtra(
+          detail: detail,
+          initialIndex: index,
+          initialPosition: position,
+          localOnly: true,
+          playerBuilder: widget.playerBuilder,
         ),
       );
     } finally {
@@ -399,15 +402,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       IconButton(
         key: const ValueKey('download-local-media'),
         tooltip: '本地媒体与合并',
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => LocalMediaScreen(
-              repository: widget.repository,
-              store: widget.store,
-            ),
-          ),
-        ),
+        onPressed: () => context.push(AppRoutes.localMedia),
         icon: const Icon(Icons.video_library_outlined),
       ),
     ],
@@ -626,10 +621,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Future<void> _televisionSearch() async {
     final value = await showDialog<String>(
       context: context,
-      builder: (_) => TelevisionSearchDialog(
-        title: '搜索下载合集',
-        initialValue: _search.text,
-      ),
+      builder: (_) =>
+          TelevisionSearchDialog(title: '搜索下载合集', initialValue: _search.text),
     );
     if (value == null || !mounted) return;
     setState(() => _search.text = value);
@@ -825,15 +818,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           'local',
           '本地媒体',
           Icons.video_library_outlined,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => LocalMediaScreen(
-                repository: widget.repository,
-                store: widget.store,
-              ),
-            ),
-          ),
+          () => context.push(AppRoutes.localMedia),
         ),
         ('queue', '队列操作', Icons.tune_rounded, _busy ? null : _queueActions),
       ],

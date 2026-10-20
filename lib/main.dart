@@ -4,6 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,13 +18,13 @@ import 'engine_routing.dart';
 import 'app_layout.dart';
 import 'app_orientation.dart';
 import 'app_theme.dart';
-import 'home_screen.dart';
 import 'local_store.dart';
-import 'profiles_screen.dart';
 import 'media_library.dart';
 import 'package_smoke.dart';
 import 'lan_controller.dart';
-import 'player_screen.dart';
+import 'ui/providers/app_providers.dart';
+import 'ui/routing/route_args.dart';
+import 'ui/routing/app_router.dart';
 import 'video_enhancement_assets.dart';
 
 Future<void> main(List<String> arguments) async {
@@ -44,6 +46,10 @@ Future<void> main(List<String> arguments) async {
   runApp(AppBootstrap(device: device));
 }
 
+/// 启动装配。
+///
+/// 只负责「准备好根依赖」并把它们注入 `ProviderScope`；
+/// 之后的界面切换、路由与状态都由 Riverpod 与 go_router 承担。
 class AppBootstrap extends StatefulWidget {
   const AppBootstrap({super.key, this.device = const AppDevice()});
   final AppDevice device;
@@ -54,13 +60,16 @@ class AppBootstrap extends StatefulWidget {
 class _AppBootstrapState extends State<AppBootstrap>
     with WidgetsBindingObserver {
   AppRepository? _repository;
+  LocalStore? _store;
+  Object? _error;
+  late AppDevice _device = widget.device;
 
-  /// 当前生效的仓库（可能是纯 Go，也可能是引擎装饰后的版本）。
-  AppRepository get repository => _repository!;
-  final navigator = GlobalKey<NavigatorState>();
-  LocalStore? store;
-  Object? error;
-  late AppDevice device = widget.device;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initialize();
+  }
 
   @override
   void dispose() {
@@ -69,15 +78,8 @@ class _AppBootstrapState extends State<AppBootstrap>
     LanController.current = null;
     MediaLibrary.current?.dispose();
     MediaLibrary.current = null;
-    store?.dispose();
+    _store?.dispose();
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _initialize();
   }
 
   @override
@@ -125,99 +127,120 @@ class _AppBootstrapState extends State<AppBootstrap>
   }
 
   Future<void> _refreshDevice() async {
-    final detected = await AppDevice.detect(fallback: device);
+    final detected = await AppDevice.detect(fallback: _device);
     if (!mounted ||
-        (device.television == detected.television &&
-            device.version == detected.version)) {
+        (_device.television == detected.television &&
+            _device.version == detected.version)) {
       return;
     }
-    setState(() => device = detected);
+    setState(() => _device = detected);
   }
 
   Future<void> _initialize() async {
-    setState(() {
-      error = null;
-    });
+    setState(() => _error = null);
     try {
       final preferences = await SharedPreferences.getInstance();
       await _refreshDevice();
-      _repository = await _buildRepository();
+      final repository = await _buildRepository();
       await repository.initialize();
-      if (mounted) {
-        setState(() {
-          store = LocalStore(preferences);
-          repository.access = store;
-          MediaLibrary.attach(repository, store!);
-          LanController.current?.dispose();
-          final link = LanController(
-            repository,
-            store!,
-            kind: device.television
-                ? 'tv'
-                : Platform.isWindows
-                ? 'computer'
-                : 'phone',
-          );
-          LanController.current = link;
-          link.openPlayback = (request) async {
-            final epoch = request.profileEpoch;
-            if (request.cancelled ||
-                !mounted ||
-                store!.locked ||
-                !link.receiving ||
-                store!.profileEpoch != epoch ||
-                !store!.allowsSource(request.detail.drama.source)) {
-              throw StateError('当前用户不能接收播放');
-            }
-            await link.playbackHost?.stop();
-            if (request.cancelled ||
-                !mounted ||
-                store!.locked ||
-                store!.profileEpoch != epoch ||
-                !link.receiving) {
-              throw StateError('播放接收已取消');
-            }
-            final navigation = navigator.currentState;
-            if (navigation == null) throw StateError('接收设备界面尚未就绪');
-            unawaited(
-              navigation.pushAndRemoveUntil<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => PlayerScreen(
-                    detail: request.detail,
-                    initialIndex: request.index,
-                    initialPosition: request.position,
-                    repository: repository,
-                    store: store!,
-                    handoff: request,
-                  ),
-                ),
-                (route) => route.isFirst,
-              ),
-            );
-          };
-        });
-      }
+      if (!mounted) return;
+      final store = LocalStore(preferences);
+      repository.access = store;
+      MediaLibrary.attach(repository, store);
+      LanController.current?.dispose();
+      final link = LanController(
+        repository,
+        store,
+        kind: _device.television
+            ? 'tv'
+            : Platform.isWindows
+            ? 'computer'
+            : 'phone',
+      );
+      LanController.current = link;
+      link.openPlayback = _handoffPlayback(link, store, repository);
+      setState(() {
+        _repository = repository;
+        _store = store;
+      });
     } catch (failure) {
-      if (mounted) {
-        setState(() {
-          error = failure;
-        });
-      }
+      if (mounted) setState(() => _error = failure);
     }
   }
 
+  /// 局域网推送播放的接收逻辑。
+  ///
+  /// 播放页需要完整的 `DramaDetail`，无法只靠 URL 重建，因此通过
+  /// go_router 的 `extra` 传递；路径本身仍带标识，便于日志与深链兜底。
+  Future<void> Function(LanIncomingPlayback) _handoffPlayback(
+    LanController link,
+    LocalStore store,
+    AppRepository repository,
+  ) {
+    return (LanIncomingPlayback request) async {
+      final epoch = request.profileEpoch;
+      if (request.cancelled ||
+          !mounted ||
+          store.locked ||
+          !link.receiving ||
+          store.profileEpoch != epoch ||
+          !store.allowsSource(request.detail.drama.source)) {
+        throw StateError('当前用户不能接收播放');
+      }
+      await link.playbackHost?.stop();
+      if (request.cancelled ||
+          !mounted ||
+          store.locked ||
+          store.profileEpoch != epoch ||
+          !link.receiving) {
+        throw StateError('播放接收已取消');
+      }
+      final context = appNavigatorKey.currentContext;
+      if (context == null || !context.mounted) {
+        throw StateError('接收设备界面尚未就绪');
+      }
+      final ref = DramaRef.fromDramaId(request.detail.drama.id);
+      if (ref == null) throw StateError('接收到的剧集标识无效');
+      final location = AppRoutes.playerOf(ref);
+      context.go(
+        location,
+        extra: PlayerRouteExtra(
+          detail: request.detail,
+          initialIndex: request.index,
+          initialPosition: request.position,
+        ),
+      );
+    };
+  }
+
   @override
-  Widget build(BuildContext context) => DuanjuApp(
-    repository: repository,
-    store: store,
-    bootstrapError: error?.toString(),
-    onRetry: _initialize,
-    television: device.television,
-    version: device.version,
-    navigatorKey: navigator,
-  );
+  Widget build(BuildContext context) {
+    final repository = _repository;
+    final store = _store;
+    if (repository == null || store == null) {
+      return MaterialApp(
+        title: appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        home: DuanjuBootstrap(error: _error, onRetry: _initialize),
+      );
+    }
+    return ProviderScope(
+      overrides: [
+        repositoryProvider.overrideWithValue(repository),
+        storeProvider.overrideWith(() => StoreHolder(store)),
+        deviceProvider.overrideWithValue(_device),
+      ],
+      child: DuanjuApp(repository: repository, store: store, wrapScope: false),
+    );
+  }
 }
 
+/// 应用外壳。
+///
+/// 保留 `repository` / `store` 参数是为了让测试可以直接构造；
+/// 传入时用它们覆盖 Provider，未传入时依赖外层 `ProviderScope`。
 class DuanjuApp extends StatelessWidget {
   const DuanjuApp({
     super.key,
@@ -228,7 +251,9 @@ class DuanjuApp extends StatelessWidget {
     this.television = false,
     this.version = appVersion,
     this.navigatorKey,
+    this.wrapScope = true,
   });
+
   final AppRepository repository;
   final LocalStore? store;
   final String? bootstrapError;
@@ -237,97 +262,139 @@ class DuanjuApp extends StatelessWidget {
   final String version;
   final GlobalKey<NavigatorState>? navigatorKey;
 
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([store]),
-    builder: (_, _) => _application(),
-  );
+  /// 是否由本组件建立 `ProviderScope`。
+  ///
+  /// `AppBootstrap` 已建立外层 scope 并注入真实依赖，此时传 false，
+  /// 避免嵌套两层 scope 导致依赖被覆盖两次。
+  final bool wrapScope;
 
-  Widget _application() => MaterialApp(
-    navigatorKey: navigatorKey,
-    title: appName,
-    debugShowCheckedModeBanner: false,
-    locale: const Locale('zh', 'CN'),
-    supportedLocales: const [Locale('zh', 'CN')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    theme: AppTheme.light,
-    darkTheme: AppTheme.dark,
-    themeMode: AppTheme.mode(store?.themeMode ?? 'system'),
-    builder: (context, child) {
-      final mode = store?.displayMode ?? 'auto';
-      final tv = mode == 'television' || mode == 'auto' && television;
-      final theme = Theme.of(context);
-      return AnnotatedRegion<SystemUiOverlayStyle>(
-        value: AppTheme.systemBars(theme.brightness),
-        child: ColoredBox(
-          color: theme.scaffoldBackgroundColor,
-          child: AppOrientationScope(
-            television: tv,
-            child: AppLayout(
-              television: tv,
-              version: version,
-              child: Theme(
-                data: tv ? televisionTheme(theme) : theme,
-                child: Shortcuts(
-                  shortcuts: const {
-                    SingleActivator(
-                      LogicalKeyboardKey.select,
-                      includeRepeats: false,
-                    ): ActivateIntent(),
-                    SingleActivator(
-                      LogicalKeyboardKey.gameButtonA,
-                      includeRepeats: false,
-                    ): ActivateIntent(),
-                    SingleActivator(LogicalKeyboardKey.goBack): DismissIntent(),
-                  },
-                  child: FocusTraversalGroup(child: child!),
+  @override
+  Widget build(BuildContext context) {
+    final shell = _AppShell(version: version);
+    if (!wrapScope) return shell;
+    // override 数量必须恒定：Riverpod 不允许同一个 ProviderScope
+    // 在重建时增删 override，因此用 `overrideWithValue(null)` 表达缺省。
+    //
+    // 注意：`overrideWithValue` 变化不会通知下游，所以路由不能靠它刷新。
+    // 用 `key` 让 store 身份变化时重建整棵 scope，从而重新解析首屏；
+    // 同一用户的重建（例如主题变化）不会触发，因为 key 保持不变。
+    return ProviderScope(
+      // store 身份变化时必须换一个全新的 scope：override 只替换 notifier
+      // 工厂，不会重新执行已存在 provider 的 `build()`，旧 scope 会一直
+      // 停留在「用户数据未就绪」。换 key 让容器连同路由一起重建。
+      key: ValueKey<LocalStore?>(store),
+      overrides: [
+        repositoryProvider.overrideWithValue(repository),
+        storeProvider.overrideWith(() => StoreHolder(store)),
+        deviceProvider.overrideWithValue(
+          television ? const AppDevice(television: true) : const AppDevice(),
+        ),
+      ],
+      child: shell,
+    );
+  }
+}
+
+class _AppShell extends ConsumerWidget {
+  const _AppShell({required this.version});
+
+  final String version;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final device = ref.watch(deviceProvider);
+    final router = ref.watch(routerProvider);
+    final television = ref.watch(televisionProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    return MaterialApp.router(
+      routerConfig: router,
+      title: appName,
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [Locale('zh', 'CN')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: AppTheme.mode(themeMode),
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: AppTheme.systemBars(theme.brightness),
+          child: ColoredBox(
+            color: theme.scaffoldBackgroundColor,
+            child: AppOrientationScope(
+              television: television,
+              child: AppLayout(
+                television: television,
+                version: version.isEmpty ? device.version : version,
+                child: Theme(
+                  data: television ? televisionTheme(theme) : theme,
+                  child: Shortcuts(
+                    shortcuts: const {
+                      SingleActivator(
+                        LogicalKeyboardKey.select,
+                        includeRepeats: false,
+                      ): ActivateIntent(),
+                      SingleActivator(
+                        LogicalKeyboardKey.gameButtonA,
+                        includeRepeats: false,
+                      ): ActivateIntent(),
+                      SingleActivator(LogicalKeyboardKey.goBack):
+                          DismissIntent(),
+                    },
+                    child: FocusTraversalGroup(child: child!),
+                  ),
                 ),
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 启动阶段的加载与错误页。
+///
+/// 只返回页面内容，不自己包 `MaterialApp`：它既可能出现在路由内部
+/// （用户尚未加载完成），也可能出现在应用外壳之外（启动失败）。
+/// 外壳由调用方提供，避免嵌套两个 MaterialApp。
+class DuanjuBootstrap extends StatelessWidget {
+  const DuanjuBootstrap({super.key, this.error, this.onRetry});
+
+  final Object? error;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.play_circle_fill_rounded,
+                color: colors.primary,
+                size: 72,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                error?.toString() ?? '正在打开$appName',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 24),
+              if (error == null)
+                const CircularProgressIndicator()
+              else
+                FilledButton(onPressed: onRetry, child: const Text('重新打开')),
+            ],
           ),
         ),
-      );
-    },
-    home: store != null
-        ? store!.locked
-              ? ProfilesScreen(store: store!, locked: true)
-              : HomeScreen(
-                  key: ValueKey(
-                    'profile-${store!.profile.id}-${store!.profileEpoch}',
-                  ),
-                  repository: repository,
-                  store: store!,
-                )
-        : Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.play_circle_fill_rounded,
-                      color: Color(0xFFFF765F),
-                      size: 72,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      bootstrapError ?? '正在打开$appName',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    const SizedBox(height: 24),
-                    if (bootstrapError == null)
-                      const CircularProgressIndicator()
-                    else
-                      FilledButton(
-                        onPressed: onRetry,
-                        child: const Text('重新打开'),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-  );
+      ),
+    );
+  }
 }

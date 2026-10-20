@@ -7,12 +7,15 @@ import 'package:duanju_app/home_screen.dart';
 import 'package:duanju_app/local_store.dart';
 import 'package:duanju_app/models.dart';
 import 'package:duanju_app/saved_library.dart';
+import 'package:duanju_app/ui/routing/app_router.dart';
+import 'package:duanju_app/ui/routing/route_args.dart';
 import 'package:duanju_app/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'library_feature_fixtures.dart';
+import 'router_harness.dart';
 
 void main() {
   const first = LibraryFeatureRepository.first;
@@ -182,16 +185,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(ValueKey('saved-${seasonOne.id}')), findsOneWidget);
     expect(find.textContaining('新季 1 部'), findsWidgets);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DetailScreen(
-          drama: seasonOne,
-          repository: repository,
-          store: store,
-        ),
-      ),
+    await pumpRouterApp(
+      tester,
+      repository: repository,
+      store: store,
+      location: AppRoutes.detailOf(DramaRef.fromDramaId(seasonOne.id)!),
+      extra: seasonOne,
     );
-    await tester.pumpAndSettle();
     expect(find.text('相关推荐'), findsOneWidget);
     expect(find.byKey(ValueKey('series-${seasonOne.id}')), findsOneWidget);
     expect(find.byKey(ValueKey('series-${seasonTwo.id}')), findsOneWidget);
@@ -308,12 +308,7 @@ void main() {
       viewport(tester, const Size(390, 844));
       final store = await create();
       final repository = LibraryFeatureRepository();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: HomeScreen(repository: repository, store: store),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await pumpRouterApp(tester, repository: repository, store: store);
       await tester.tap(find.byKey(const ValueKey('select-catalog-dramas')));
       await tester.pump();
       await tester.tap(find.byKey(ValueKey(first.id)));

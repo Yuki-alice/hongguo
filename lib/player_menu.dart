@@ -123,7 +123,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
                 ),
                 child: Text(
                   _error!,
-                  style: const TextStyle(color: Color(0xFFFFB4A8)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             Expanded(

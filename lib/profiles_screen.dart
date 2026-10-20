@@ -3,12 +3,14 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'local_profiles.dart';
 import 'local_store.dart';
 import 'models.dart';
 import 'app_build.dart';
 import 'remote_widgets.dart';
+import 'ui/routing/app_router.dart';
 
 class ProfilesScreen extends StatefulWidget {
   const ProfilesScreen({super.key, required this.store, this.locked = false});
@@ -116,11 +118,10 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
   }
 
   Future<void> _edit([LocalProfile? profile]) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => ProfileEditor(store: widget.store, profile: profile),
-      ),
+    // 编辑器用 `Navigator.pop` 关闭，因此用 `push` 等待其返回后刷新列表。
+    await context.push(
+      AppRoutes.profileEditor,
+      extra: ProfileEditorExtra(profile),
     );
     if (mounted) setState(() {});
   }

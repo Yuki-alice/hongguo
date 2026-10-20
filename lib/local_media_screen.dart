@@ -3,15 +3,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core_bridge.dart';
 import 'local_store.dart';
 import 'media_library.dart';
 import 'models.dart';
-import 'player_screen.dart';
 import 'remote_widgets.dart';
 import 'settings_screen.dart';
-import 'merge_queue_screen.dart';
+import 'ui/routing/app_router.dart';
+import 'ui/routing/route_args.dart';
 
 class LocalMediaScreen extends StatefulWidget {
   const LocalMediaScreen({
@@ -64,16 +65,9 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
 
   Future<void> _create(bool merge) async {
     if (merge) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute<void>(
-          builder: (_) => MergeQueueScreen(
-            library: library,
-            repository: widget.repository,
-            store: widget.store,
-            addOnOpen: true,
-          ),
-        ),
+      await context.push(
+        AppRoutes.mergeQueue,
+        extra: MergeQueueExtra(library: library, addOnOpen: true),
       );
       if (mounted) await _refresh();
       return;
@@ -125,24 +119,22 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
       'title': item.merged ? '合并视频' : '第 ${item.episodes.first} 集',
       'currentEpisode': item.episodes.first,
     }, 1);
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerScreen(
-          detail: DramaDetail(item.drama, [episode]),
-          initialIndex: 0,
-          initialPosition: watch == null || watch.finished ? 0 : watch.position,
-          repository: _LocalFileRepository(
-            widget.repository,
-            widget.store,
-            item,
-            library.fileFor(item),
-          ),
-          store: widget.store,
-          localOnly: true,
-          allowOnlineFallback: false,
-          mediaId: item.id,
+    final ref = DramaRef.fromDramaId(item.drama.id);
+    if (ref == null) return;
+    await context.push(
+      AppRoutes.playerOf(ref),
+      extra: PlayerRouteExtra(
+        detail: DramaDetail(item.drama, [episode]),
+        initialPosition: watch == null || watch.finished ? 0 : watch.position,
+        repository: _LocalFileRepository(
+          widget.repository,
+          widget.store,
+          item,
+          library.fileFor(item),
         ),
+        localOnly: true,
+        allowOnlineFallback: false,
+        mediaId: item.id,
       ),
     );
     if (mounted) await _refresh();

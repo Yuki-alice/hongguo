@@ -163,13 +163,18 @@ class RemoteButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[Icon(icon, size: 22), const SizedBox(width: 8)],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 17,
-              color: onPressed == null
-                  ? Theme.of(context).disabledColor
-                  : Theme.of(context).colorScheme.onSurface,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 17,
+                color: onPressed == null
+                    ? Theme.of(context).disabledColor
+                    : Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
         ],
@@ -541,9 +546,7 @@ class RemoteRowState extends State<RemoteRow> {
           for (var index = 0; index < widget.itemKeys.length; index++)
             Padding(
               padding: EdgeInsets.only(
-                right: index == widget.itemKeys.length - 1
-                    ? 0
-                    : widget.spacing,
+                right: index == widget.itemKeys.length - 1 ? 0 : widget.spacing,
               ),
               child: widget.itemBuilder(
                 context,
@@ -919,7 +922,9 @@ class TelevisionActionDialog extends StatelessWidget {
           maxHeight: MediaQuery.sizeOf(context).height * .6,
         ),
         child: RemoteList(
-          itemKeys: [for (var index = 0; index <= options.length; index++) '$index'],
+          itemKeys: [
+            for (var index = 0; index <= options.length; index++) '$index',
+          ],
           itemExtent: RemoteListTile.extent,
           padding: EdgeInsets.zero,
           autofocus: true,

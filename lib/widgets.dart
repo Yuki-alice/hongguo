@@ -7,6 +7,7 @@ import 'core_bridge.dart';
 import 'app_layout.dart';
 import 'models.dart';
 import 'remote_widgets.dart';
+import 'ui/theme/md3_tokens.dart';
 
 Future<void> saveUserChange(
   BuildContext context,
@@ -92,7 +93,7 @@ class DramaCover extends StatelessWidget {
     super.key,
     required this.drama,
     required this.repository,
-    this.radius = 14,
+    this.radius = Md3Shape.medium,
   });
   final Drama drama;
   final AppRepository repository;
@@ -104,11 +105,7 @@ class DramaCover extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final placeholder = Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.surfaceContainerHighest, colors.surfaceContainer],
-        ),
+        color: colors.surfaceContainerHighest,
       ),
       child: Center(
         child: Icon(
@@ -163,15 +160,16 @@ class DramaCover extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6C86B),
-                  borderRadius: BorderRadius.circular(6),
+                  color: colors.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(Md3Shape.small),
                 ),
-                child: const Text(
+                child: Text(
                   'VIP',
                   style: TextStyle(
-                    color: Color(0xFF40300D),
+                    color: colors.onTertiaryContainer,
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .5,
                   ),
                 ),
               ),
@@ -346,16 +344,32 @@ class DramaTile extends StatelessWidget {
   final VoidCallback? onMore;
   final VoidCallback? onLongPress;
 
+  /// 标题与副标题使用 M3 语义角色：卡片标题取 titleSmall，副标题取 bodySmall。
+  /// 电视遥控场景放大一号，保证远距离可读。
+  static TextStyle _titleStyle(BuildContext context) {
+    final base = Theme.of(context).textTheme.titleSmall;
+    return (base ?? const TextStyle()).copyWith(
+      fontSize: AppLayout.isTelevision(context) ? 17 : 14,
+      fontWeight: FontWeight.w600,
+      height: 1.3,
+    );
+  }
+
+  static TextStyle _subtitleStyle(BuildContext context) {
+    final base = Theme.of(context).textTheme.bodySmall;
+    return (base ?? const TextStyle()).copyWith(
+      fontSize: AppLayout.isTelevision(context) ? 14 : 12,
+      height: 1.3,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+  }
+
   static double titleHeight(BuildContext context) =>
-      MediaQuery.textScalerOf(
-        context,
-      ).scale(AppLayout.isTelevision(context) ? 17 : 14) *
+      MediaQuery.textScalerOf(context).scale(_titleStyle(context).fontSize!) *
       2.6;
 
   static double subtitleHeight(BuildContext context) =>
-      MediaQuery.textScalerOf(
-        context,
-      ).scale(AppLayout.isTelevision(context) ? 14 : 12) *
+      MediaQuery.textScalerOf(context).scale(_subtitleStyle(context).fontSize!) *
       1.3;
 
   static double extentFor(BuildContext context, double width) =>
@@ -433,11 +447,8 @@ class DramaTile extends StatelessWidget {
               drama.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-                fontSize: television ? 17 : 14,
-              ),
+              style: _titleStyle(context),
+
             ),
           ),
         ),
@@ -450,11 +461,8 @@ class DramaTile extends StatelessWidget {
               subtitle ?? drama.category,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: television ? 14 : 12,
-                height: 1.3,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              style: _subtitleStyle(context),
+
             ),
           ),
         ),
@@ -484,7 +492,7 @@ class DramaTile extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress ?? onMore,
         onSecondaryTap: onMore,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: Md3Shape.card,
         child: content,
       ),
     );

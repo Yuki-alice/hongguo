@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'ui/theme/md3_tokens.dart';
+
 class SearchInput extends StatefulWidget {
   const SearchInput({
     super.key,
@@ -133,10 +135,19 @@ class _SearchInputState extends State<SearchInput> {
         _selected = true;
         _submit(value);
       },
-      fieldViewBuilder: (context, controller, focus, submitted) => TextField(
+      fieldViewBuilder: (context, controller, focus, submitted) => SearchBar(
         controller: controller,
         focusNode: focus,
-        autofocus: widget.autofocus,
+        autoFocus: widget.autofocus,
+        hintText: widget.hint,
+        elevation: const WidgetStatePropertyAll(0),
+        backgroundColor: WidgetStatePropertyAll(
+          Theme.of(context).colorScheme.surfaceContainerHigh,
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: Md3Spacing.lg),
+        ),
+        constraints: const BoxConstraints(minHeight: 56),
         textInputAction: TextInputAction.search,
         onChanged: (value) {
           widget.onChanged?.call(value);
@@ -147,31 +158,28 @@ class _SearchInputState extends State<SearchInput> {
           submitted();
           if (!_selected) _submit(value);
         },
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          prefixIcon: const Icon(Icons.search_rounded),
-          suffixIcon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (controller.text.isNotEmpty)
-                IconButton(
-                  tooltip: '清空搜索',
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () {
-                    _cancel();
-                    controller.clear();
-                    widget.onChanged?.call('');
-                    setState(() {});
-                  },
-                ),
-              IconButton(
-                tooltip: '搜索',
-                icon: const Icon(Icons.arrow_forward_rounded),
-                onPressed: () => _submit(controller.text),
-              ),
-            ],
+        leading: const Icon(Icons.search_rounded),
+        trailing: [
+          if (controller.text.isNotEmpty)
+            IconButton(
+              tooltip: '清空搜索',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () {
+                _cancel();
+                controller.clear();
+                widget.onChanged?.call('');
+                setState(() {});
+              },
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: Md3Spacing.xs),
+            child: IconButton.filledTonal(
+              tooltip: '搜索',
+              icon: const Icon(Icons.arrow_forward_rounded),
+              onPressed: () => _submit(controller.text),
+            ),
           ),
-        ),
+        ],
       ),
       optionsViewBuilder: (context, selected, options) {
         final values = options.toList();
@@ -181,8 +189,8 @@ class _SearchInputState extends State<SearchInput> {
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(14),
+            elevation: 3,
+            borderRadius: Md3Shape.card,
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
               width: constraints.maxWidth,

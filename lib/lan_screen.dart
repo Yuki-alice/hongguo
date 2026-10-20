@@ -3,10 +3,12 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'lan_controller.dart';
 import 'local_store.dart';
 import 'remote_widgets.dart';
+import 'ui/routing/app_router.dart';
 import 'widgets.dart';
 
 IconData lanDeviceIcon(String kind) => switch (kind) {
@@ -78,12 +80,7 @@ void openLanSync(BuildContext context) {
     ).showSnackBar(const SnackBar(content: Text('设备互联尚未就绪')));
     return;
   }
-  Navigator.push(
-    context,
-    MaterialPageRoute<void>(
-      builder: (_) => LanSyncScreen(controller: controller),
-    ),
-  );
+  context.push(AppRoutes.lanSync);
 }
 
 class LanSyncScreen extends StatefulWidget {
@@ -372,12 +369,8 @@ class _LanSyncScreenState extends State<LanSyncScreen> {
                       title: Text('$conflicts 项记录待处理'),
                       subtitle: const Text('两端同时修改的内容已保留，选择要继续使用的记录'),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => _LanConflicts(controller: link),
-                        ),
-                      ),
+                      onTap: () =>
+                          context.push(AppRoutes.lanConflicts, extra: link),
                     ),
                   ),
                 ListTile(
@@ -910,8 +903,12 @@ class _LanManualState extends State<_LanManual> {
   }
 }
 
-class _LanConflicts extends StatelessWidget {
-  const _LanConflicts({required this.controller});
+/// 处理记录冲突页。
+///
+/// 从路由表进入，因此不能再是私有类；控制器是运行期单例，
+/// 通过 go_router 的 `extra` 传入。
+class LanConflictsScreen extends StatelessWidget {
+  const LanConflictsScreen({super.key, required this.controller});
   final LanController controller;
 
   String _value(String field, Object? value) {

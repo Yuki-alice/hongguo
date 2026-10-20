@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/window_manager.dart';
@@ -15,7 +16,6 @@ import 'core_bridge.dart';
 import 'danmaku_controller.dart';
 import 'danmaku_overlay.dart';
 import 'download_picker.dart';
-import 'downloads_screen.dart';
 import 'follow_state.dart';
 import 'local_store.dart';
 import 'models.dart';
@@ -27,6 +27,7 @@ import 'player_controls.dart';
 import 'player_interactions.dart';
 import 'player_menu.dart';
 import 'television_controls.dart';
+import 'ui/routing/app_router.dart';
 import 'widgets.dart';
 import 'sources_screen.dart';
 import 'lan_controller.dart';
@@ -1228,16 +1229,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         content: Text(added == 0 ? '所选集数已在下载列表中' : '已加入 $added 集，已有任务自动跳过'),
         action: SnackBarAction(
           label: '查看',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => DownloadsScreen(
-                  repository: widget.repository,
-                  store: widget.store,
-                ),
-              ),
-            );
-          },
+          onPressed: () => context.push(AppRoutes.downloads),
         ),
       ),
     );

@@ -4,16 +4,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'app_layout.dart';
 import 'core_bridge.dart';
 import 'download_picker.dart';
-import 'downloads_screen.dart';
 import 'local_store.dart';
 import 'models.dart';
-import 'player_screen.dart';
 import 'remote_widgets.dart';
 import 'widgets.dart';
+import 'ui/routing/app_router.dart';
+import 'ui/routing/route_args.dart';
+import 'ui/theme/md3_tokens.dart';
 import 'sources_screen.dart';
 import 'episode_browser.dart';
 import 'follow_state.dart';
@@ -183,13 +185,13 @@ class _DetailScreenState extends State<DetailScreen> {
         _profileEpoch != widget.store.profileEpoch) {
       return;
     }
-    final selection = await Navigator.of(context).push<DownloadSelection>(
-      MaterialPageRoute(
-        builder: (_) => DownloadPicker(
-          detail: detail,
-          preferences: widget.store.downloadPreferences,
-        ),
-      ),
+    // 选集弹层需要完整详情与用户偏好，用 extra 传递；返回结果仍是
+    // `DownloadSelection`，因此用 `push` 而不是 `go`。
+    final ref = DramaRef.fromDramaId(detail.drama.id);
+    if (ref == null) return;
+    final selection = await context.push<DownloadSelection>(
+      AppRoutes.downloadPickerOf(ref),
+      extra: DownloadPickerExtra(detail, widget.store.downloadPreferences),
     );
     if (selection == null ||
         !mounted ||
@@ -209,16 +211,7 @@ class _DetailScreenState extends State<DetailScreen> {
           content: Text(added == 0 ? '所选集数已在下载列表中' : '已加入 $added 集，已有任务自动跳过'),
           action: SnackBarAction(
             label: '查看',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => DownloadsScreen(
-                    repository: widget.repository,
-                    store: widget.store,
-                  ),
-                ),
-              );
-            },
+            onPressed: () => context.push(AppRoutes.downloads),
           ),
         ),
       );
@@ -274,15 +267,14 @@ class _DetailScreenState extends State<DetailScreen> {
     if (!mounted || _profileEpoch != widget.store.profileEpoch) {
       return;
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerScreen(
-          detail: detail,
-          initialIndex: index,
-          initialPosition: position,
-          repository: widget.repository,
-          store: widget.store,
-        ),
+    final ref = DramaRef.fromDramaId(detail.drama.id);
+    if (ref == null) return;
+    await context.push(
+      AppRoutes.playerOf(ref),
+      extra: PlayerRouteExtra(
+        detail: detail,
+        initialIndex: index,
+        initialPosition: position,
       ),
     );
     if (mounted) {
@@ -304,15 +296,11 @@ class _DetailScreenState extends State<DetailScreen> {
       );
       if (!mounted) return;
     }
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => DetailScreen(
-          drama: drama,
-          repository: widget.repository,
-          store: widget.store,
-        ),
-      ),
-    );
+    // 同剧切换用 `replace` 而不是 `push`：返回栈里不应留下上一季，
+    // 否则返回会回到同一部剧的另一个入口。
+    final ref = DramaRef.fromDramaId(drama.id);
+    if (ref == null) return;
+    context.replace(AppRoutes.detailOf(ref), extra: drama);
   }
 
   @override
@@ -566,9 +554,9 @@ class _DetailScreenState extends State<DetailScreen> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       child: Material(
         color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Md3Shape.chip,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: Md3Shape.chip,
           onTap: () => setState(() => _episodesExpanded = !expanded),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -734,7 +722,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: colors.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: Md3Shape.chip,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -882,7 +870,7 @@ class _DetailScreenState extends State<DetailScreen> {
               color: state == null
                   ? Theme.of(context).colorScheme.surfaceContainerHighest
                   : Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Md3Shape.card,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

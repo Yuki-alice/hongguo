@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'ui/theme/md3_tokens.dart';
+
 import 'app_layout.dart';
 import 'models.dart';
 import 'remote_widgets.dart';
@@ -102,13 +104,17 @@ class _CatalogFiltersState extends State<CatalogFilters> {
                 : SingleChildScrollView(
                     key: const ValueKey('catalog-categories'),
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Md3Spacing.md,
+                    ),
                     child: Row(
                       children: [
                         for (final entry in widget.categories)
                           Padding(
                             key: _anchors.putIfAbsent(entry.id, GlobalKey.new),
-                            padding: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.only(
+                              right: Md3Spacing.sm,
+                            ),
                             child: ChoiceChip(
                               key: ValueKey('category-${entry.id}'),
                               label: Text(entry.name),

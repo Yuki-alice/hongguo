@@ -12,9 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:duanju_app/ui/routing/app_router.dart';
+import 'package:duanju_app/ui/routing/route_args.dart';
+
 import 'fixtures.dart';
 import 'player_fixtures.dart';
 import 'remote_test_helpers.dart';
+import 'router_harness.dart';
 
 class DownloadRepository extends FixtureRepository {
   final commands = <String>[];
@@ -177,17 +181,16 @@ void main() {
         size(tester, const Size(390, 844));
         final repository = DownloadRepository()..added = added;
         final store = await makeStore();
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData.dark(),
-            home: DetailScreen(
-              drama: FixtureRepository.free,
-              repository: repository,
-              store: store,
-            ),
+        // 用真实路由表打开详情页：选集入口现在通过 go_router 推入。
+        await pumpRouterApp(
+          tester,
+          repository: repository,
+          store: store,
+          location: AppRoutes.detailOf(
+            DramaRef.fromDramaId(FixtureRepository.free.id)!,
           ),
+          extra: FixtureRepository.free,
         );
-        await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('下载选集'));
         await tester.pumpAndSettle();
         expect(find.text('加入下载 · 2 集'), findsOneWidget);

@@ -3,9 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+
 import 'app_layout.dart';
 import 'models.dart';
 import 'remote_widgets.dart';
+import 'ui/theme/md3_tokens.dart';
 
 const episodePageSize = 50;
 
@@ -346,7 +348,7 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
               ),
               textStyle: const TextStyle(fontSize: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: Md3Shape.chip,
               ),
             ),
             onPressed: () {

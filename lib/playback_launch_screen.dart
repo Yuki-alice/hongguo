@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core_bridge.dart';
 import 'follow_state.dart';
 import 'local_store.dart';
 import 'models.dart';
-import 'player_screen.dart';
+import 'ui/routing/app_router.dart';
+import 'ui/routing/route_args.dart';
 import 'widgets.dart';
 
 Future<void> openPlaybackDirectly(
@@ -61,15 +63,14 @@ Future<void> openPlaybackDirectly(
         ? watched!.position
         : 0.0;
     if (!context.mounted || profileEpoch != store.profileEpoch) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerScreen(
-          detail: merged,
-          initialIndex: index,
-          initialPosition: position,
-          repository: repository,
-          store: store,
-        ),
+    final ref = DramaRef.fromDramaId(merged.drama.id);
+    if (ref == null) return;
+    await context.push(
+      AppRoutes.playerOf(ref),
+      extra: PlayerRouteExtra(
+        detail: merged,
+        initialIndex: index,
+        initialPosition: position,
       ),
     );
   } catch (error) {
@@ -187,15 +188,15 @@ class _PlaybackLaunchScreenState extends State<PlaybackLaunchScreen> {
           _profileEpoch != widget.store.profileEpoch) {
         return;
       }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => PlayerScreen(
-            detail: merged,
-            initialIndex: index,
-            initialPosition: position,
-            repository: widget.repository,
-            store: widget.store,
-          ),
+      final ref = DramaRef.fromDramaId(merged.drama.id);
+      if (ref == null) return;
+      // `replace` 而不是 `push`：启动页只是过渡，返回时不应回到它。
+      context.replace(
+        AppRoutes.playerOf(ref),
+        extra: PlayerRouteExtra(
+          detail: merged,
+          initialIndex: index,
+          initialPosition: position,
         ),
       );
     } catch (error) {

@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'batch_downloads.dart';
 import 'core_bridge.dart';
-import 'downloads_screen.dart';
 import 'local_store.dart';
 import 'models.dart';
 import 'remote_widgets.dart';
+import 'ui/routing/app_router.dart';
 import 'widgets.dart';
 
 class BatchDownloadScreen extends StatefulWidget {
@@ -61,13 +62,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
     return pieces.join(' · ');
   }
 
-  void _openDownloads() => Navigator.push<void>(
-    context,
-    MaterialPageRoute(
-      builder: (_) =>
-          DownloadsScreen(repository: widget.repository, store: widget.store),
-    ),
-  );
+  void _openDownloads() => context.push(AppRoutes.downloads);
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
