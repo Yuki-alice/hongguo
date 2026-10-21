@@ -25,7 +25,58 @@
 | **P2 站源迁移** | 🔄 16/20（芽果；剩皮果 / 黄豆 / 野果） |
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
-| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划字段、弹幕接入、下载索引落盘、离线播放（见第二十三轮）；下载控制与封面待完成 |
+| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划字段、弹幕、下载索引、离线播放（第二十三轮）；暂停/续传（第二十四轮）；批量控制与封面待完成 |
+
+## 第二十四轮：Core-2 下载控制与暂停续传（2026-10-21）
+
+目标：让「暂停」真正停下来，而不是只改一个状态字段。
+
+### 修掉的缺陷
+
+原来 `Scheduler::run` 在开始时把状态改成 `running` 之后就不再检查，
+`control("pause")` 只是把状态标记成 `paused`，下载线程照样把整集下完。
+表现为「点了暂停，进度条还在涨」。
+
+### 改动
+
+| 层 | 改动 |
+| --- | --- |
+| `download.rs` | 新增 `DownloadOutcome::Paused`；`download_hls_with` / `download_file_with` 接受 `should_continue` 回调，在分片边界与请求前询问 |
+| `scheduler.rs` | `run` 传入「当前任务是否非 paused」的判定；收到 `Paused` 时保留 `.part` 与元数据，状态回到 `paused` |
+| 兼容 | 原 `download_hls` / `download_file` 签名不变，内部转发到 `_with` 版本并恒返回 `true` |
+| FRB | `run_download` 把 `Paused` 与 `Restart` 一并映射为 0 字节，状态由索引与进度流承载 |
+
+### 语义
+
+- **暂停**：在下一个分片前停下；已写入的分片与 `completed_segments` 保留。
+- **恢复**：`resume` 把状态改回 `queued`，再次 `run` 时从记录的分片继续，
+  不会重下已完成部分。
+- **重启**：`running` 视为中断并重新排队；`paused` 原样保留，不会被误当成中断。
+
+### 验证
+
+新增 4 项回归：
+
+| 用例 | 断言 |
+| --- | --- |
+| `pause_stops_before_next_segment` | 暂停判定在分片边界生效 |
+| `paused_job_survives_restart_as_paused` | 暂停状态跨重启保留 |
+| `hls_stops_at_segment_boundary_when_paused` | 暂停后只请求了 1 个分片 |
+| `hls_resumes_from_recorded_segment` | 续传只请求剩余分片，总字节数正确 |
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 458 通过 |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 305 通过 / 1 跳过 |
+
+### 仍未完成（Core-2 剩余）
+
+- 批量下载控制（`controlDownloadBatch`）仍走 Go：引擎侧只有逐任务控制，
+  批量语义与「校验后清理」还没迁。
+- 封面缓存、预加载、Go 旧索引只读迁移。
 
 ## 第二十三轮：Core-2 起步 —— 播放计划字段 + 下载索引 + 离线播放（2026-10-21）
 

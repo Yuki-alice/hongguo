@@ -803,7 +803,9 @@ pub async fn run_download(id: String) -> Result<u64, EngineFailure> {
     engine.broadcast_job(&id);
     Ok(match outcome {
         DownloadOutcome::Completed(bytes) => bytes,
-        DownloadOutcome::Restart => 0,
+        // 暂停与「数据变化需重来」都没有完成字节数；任务状态由索引承载，
+        // Dart 侧读 `download_snapshot` 或进度流即可。
+        DownloadOutcome::Restart | DownloadOutcome::Paused => 0,
     })
 }
 

@@ -12,8 +12,8 @@ mod scheduler;
 
 pub use cache::{catalog_key, merge, replace_first_page, CatalogCache, CatalogDisk, CatalogState};
 pub use download::{
-    commit, discard, download_file, download_hls, playlist_signature, DownloadOutcome, FileState,
-    HlsKey,
+    commit, discard, download_file, download_file_with, download_hls, download_hls_with,
+    playlist_signature, DownloadOutcome, FileState, HlsKey,
 };
 pub use plugins::{load_installed, plugin_root, ComponentLoader, LoadReport};
 pub use repo_client::{join_url, precheck_entry, FetchedIndex, RepoClient};

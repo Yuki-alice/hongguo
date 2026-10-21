@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-use crate::download::{commit, discard, download_file, download_hls, DownloadOutcome, HlsKey};
+use crate::download::{
+    commit, discard, download_file_with, download_hls_with, DownloadOutcome, HlsKey,
+};
 use guo_source_api::{FetchRequest, SourceEnv, SourceError};
 
 /// 下载任务状态。
@@ -297,8 +299,22 @@ impl Scheduler {
                 job.total = total;
             });
         };
+        // 暂停判定：下载循环在每个分片 / 请求前询问一次。
+        let should_continue = || {
+            self.get(id)
+                .map(|job| job.state != JobState::Paused)
+                .unwrap_or(false)
+        };
         let result = if segments.is_empty() {
-            download_file(env, &job.url, &job.referer, &target, recorder).await
+            download_file_with(
+                env,
+                &job.url,
+                &job.referer,
+                &target,
+                recorder,
+                should_continue,
+            )
+            .await
         } else {
             // 加密播放列表需要先取到密钥；取不到就明确失败，不落盘无效数据。
             let key_bytes = if job.key_uri.is_empty() {
@@ -321,7 +337,16 @@ impl Scheduler {
                     Some(job.key_iv.as_str())
                 },
             });
-            download_hls(env, &segments, &job.referer, &target, material, recorder).await
+            download_hls_with(
+                env,
+                &segments,
+                &job.referer,
+                &target,
+                material,
+                recorder,
+                should_continue,
+            )
+            .await
         };
 
         match result {
@@ -344,6 +369,13 @@ impl Scheduler {
                         Err(err)
                     }
                 }
+            }
+            Ok(DownloadOutcome::Paused) => {
+                // 已写入的分片与元数据保留，恢复时从断点续传。
+                self.update(id, |job| {
+                    job.state = JobState::Paused;
+                });
+                Ok(DownloadOutcome::Paused)
             }
             Ok(DownloadOutcome::Restart) => {
                 // 服务器数据已变化，丢弃中间文件并回到队列。
@@ -548,6 +580,40 @@ mod tests {
         scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
         // 无索引路径时不应产生任何文件；这里只断言行为不变。
         assert_eq!(scheduler.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn pause_stops_before_next_segment() {
+        // 暂停判定在分片边界生效：这里直接验证判定函数本身。
+        let scheduler = Scheduler::new(2);
+        scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+        let should_continue = || {
+            scheduler
+                .get("a")
+                .map(|job| job.state != JobState::Paused)
+                .unwrap_or(false)
+        };
+        assert!(should_continue());
+        scheduler.control("pause", "a");
+        assert!(!should_continue(), "暂停后不应继续下载下一个分片");
+        scheduler.control("resume", "a");
+        assert!(should_continue(), "恢复后应继续");
+    }
+
+    #[test]
+    fn paused_job_survives_restart_as_paused() {
+        let path = temp_index("paused").join("index.json");
+        {
+            let scheduler = Scheduler::open(2, &path);
+            scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+            scheduler.control("pause", "a");
+        }
+        let reopened = Scheduler::open(2, &path);
+        assert_eq!(
+            reopened.get("a").expect("job").state,
+            JobState::Paused,
+            "暂停状态必须跨重启保留，否则会被误当成中断重排"
+        );
     }
 
     #[test]

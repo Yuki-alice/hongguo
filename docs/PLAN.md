@@ -47,7 +47,8 @@
 | 弹幕 | ✅ 引擎按分集返回，Dart 补 60 秒窗口；`capabilities.danmaku` 已打开 |
 | 下载索引落盘 | ✅ `<data>/downloads/index.json`，启动恢复，运行中任务重新排队 |
 | 离线播放 | ✅ `local_playback` 把已完成任务映射为本地路径 |
-| 下载控制 / 封面 / 预加载 / 旧索引迁移 | ⏳ 未开始 |
+| 下载暂停 / 恢复 / 续传 | ✅ 分片边界暂停，续传跳过已完成分片 |
+| 批量控制 / 封面 / 预加载 / 旧索引迁移 | ⏳ 未开始 |
 
 ### 1.4 仍在 Go 侧的能力（Core-2 的边界）
 
@@ -272,7 +273,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第二十三轮）：cargo 454 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-21，第二十四轮）：cargo 458 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 
@@ -284,7 +285,7 @@ Core-3 起增加：
 
 1. ~~**播放会话字段**：`MediaResult` 加 `cookies` / `origin`，`PlaybackPlan` 补来源与 `danmakuId`；打开弹幕能力位。~~ ✅ 第二十三轮
 2. ~~**下载索引**：`downloads/index.json` 原子写 + 启动恢复。~~ ✅ 第二十三轮
-3. **下载控制**：暂停 / 恢复 / 重试 / 删除；断点续传与 HLS 分片在引擎内闭环。
+3. ~~**下载控制**：暂停 / 恢复 / 重试 / 删除；断点续传与 HLS 分片在引擎内闭环。~~ ✅ 第二十四轮（批量控制待迁）
 4. ~~**离线播放**：完成记录 → 本地 `PlaybackPlan`。~~ ✅ 第二十三轮
 5. **Go 索引只读迁移**：解析旧 `downloads/index.json`，转为新任务表。
 6. **封面缓存**：引擎下载 + 本地缓存，替换 `delegate.cover`。

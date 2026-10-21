@@ -91,5 +91,6 @@ async fn main() {
             );
         }
         guo_engine::DownloadOutcome::Restart => println!("  restart required"),
+        guo_engine::DownloadOutcome::Paused => println!("  paused"),
     }
 }
