@@ -12,6 +12,10 @@ guo-plugin-wasm = { path = "../plugin-wasm" }
 guo-runtime = { path = "../runtime" }
 guo-source-api = { path = "../source-api" }
 async-trait.workspace = true
+semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+zip = { workspace = true }

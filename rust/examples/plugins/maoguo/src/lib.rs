@@ -31,8 +31,10 @@ struct Maoguo;
 
 impl Guest for Maoguo {
     fn describe() -> Descriptor {
+        // 源 id 必须与编译版区分开：两者同时存在时注册表按 id 去重，
+        // 同名会互相覆盖。插件版的 id 与插件清单保持一致（`guo.maoguo`）。
         Descriptor {
-            id: "maoguo".into(),
+            id: "guo.maoguo".into(),
             name: "猫果".into(),
             group: "duanju".into(),
             api_level: 1,
@@ -285,7 +287,8 @@ fn parse_detail(body: &Value, source_id: &str) -> Result<Detail, Error> {
     let mut drama = drama_from_node(node);
     if drama.id.is_empty() {
         drama = empty_drama();
-        drama.id = format!("maoguo:{source_id}");
+        // 同上：前缀由宿主补。
+        drama.id = source_id.to_string();
         drama.source_id = source_id.to_string();
     }
     // 七猫分集在 `play_list`；`sort` 是集号，用作分集 id 的后半段，
@@ -342,7 +345,9 @@ fn drama_from_node(node: &Value) -> Drama {
         return empty_drama();
     }
     Drama {
-        id: format!("maoguo:{id}"),
+        // 只给站点内 id：源前缀由宿主按清单统一补上（`drama_from_wit_for`），
+        // 插件重复声明会导致「guo.maoguo:maoguo:123」这种双前缀。
+        id: id.clone(),
         source_id: id,
         title: pick(node, &["playlet_name", "title", "name"]),
         description: pick(node, &["description", "intro", "summary"]),

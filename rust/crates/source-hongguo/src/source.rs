@@ -384,20 +384,31 @@ impl HongguoSource {
 }
 
 impl HongguoSource {
-    /// 解析榜单；「数据未完整」时重试一次（站点偶尔返回半截）。
-    fn parse_ranking_with_retry(
-        body: &str,
+    /// 解析榜单，并对「数据未完整」做**重新请求**。
+    ///
+    /// 站点会偶发返回半截页面（`content` 为空、`rankList` 缺失），
+    /// 对同一份 body 再解析一次毫无意义——必须重新拉一次页面。
+    /// 只对这一类可重试错误重取；格式 / 分页不符是确定性的，重试也白费。
+    async fn fetch_ranking_with_retry(
+        &self,
+        env: &SourceEnv,
+        url: &str,
         board: &str,
         page: u32,
     ) -> Result<RankingPage, SourceError> {
-        match crate::rankings::parse_ranking_page(body, board, page) {
-            Ok(result) => Ok(result),
-            // 只有「尚未完整」值得重试；格式/分页不符是确定性的，重试也没用。
-            Err(err) if err.to_string().contains("尚未完整") => {
-                crate::rankings::parse_ranking_page(body, board, page)
+        let mut last = None;
+        for attempt in 0..2 {
+            let body = self.page_text(env, url.to_string()).await?;
+            match crate::rankings::parse_ranking_page(&body, board, page) {
+                Ok(result) => return Ok(result),
+                Err(err) if is_incomplete(&err) && attempt == 0 => {
+                    last = Some(err);
+                    continue;
+                }
+                Err(err) => return Err(err),
             }
-            Err(err) => Err(err),
         }
+        Err(last.unwrap_or(SourceError::NoResult))
     }
 
     /// 取（并按需创建）设备身份。缓存到进程内，避免每次请求两次 IO。
@@ -409,6 +420,15 @@ impl HongguoSource {
         let _ = self.identity.set(identity.clone());
         Ok(identity)
     }
+}
+
+/// 是否为「站点返回了半截数据」这类可重试错误。
+///
+/// 判据是错误文案里的固定短语——解析层只在两种情况下这么说，且都属于
+/// 「再拉一次可能就好」；用文案匹配是因为 `SourceError` 没有更细的类别。
+fn is_incomplete(error: &SourceError) -> bool {
+    let text = error.to_string();
+    text.contains("尚未完整") || text.contains("缺少 rankList")
 }
 
 /// App 接口把业务错误放在 `code` / `BaseResp.StatusCode` 里，HTTP 200 也可能是失败。
@@ -590,8 +610,7 @@ impl SourcePlugin for HongguoSource {
             self.web_base.trim_end_matches('/'),
             crate::rankings::board_path(path, page)
         );
-        let body = self.page_text(env, url).await?;
-        Self::parse_ranking_with_retry(&body, board, page)
+        self.fetch_ranking_with_retry(env, &url, board, page).await
     }
 
     async fn recommend(

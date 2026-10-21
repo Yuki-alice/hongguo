@@ -20,6 +20,7 @@ use guo_plugin_wasm::{ComponentSource, SandboxLimits};
 use guo_runtime::{load_installed, CatalogCache, Job, LoadReport, RuleSource, Scheduler};
 use guo_source_api::{LogSink, SourceEnv, SourcePlugin, SourceRegistry, SourceStore, Transport};
 
+use crate::bundled::{preinstall, BundledPackage, PreinstallReport};
 use crate::cancel::{CancellationRegistry, RequestTicket};
 use crate::cover::{CoverCache, CoverResult};
 use crate::error::{EngineError, EngineErrorKind};
@@ -101,6 +102,7 @@ pub struct Engine {
     events: EventBus,
     registry: Mutex<Arc<SourceRegistry>>,
     load_report: Mutex<LoadReport>,
+    preinstall_report: Mutex<PreinstallReport>,
     recent_errors: Mutex<Vec<EngineError>>,
     request_count: AtomicU64,
     started: AtomicBool,
@@ -140,6 +142,7 @@ impl Engine {
             events: EventBus::default(),
             registry: Mutex::new(Arc::new(SourceRegistry::new())),
             load_report: Mutex::new(LoadReport::default()),
+            preinstall_report: Mutex::new(PreinstallReport::default()),
             recent_errors: Mutex::new(Vec::new()),
             request_count: AtomicU64::new(0),
             started: AtomicBool::new(false),
@@ -149,9 +152,18 @@ impl Engine {
     }
 
     /// 注册站源并加载插件。重复调用返回 `false` 且不重建注册表。
-    pub fn initialize(&self, builtins: BuiltinSources) -> Result<bool, EngineError> {
+    ///
+    /// `bundled` 是随包插件；先预装再装配注册表，否则首次启动看不到它们。
+    pub fn initialize(
+        &self,
+        builtins: BuiltinSources,
+        bundled: &[BundledPackage],
+    ) -> Result<bool, EngineError> {
         if self.started.swap(true, Ordering::SeqCst) {
             return Ok(false);
+        }
+        if !bundled.is_empty() {
+            self.install_bundled(bundled);
         }
         self.rebuild_registry(builtins)?;
         if let Ok(mut slot) = self.started_at.lock() {
@@ -186,6 +198,32 @@ impl Engine {
         }
         self.registry_revision.fetch_add(1, Ordering::SeqCst);
         Ok(())
+    }
+
+    /// 预装随包插件并把结果留给诊断。
+    ///
+    /// 失败只记录：随包资源损坏属于构建缺陷，但不该让整个应用起不来。
+    fn install_bundled(&self, packages: &[BundledPackage]) {
+        let store = PluginStore::open(&self.config.plugin_directory);
+        let report = preinstall(&store, packages, now_secs());
+        for (id, detail) in &report.failed {
+            eprintln!("随包插件 {id} 安装失败：{detail}");
+        }
+        if let Ok(mut slot) = self.preinstall_report.lock() {
+            *slot = report;
+        }
+    }
+
+    /// 上一次预装的结果，供诊断接口读取。
+    pub fn preinstall_report(&self) -> PreinstallReport {
+        self.preinstall_report
+            .lock()
+            .map(|report| PreinstallReport {
+                installed: report.installed.clone(),
+                skipped: report.skipped.clone(),
+                failed: report.failed.clone(),
+            })
+            .unwrap_or_default()
     }
 
     fn load_plugins(&self, registry: &mut SourceRegistry) -> LoadReport {
@@ -410,6 +448,13 @@ impl LogSink for TracingLog {
     }
 }
 
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|value| value.as_secs())
+        .unwrap_or(0)
+}
+
 /// 进程级单例槽位。
 static INSTANCE: OnceLock<Arc<Engine>> = OnceLock::new();
 
@@ -422,12 +467,13 @@ pub fn current() -> Option<Arc<Engine>> {
 pub fn initialize(
     config: EngineConfig,
     builtins: BuiltinSources,
+    bundled: &[BundledPackage],
 ) -> Result<(Arc<Engine>, bool), EngineError> {
     if let Some(existing) = INSTANCE.get() {
         return Ok((Arc::clone(existing), false));
     }
     let engine = Arc::new(Engine::open(config)?);
-    let fresh = engine.initialize(builtins)?;
+    let fresh = engine.initialize(builtins, bundled)?;
     // 竞态：另一个线程可能已经抢先写入；此时丢弃自己的实例，保持单例唯一。
     match INSTANCE.set(Arc::clone(&engine)) {
         Ok(()) => Ok((engine, fresh)),
@@ -465,7 +511,7 @@ mod test_support {
         ));
         let config = EngineConfig::new(&directory);
         let engine = Arc::new(Engine::open(config).expect("open engine"));
-        engine.initialize(builtins).expect("initialize");
+        engine.initialize(builtins, &[]).expect("initialize");
         (engine, directory)
     }
 }
@@ -505,7 +551,7 @@ mod tests {
     fn initialize_is_idempotent() {
         let (engine, dir) = open_for_test("idempotent", stub_sources);
         assert!(
-            !engine.initialize(stub_sources).expect("second"),
+            !engine.initialize(stub_sources, &[]).expect("second"),
             "重复初始化应返回 false"
         );
         assert!(engine.source("stub").is_ok());

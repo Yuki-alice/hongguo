@@ -202,10 +202,16 @@ Flutter UI
 - 猫果插件打样：签名、自带 MD5/Base64、`play_list` 解析、白名单约束全部跑通
 - 修掉宿主两个缺陷：源标识错乱（`source` 被塞成站点 id）、`Unsupported` 被映射成 `Rule`
 
+**已完成（第二十八轮）**
+
+- 官方插件预装：随包资源 → 插件仓库，只装不覆盖、失败不拦启动
+- 打包工具 `pack_component`：组件 → 官方索引格式，强制网络白名单
+- 修掉插件 id 撞名、双前缀、「重试」不重取三个缺陷
+
 **剩余**
 
 - 芽果 / 剧果 / 牛果 / 黄果三源插件化
-- 官方插件预装（随包资源 → 插件仓库）
+- 启用 / 停用 / 回滚不丢会话与下载任务的验收用例
 - 工具链：打包、校验、签名、索引生成
 - `query.cursor` 的翻页 / 推荐语义
 - Pulley 下首屏 P95 相对编译源的基线
@@ -292,7 +298,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第二十七轮）：cargo 480 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-21，第二十八轮）：cargo 486 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 

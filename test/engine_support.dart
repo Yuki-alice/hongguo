@@ -17,5 +17,9 @@ Future<void> initEngineForTest() async {
   final directory = Directory.systemTemp
       .createTempSync('guo-engine-test-')
       .path;
-  await initEngineWithDirectory(dataDirectory: directory, pluginDirectory: '');
+  await initEngineWithDirectory(
+    dataDirectory: directory,
+    pluginDirectory: '',
+    bundled: const [],
+  );
 }

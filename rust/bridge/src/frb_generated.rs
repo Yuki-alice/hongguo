@@ -1166,12 +1166,14 @@ fn wire__crate__api__init_engine_with_directory_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_data_directory = <String>::sse_decode(&mut deserializer);
             let api_plugin_directory = <String>::sse_decode(&mut deserializer);
+            let api_bundled = <Vec<crate::api::BundledPlugin>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::error::EngineFailure>((move || {
                     let output_ok = crate::api::init_engine_with_directory(
                         api_data_directory,
                         api_plugin_directory,
+                        api_bundled,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1853,6 +1855,20 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::BundledPlugin {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_indexJson = <String>::sse_decode(deserializer);
+        let mut var_archive = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::BundledPlugin {
+            name: var_name,
+            index_json: var_indexJson,
+            archive: var_archive,
+        };
+    }
+}
+
 impl SseDecode for crate::api::CategorySummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2220,12 +2236,16 @@ impl SseDecode for crate::api::EngineInitResult {
         let mut var_pluginDirectory = <String>::sse_decode(deserializer);
         let mut var_fresh = <bool>::sse_decode(deserializer);
         let mut var_sourceCount = <u32>::sse_decode(deserializer);
+        let mut var_bundledInstalled = <Vec<String>>::sse_decode(deserializer);
+        let mut var_bundledSkipped = <Vec<String>>::sse_decode(deserializer);
         return crate::api::EngineInitResult {
             version: var_version,
             data_directory: var_dataDirectory,
             plugin_directory: var_pluginDirectory,
             fresh: var_fresh,
             source_count: var_sourceCount,
+            bundled_installed: var_bundledInstalled,
+            bundled_skipped: var_bundledSkipped,
         };
     }
 }
@@ -2289,6 +2309,18 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::BundledPlugin> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::BundledPlugin>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -2864,6 +2896,23 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::BundledPlugin {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.index_json.into_into_dart().into_dart(),
+            self.archive.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::BundledPlugin {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::BundledPlugin> for crate::api::BundledPlugin {
+    fn into_into_dart(self) -> crate::api::BundledPlugin {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::CategorySummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3248,6 +3297,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::EngineInitResult {
             self.plugin_directory.into_into_dart().into_dart(),
             self.fresh.into_into_dart().into_dart(),
             self.source_count.into_into_dart().into_dart(),
+            self.bundled_installed.into_into_dart().into_dart(),
+            self.bundled_skipped.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3606,6 +3657,15 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::BundledPlugin {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.index_json, serializer);
+        <Vec<u8>>::sse_encode(self.archive, serializer);
+    }
+}
+
 impl SseEncode for crate::api::CategorySummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3827,6 +3887,8 @@ impl SseEncode for crate::api::EngineInitResult {
         <String>::sse_encode(self.plugin_directory, serializer);
         <bool>::sse_encode(self.fresh, serializer);
         <u32>::sse_encode(self.source_count, serializer);
+        <Vec<String>>::sse_encode(self.bundled_installed, serializer);
+        <Vec<String>>::sse_encode(self.bundled_skipped, serializer);
     }
 }
 
@@ -3875,6 +3937,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::BundledPlugin> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::BundledPlugin>::sse_encode(item, serializer);
         }
     }
 }

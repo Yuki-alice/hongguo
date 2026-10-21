@@ -1,0 +1,14 @@
+[
+    {
+      "id": "guo.maoguo",
+      "name": "maoguo",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 71639,
+      "sha256": "475cc75820f56b51a8f4e31309fd1205e6479940e605ac7a5c6c500a2af4c16c",
+      "path": "plugins/guo.maoguo/guo.maoguo-1.0.0.zip"
+    }
+]

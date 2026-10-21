@@ -1,8 +1,12 @@
 #[tokio::main]
 async fn main() {
     let dir = std::env::temp_dir().join("guo-dispatch");
-    guo_engine::api::init_engine_with_directory(dir.to_string_lossy().to_string(), String::new())
-        .expect("init");
+    guo_engine::api::init_engine_with_directory(
+        dir.to_string_lossy().to_string(),
+        String::new(),
+        Vec::new(),
+    )
+    .expect("init");
 
     println!("=== 站源清单 ===");
     for s in guo_engine::api::source_catalog().expect("catalog") {

@@ -50,6 +50,86 @@ fn rejects_mismatched_page() {
     assert!(parse_ranking_page(RANKING, "hongguo-hot", 2).is_err());
 }
 
+/// 站点偶发返回半截页面时必须**重新请求**，而不是把同一份 body 解析两次。
+///
+/// 这条用例锁住一个真实修过的缺陷：原来的「重试」只是重复解析同一份
+/// 响应，遇到半截数据必然再失败一次。
+#[tokio::test]
+async fn incomplete_page_is_refetched_not_reparsed() {
+    use std::sync::{Arc, Mutex};
+
+    use guo_engine::{
+        Capability, FetchRequest, FetchResponse, LogSink, SourceEnv, SourceError, SourcePlugin,
+        SourceStore, Transport,
+    };
+
+    /// 第一次返回半截页面（无 rankList），第二次返回完整夹具。
+    struct TwiceTransport {
+        calls: Mutex<usize>,
+    }
+
+    #[async_trait::async_trait]
+    impl Transport for TwiceTransport {
+        async fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, SourceError> {
+            let mut calls = self.calls.lock().expect("calls");
+            *calls += 1;
+            let first = *calls == 1;
+            let body = if first {
+                // 结构与真实半截页面一致：loader.content 为空、没有 merge 脚本。
+                r#"<html><script>_ROUTER_DATA = {"loaderData":{"rank_hot-drama/page":{"rankKey":"hongguo","pageNum":"1","content":{}}}}</script></html>"#
+            } else {
+                RANKING
+            };
+            Ok(FetchResponse::new(
+                200,
+                body.as_bytes().to_vec(),
+                request.url,
+            ))
+        }
+    }
+
+    struct NoStore;
+    #[async_trait::async_trait]
+    impl SourceStore for NoStore {
+        async fn get(&self, _: &str) -> Result<Option<String>, SourceError> {
+            Ok(None)
+        }
+        async fn set(&self, _: &str, _: &str) -> Result<(), SourceError> {
+            Ok(())
+        }
+    }
+
+    struct NoLog;
+    impl LogSink for NoLog {
+        fn debug(&self, _: &str) {}
+        fn warn(&self, _: &str) {}
+    }
+
+    let transport = Arc::new(TwiceTransport {
+        calls: Mutex::new(0),
+    });
+    let env = SourceEnv {
+        source_id: "hongguo".into(),
+        transport: transport.clone(),
+        store: Arc::new(NoStore),
+        scripts: None,
+        log: Arc::new(NoLog),
+    };
+    let source =
+        guo_source_hongguo::HongguoSource::with_base("https://rank.test", "https://api.test");
+    assert!(source.meta().supports(Capability::Rankings));
+    let page = source
+        .ranking(&env, "hongguo-hot", 1)
+        .await
+        .expect("第二次应成功");
+    assert_eq!(page.items.len(), 20);
+    assert_eq!(
+        *transport.calls.lock().expect("calls"),
+        2,
+        "必须重新请求一次"
+    );
+}
+
 #[test]
 fn missing_router_data_is_a_clear_error() {
     let err = parse_ranking_page("<html></html>", "hongguo-hot", 1).expect_err("必须失败");

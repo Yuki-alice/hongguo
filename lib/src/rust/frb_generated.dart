@@ -218,6 +218,7 @@ abstract class RustLibApi extends BaseApi {
   Future<EngineInitResult> crateApiInitEngineWithDirectory({
     required String dataDirectory,
     required String pluginDirectory,
+    required List<BundledPlugin> bundled,
   });
 
   Future<PluginSummary> crateApiPluginsInstallFromRepo({
@@ -1283,6 +1284,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<EngineInitResult> crateApiInitEngineWithDirectory({
     required String dataDirectory,
     required String pluginDirectory,
+    required List<BundledPlugin> bundled,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1290,6 +1292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(dataDirectory, serializer);
           sse_encode_String(pluginDirectory, serializer);
+          sse_encode_list_bundled_plugin(bundled, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1302,7 +1305,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_engine_failure,
         ),
         constMeta: kCrateApiInitEngineWithDirectoryConstMeta,
-        argValues: [dataDirectory, pluginDirectory],
+        argValues: [dataDirectory, pluginDirectory, bundled],
         apiImpl: this,
       ),
     );
@@ -1311,7 +1314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiInitEngineWithDirectoryConstMeta =>
       const TaskConstMeta(
         debugName: "init_engine_with_directory",
-        argNames: ["dataDirectory", "pluginDirectory"],
+        argNames: ["dataDirectory", "pluginDirectory", "bundled"],
       );
 
   @override
@@ -1963,6 +1966,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BundledPlugin dco_decode_bundled_plugin(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BundledPlugin(
+      name: dco_decode_String(arr[0]),
+      indexJson: dco_decode_String(arr[1]),
+      archive: dco_decode_list_prim_u_8_strict(arr[2]),
+    );
+  }
+
+  @protected
   CategorySummary dco_decode_category_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2247,14 +2263,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineInitResult dco_decode_engine_init_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return EngineInitResult(
       version: dco_decode_String(arr[0]),
       dataDirectory: dco_decode_String(arr[1]),
       pluginDirectory: dco_decode_String(arr[2]),
       fresh: dco_decode_bool(arr[3]),
       sourceCount: dco_decode_u_32(arr[4]),
+      bundledInstalled: dco_decode_list_String(arr[5]),
+      bundledSkipped: dco_decode_list_String(arr[6]),
     );
   }
 
@@ -2311,6 +2329,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<BundledPlugin> dco_decode_list_bundled_plugin(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bundled_plugin).toList();
   }
 
   @protected
@@ -2714,6 +2738,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BundledPlugin sse_decode_bundled_plugin(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_indexJson = sse_decode_String(deserializer);
+    var var_archive = sse_decode_list_prim_u_8_strict(deserializer);
+    return BundledPlugin(
+      name: var_name,
+      indexJson: var_indexJson,
+      archive: var_archive,
+    );
+  }
+
+  @protected
   CategorySummary sse_decode_category_summary(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -3049,12 +3086,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pluginDirectory = sse_decode_String(deserializer);
     var var_fresh = sse_decode_bool(deserializer);
     var var_sourceCount = sse_decode_u_32(deserializer);
+    var var_bundledInstalled = sse_decode_list_String(deserializer);
+    var var_bundledSkipped = sse_decode_list_String(deserializer);
     return EngineInitResult(
       version: var_version,
       dataDirectory: var_dataDirectory,
       pluginDirectory: var_pluginDirectory,
       fresh: var_fresh,
       sourceCount: var_sourceCount,
+      bundledInstalled: var_bundledInstalled,
+      bundledSkipped: var_bundledSkipped,
     );
   }
 
@@ -3111,6 +3152,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BundledPlugin> sse_decode_list_bundled_plugin(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BundledPlugin>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bundled_plugin(deserializer));
     }
     return ans_;
   }
@@ -3678,6 +3733,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bundled_plugin(BundledPlugin self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.indexJson, serializer);
+    sse_encode_list_prim_u_8_strict(self.archive, serializer);
+  }
+
+  @protected
   void sse_encode_category_summary(
     CategorySummary self,
     SseSerializer serializer,
@@ -3908,6 +3971,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.pluginDirectory, serializer);
     sse_encode_bool(self.fresh, serializer);
     sse_encode_u_32(self.sourceCount, serializer);
+    sse_encode_list_String(self.bundledInstalled, serializer);
+    sse_encode_list_String(self.bundledSkipped, serializer);
   }
 
   @protected
@@ -3956,6 +4021,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_bundled_plugin(
+    List<BundledPlugin> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bundled_plugin(item, serializer);
     }
   }
 

@@ -51,12 +51,14 @@ pub fn init_engine() {
 pub fn init_engine_with_directory(
     data_directory: String,
     plugin_directory: String,
+    bundled: Vec<BundledPlugin>,
 ) -> Result<EngineInitResult, EngineFailure> {
     let mut config = EngineConfig::new(data_directory);
     if !plugin_directory.trim().is_empty() {
         config = config.with_plugin_directory(plugin_directory);
     }
-    let (engine, fresh) = guo_engine_core::initialize(config, register_builtin_sources)
+    let packages = bundled_packages(&bundled);
+    let (engine, fresh) = guo_engine_core::initialize(config, register_builtin_sources, &packages)
         .map_err(EngineFailure::from)?;
     Ok(EngineInitResult {
         version: engine_version(),
@@ -64,7 +66,34 @@ pub fn init_engine_with_directory(
         plugin_directory: engine.config().plugin_directory.display().to_string(),
         fresh,
         source_count: engine.registry().len() as u32,
+        bundled_installed: engine.preinstall_report().installed,
+        bundled_skipped: engine.preinstall_report().skipped,
     })
+}
+
+/// 随包插件：由 Dart 读取应用资源后传入。
+pub struct BundledPlugin {
+    /// 文件名，仅用于日志。
+    pub name: String,
+    /// 官方索引 JSON（可含多条，但通常只含这一个）。
+    pub index_json: String,
+    /// zip 字节。
+    pub archive: Vec<u8>,
+}
+
+/// 把 Dart 传入的字节转成引擎需要的静态切片。
+///
+/// 预装发生在初始化期间，字节的生命周期覆盖整个过程；泄漏在这里是安全的
+/// ——预装完成后宿主不再持有这些缓冲区。
+fn bundled_packages(input: &[BundledPlugin]) -> Vec<guo_engine_core::BundledPackage> {
+    input
+        .iter()
+        .map(|item| guo_engine_core::BundledPackage {
+            name: item.name.clone(),
+            index_json: Box::leak(item.index_json.clone().into_boxed_str()),
+            archive: Box::leak(item.archive.clone().into_boxed_slice()),
+        })
+        .collect()
 }
 
 /// 初始化结果，供 Dart 侧确认路径与首次装配状态。
@@ -75,6 +104,9 @@ pub struct EngineInitResult {
     /// 是否为本次调用首次装配。
     pub fresh: bool,
     pub source_count: u32,
+    /// 随包插件预装结果。
+    pub bundled_installed: Vec<String>,
+    pub bundled_skipped: Vec<String>,
 }
 
 /// 引擎版本，便于 Dart 侧自检与发布物对齐。

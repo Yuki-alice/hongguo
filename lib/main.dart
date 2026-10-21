@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:duanju_app/data/bundled_plugins.dart';
 import 'package:duanju_app/data/core_bridge.dart';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:duanju_app/data/engine_backed_repository.dart';
@@ -115,8 +116,11 @@ class _AppBootstrapState extends State<AppBootstrap>
   Future<AppRepository> _buildRepository() async {
     final core = NativeRepository();
     final support = await getApplicationSupportDirectory();
+    // 随包官方插件在初始化时预装；读取失败只记日志，不拦启动。
+    final bundled = await BundledPlugins.load(warn: debugPrint);
     final engine = await EngineRepository.create(
       dataDirectory: '${support.path}/engine',
+      bundled: bundled,
     );
     // 把引擎上报的站源（含已安装插件）并入 SourceSite，供 UI 列表使用。
     await engine.syncSourceCatalog();

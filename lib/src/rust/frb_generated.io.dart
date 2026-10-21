@@ -49,6 +49,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalPlayback dco_decode_box_autoadd_local_playback(dynamic raw);
 
   @protected
+  BundledPlugin dco_decode_bundled_plugin(dynamic raw);
+
+  @protected
   CategorySummary dco_decode_category_summary(dynamic raw);
 
   @protected
@@ -119,6 +122,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<BundledPlugin> dco_decode_list_bundled_plugin(dynamic raw);
 
   @protected
   List<CategorySummary> dco_decode_list_category_summary(dynamic raw);
@@ -271,6 +277,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BundledPlugin sse_decode_bundled_plugin(SseDeserializer deserializer);
+
+  @protected
   CategorySummary sse_decode_category_summary(SseDeserializer deserializer);
 
   @protected
@@ -349,6 +358,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<BundledPlugin> sse_decode_list_bundled_plugin(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<CategorySummary> sse_decode_list_category_summary(
@@ -543,6 +557,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_bundled_plugin(BundledPlugin self, SseSerializer serializer);
+
+  @protected
   void sse_encode_category_summary(
     CategorySummary self,
     SseSerializer serializer,
@@ -646,6 +663,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_bundled_plugin(
+    List<BundledPlugin> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_category_summary(

@@ -7,8 +7,12 @@ fn engine_env(source: String) -> guo_engine::SourceEnv {
 #[tokio::main]
 async fn main() {
     let dir = std::env::temp_dir().join("guo-example");
-    guo_engine::api::init_engine_with_directory(dir.to_string_lossy().to_string(), String::new())
-        .expect("init");
+    guo_engine::api::init_engine_with_directory(
+        dir.to_string_lossy().to_string(),
+        String::new(),
+        Vec::new(),
+    )
+    .expect("init");
     let registry = builtin_registry();
     for id in ["wuguo", "huaguo", "maoguo"] {
         let Some(source) = registry.get(id) else {

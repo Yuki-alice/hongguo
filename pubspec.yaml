@@ -60,3 +60,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/video_enhancement/
+    # 官方插件预装包：首次启动安装到插件仓库（Core-3）。
+    - assets/bundled_plugins/

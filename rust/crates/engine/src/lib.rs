@@ -7,6 +7,7 @@
 //! 它**不**依赖任何具体站源 crate —— 哪些源编译进二进制由桥接层注入，
 //! 这样「主源 + 随包规则 + 插件」的边界只在一个地方定义。
 
+mod bundled;
 mod cancel;
 mod cover;
 mod engine;
@@ -15,6 +16,9 @@ mod events;
 mod migrate;
 mod store;
 
+pub use bundled::{
+    bundled_root, preinstall, preinstall_or_report, BundledPackage, PreinstallReport, BUNDLED_REPO,
+};
 pub use cancel::{CancellationRegistry, RequestTicket};
 pub use cover::{CoverCache, CoverResult};
 pub use engine::{current, initialize, require, BuiltinSources, Engine, EngineConfig};

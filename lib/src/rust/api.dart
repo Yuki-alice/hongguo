@@ -7,7 +7,7 @@ import 'api/error.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `join_url`, `media_inner`, `prepare`, `run`, `search_inner`, `timeout_for`
+// These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `join_url`, `media_inner`, `prepare`, `run`, `search_inner`, `timeout_for`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_registry`
 
@@ -21,9 +21,11 @@ Future<void> initEngine() => RustLib.instance.api.crateApiInitEngine();
 Future<EngineInitResult> initEngineWithDirectory({
   required String dataDirectory,
   required String pluginDirectory,
+  required List<BundledPlugin> bundled,
 }) => RustLib.instance.api.crateApiInitEngineWithDirectory(
   dataDirectory: dataDirectory,
   pluginDirectory: pluginDirectory,
+  bundled: bundled,
 );
 
 /// 引擎版本，便于 Dart 侧自检与发布物对齐。
@@ -333,6 +335,36 @@ Future<int> clearSourceSession({required String sourceId}) =>
 
 /// 重新装配注册表（插件安装 / 卸载后调用）。会话与下载任务保持不变。
 Future<int> reloadSources() => RustLib.instance.api.crateApiReloadSources();
+
+/// 随包插件：由 Dart 读取应用资源后传入。
+class BundledPlugin {
+  /// 文件名，仅用于日志。
+  final String name;
+
+  /// 官方索引 JSON（可含多条，但通常只含这一个）。
+  final String indexJson;
+
+  /// zip 字节。
+  final Uint8List archive;
+
+  const BundledPlugin({
+    required this.name,
+    required this.indexJson,
+    required this.archive,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ indexJson.hashCode ^ archive.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BundledPlugin &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          indexJson == other.indexJson &&
+          archive == other.archive;
+}
 
 /// 站源分类项。
 class CategorySummary {
@@ -989,12 +1021,18 @@ class EngineInitResult {
   final bool fresh;
   final int sourceCount;
 
+  /// 随包插件预装结果。
+  final List<String> bundledInstalled;
+  final List<String> bundledSkipped;
+
   const EngineInitResult({
     required this.version,
     required this.dataDirectory,
     required this.pluginDirectory,
     required this.fresh,
     required this.sourceCount,
+    required this.bundledInstalled,
+    required this.bundledSkipped,
   });
 
   @override
@@ -1003,7 +1041,9 @@ class EngineInitResult {
       dataDirectory.hashCode ^
       pluginDirectory.hashCode ^
       fresh.hashCode ^
-      sourceCount.hashCode;
+      sourceCount.hashCode ^
+      bundledInstalled.hashCode ^
+      bundledSkipped.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1014,7 +1054,9 @@ class EngineInitResult {
           dataDirectory == other.dataDirectory &&
           pluginDirectory == other.pluginDirectory &&
           fresh == other.fresh &&
-          sourceCount == other.sourceCount;
+          sourceCount == other.sourceCount &&
+          bundledInstalled == other.bundledInstalled &&
+          bundledSkipped == other.bundledSkipped;
 }
 
 /// 插件加载失败记录。

@@ -10,8 +10,12 @@ async fn main() {
     let dir = std::env::temp_dir().join("guo-cache-verify");
     let _ = std::fs::remove_dir_all(&dir);
     println!("cache dir: {}", dir.display());
-    guo_engine::api::init_engine_with_directory(dir.to_string_lossy().to_string(), String::new())
-        .expect("init");
+    guo_engine::api::init_engine_with_directory(
+        dir.to_string_lossy().to_string(),
+        String::new(),
+        Vec::new(),
+    )
+    .expect("init");
 
     println!("\n=== 首次读取（应联网）===");
     let start = Instant::now();

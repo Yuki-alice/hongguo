@@ -111,7 +111,7 @@ fn env_with(transport: Arc<ScriptedTransport>) -> SourceEnv {
 #[test]
 fn descriptor_matches_the_compiled_source() {
     let meta = source().meta();
-    assert_eq!(meta.id, "maoguo");
+    assert_eq!(meta.id, "guo.maoguo");
     assert_eq!(meta.name, "猫果");
     assert_eq!(meta.group, "duanju");
     assert!(meta.supports(guo_source_api::Capability::Catalog));
@@ -129,8 +129,10 @@ async fn catalog_round_trips_through_the_plugin() {
 
     assert!(!page.items.is_empty(), "夹具应解析出条目");
     let first = &page.items[0];
-    assert_eq!(first.source, "maoguo");
-    assert!(first.id.starts_with("maoguo:"));
+    assert_eq!(first.source, "guo.maoguo");
+    // 源前缀由宿主按清单补上，插件只给站点内 id。
+    assert!(first.id.starts_with("guo.maoguo:"), "实际 id：{}", first.id);
+    assert_eq!(first.id, format!("guo.maoguo:{}", first.source_id));
     assert!(!first.title.is_empty());
 
     // 请求必须带上签名头：这是猫果能工作的前提。
@@ -171,8 +173,8 @@ async fn resolve_passes_through_the_mp4_url() {
     let env = env_with(transport);
     let source = source();
     let drama = Drama {
-        id: "maoguo:1".into(),
-        source: "maoguo".into(),
+        id: "guo.maoguo:1".into(),
+        source: "guo.maoguo".into(),
         source_id: "1".into(),
         ..Default::default()
     };

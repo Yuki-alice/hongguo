@@ -32,6 +32,7 @@ class EngineRepository {
   static Future<EngineRepository> create({
     required String dataDirectory,
     String? pluginDirectory,
+    List<rust.BundledPlugin> bundled = const [],
   }) async {
     await RustLib.init();
     await rust.initEngine();
@@ -39,12 +40,21 @@ class EngineRepository {
       () => rust.initEngineWithDirectory(
         dataDirectory: dataDirectory,
         pluginDirectory: pluginDirectory ?? '',
+        bundled: bundled,
       ),
     );
     return EngineRepository(initialized: true)
       ..dataDirectory = result.dataDirectory
-      ..pluginDirectory = result.pluginDirectory;
+      ..pluginDirectory = result.pluginDirectory
+      ..bundledInstalled = result.bundledInstalled
+      ..bundledSkipped = result.bundledSkipped;
   }
+
+  /// 本次启动预装的随包插件 id。
+  List<String> bundledInstalled = const [];
+
+  /// 因已有同版本或更新版本而跳过的随包插件 id。
+  List<String> bundledSkipped = const [];
 
   /// 仅用于测试：假定 Rust 侧已初始化。
   static EngineRepository attached() => EngineRepository(initialized: true);
