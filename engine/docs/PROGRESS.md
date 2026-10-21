@@ -11,7 +11,7 @@
 | 声明式规则引擎 | ✅ `guo-rule-engine`：HTML / JSON / 内嵌 JSON 三类取数，加载期校验 |
 | HTTP 传输层 | ✅ `guo-host`：reqwest + 流式截断，live 请求验证 |
 | 代码插件层 | ✅ 猫果签名源；✅ WASM 组件宿主（真实组件端到端） |
-| 站源迁移 | 🔄 11/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果） |
+| 站源迁移 | 🔄 12/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果、剧果） |
 | 取流（resolve） | ✅ 引擎接管，含 HLS 解析与回退 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 解密 |
 | 目录缓存 | ✅ 版本化落盘 + TTL + 分页游标合并 |
@@ -22,7 +22,64 @@
 | **P1 地基** | ✅ 2026-10-20：9 crate 工作区、插件宿主、红果主源、真实组件链路（见第十三轮） |
 | **插件生态闭环** | ✅ 2026-10-20：仓库客户端 + 官方规则包 + 插件管理 UI（见第十四轮） |
 | **D4 主源能力面** | ✅ 2026-10-20：榜单 / 推荐 / 联想 / 弹幕 / 系列剧（见第十五轮） |
-| **P2 站源迁移** | 🔄 11/20（牛果代码源；剩芽果 / 皮果 / 黄豆 / 剧果 / 野果 / 黄果三源） |
+| **P2 站源迁移** | 🔄 12/20（剧果代码源；剩芽果 / 皮果 / 黄豆 / 野果 / 黄果三源） |
+
+## 第十八轮：P2 第四个站源 —— 剧果（2026-10-21）
+
+目标：迁移一个「接口干净但要会话与播放凭证」的站源，顺带补齐传输层
+一直缺的一项能力。
+
+### 链路的三个特点
+
+| 环节 | 事实 |
+| --- | --- |
+| 会话 | 所有接口要访客令牌：`POST /auth/guest` 带 `deviceId`（UUID v4），返回 `token`；失效返回 401 |
+| 主键 | 列表给 `id` 与 `slug`，**详情必须用 slug**（`/dramas/yanyu-2788`），数字 id 一律 404 |
+| 取流 | `/play/{episodeId}` 返回 m3u8 地址，同时在响应头下发 `CloudFront-Policy` / `Signature` / `Key-Pair-Id` 三个 Cookie |
+
+### 补的底层能力
+
+`FetchResponse.headers` 原本只保留 `etag` / `last-modified` / `content-type` /
+`content-length` 四个头，`Set-Cookie` 被直接丢掉，导致任何走 CDN 签名的站源
+都无法播放。本轮：
+
+1. `capture_headers` 增加 `set-cookie`，同名多值用换行拼进同一个键；
+2. 契约层 `Media` 新增 `cookies` 字段（`#[serde(default)]`，不影响既有站源）；
+3. 剧果取流把响应头里的 `name=value` 解析出来，写进 `Media.cookies`。
+
+### 修掉的缺陷
+
+- **401 重试判定用字符串匹配**，`format!("{error:?}").contains("401")` 这种写法
+  在错误文案变化时静默失效。改用契约层已有的 `http_status()` 类型化判断。
+
+### 交付
+
+| 文件 | 内容 |
+| --- | --- |
+| `engine/crates/source-huangju/` | 目录 / 详情 / 搜索 / 取流 + 访客令牌复用 |
+| `engine/bridge/tests/huangju_fixtures.rs` | 6 项：令牌先行、令牌复用、401 重登、slug 详情、签名 Cookie、能力位 |
+| `engine/bridge/tests/huangju_live.rs` | 2 项在线验证（`#[ignore]`） |
+| `engine/bridge/tests/fixtures/huangju_{list,detail,play}.json` | 2026-10-21 真实响应 |
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ 367 项（原 354，新增 13） |
+| `cargo fmt --check` / `clippy -D warnings` | ✅ 干净 |
+| 在线目录 / 详情 / 取流 | ✅ 目录 20 条、详情分集、取流返回 m3u8 + 签名 Cookie |
+| Dart 引擎站源清单 | ✅ 13 个，剧果能力位 `catalog/detail/search/categories` |
+| `flutter test` | ✅ 328 通过 / 0 失败 |
+
+### 已知限制
+
+- 列表里存在**已下架的条目**，详情返回 404。站源按接口语义如实报错，
+  在线用例改为在前几条里挑可用的一条。是否要在列表阶段过滤掉这些条目，
+  需要看主项目对「不可播条目」的处理约定，本轮不改。
+- `video.huangju.net` 在本机网络不可达，因此在线验证止于「拿到签名地址」，
+  没有拉分片。
+
+---
 
 ## 第十七轮：P2 第三个站源 —— 牛果（2026-10-21）
 

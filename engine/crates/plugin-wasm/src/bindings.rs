@@ -183,6 +183,7 @@ pub fn media_from_wit(media: Media) -> guo_source_api::Media {
         },
         key_uri: media.key_uri,
         key_iv: media.key_iv,
+        cookies: String::new(),
     }
 }
 

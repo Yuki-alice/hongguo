@@ -98,17 +98,37 @@ impl Transport for HttpTransport {
     }
 }
 
-/// 只保留续传与探测需要的响应头，避免把整个头表复制进每条响应。
+/// 只保留续传、探测与播放凭证需要的响应头，避免把整个头表复制进每条响应。
+///
+/// `set-cookie` 必须保留：剧果等站点的媒体域走 CDN 签名，播放列表与分片
+/// 只有在带上这次响应下发的 Cookie 时才可访问。同名头可能有多个值
+/// （每个 Cookie 一条），因此单独累加而不是覆盖。
 fn capture_headers(headers: &reqwest::header::HeaderMap) -> HeaderMap {
-    const KEEP: [&str; 4] = ["etag", "last-modified", "content-type", "content-length"];
+    const KEEP: [&str; 5] = [
+        "etag",
+        "last-modified",
+        "content-type",
+        "content-length",
+        "set-cookie",
+    ];
     let mut out = HeaderMap::new();
     for (name, value) in headers {
         let name = name.as_str();
         if !KEEP.iter().any(|keep| name.eq_ignore_ascii_case(keep)) {
             continue;
         }
-        if let Ok(text) = value.to_str() {
-            out.insert(name.to_string(), text.to_string());
+        let Ok(text) = value.to_str() else {
+            continue;
+        };
+        let key = name.to_ascii_lowercase();
+        match out.get_mut(&key) {
+            Some(existing) => {
+                existing.push('\n');
+                existing.push_str(text);
+            }
+            None => {
+                out.insert(key, text.to_string());
+            }
         }
     }
     out

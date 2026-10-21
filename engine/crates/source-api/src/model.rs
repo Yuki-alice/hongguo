@@ -78,6 +78,13 @@ pub struct Media {
     /// AES-128 的 IV（十六进制，无 `0x`）。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub key_iv: String,
+    /// 播放时必须随请求发送的 Cookie。
+    ///
+    /// 部分站点的媒体域走 CDN 签名：取流接口在响应头里下发
+    /// `CloudFront-Policy` / `Signature` / `Key-Pair-Id`，只有带上它们
+    /// 才能拉到播放列表与分片。为空表示不需要。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cookies: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

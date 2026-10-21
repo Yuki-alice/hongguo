@@ -229,6 +229,7 @@ impl HongguoSource {
             playlist: None,
             key_uri: String::new(),
             key_iv: String::new(),
+            cookies: String::new(),
         })
     }
 

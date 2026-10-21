@@ -15,6 +15,7 @@ use guo_plugin_wasm::{ComponentSource, SandboxLimits};
 use guo_runtime::{load_installed, LoadReport, RuleSource};
 use guo_source_api::{SourcePlugin, SourceRegistry};
 use guo_source_hongguo::HongguoSource;
+use guo_source_huangju::HuangjuSource;
 use guo_source_maoguo::MaoguoSource;
 use guo_source_niuguo::NiuguoSource;
 
@@ -44,6 +45,7 @@ pub fn builtin_registry() -> SourceRegistry {
     registry.register(Arc::new(HongguoSource::new()));
     registry.register(Arc::new(MaoguoSource::new()));
     registry.register(Arc::new(NiuguoSource::new()));
+    registry.register(Arc::new(HuangjuSource::new()));
     for text in BUILTIN_RULES {
         match RuleSource::from_json(text) {
             Ok(source) => {

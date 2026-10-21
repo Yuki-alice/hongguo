@@ -526,6 +526,7 @@ impl SourcePlugin for MaoguoSource {
                 playlist: None,
                 key_uri: String::new(),
                 key_iv: String::new(),
+                cookies: String::new(),
             });
         }
         if playlist.segments.is_empty() {
@@ -541,6 +542,7 @@ impl SourcePlugin for MaoguoSource {
                         playlist: Some(inner.segments),
                         key_uri: inner.key_uri.clone().unwrap_or_default(),
                         key_iv: inner.key_iv.clone().unwrap_or_default(),
+                        cookies: String::new(),
                     });
                 }
             }
@@ -551,6 +553,7 @@ impl SourcePlugin for MaoguoSource {
             playlist: Some(playlist.segments),
             key_uri: playlist.key_uri.clone().unwrap_or_default(),
             key_iv: playlist.key_iv.clone().unwrap_or_default(),
+            cookies: String::new(),
         })
     }
 }
