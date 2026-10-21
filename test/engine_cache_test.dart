@@ -12,17 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// 缓存行为的端到端验证。
 void main() {
   late EngineRepository repository;
-  late Directory cacheDir;
 
   setUpAll(() async {
+    // `initEngineForTest` 会把单例装配到系统临时目录；缓存文件就落在那里，
+    // 不再单独指定缓存目录（Core-1 起缓存属于引擎配置的一部分）。
     await initEngineForTest();
     repository = EngineRepository(initialized: true);
-    cacheDir = Directory.systemTemp.createTempSync('guo-cache-dart');
-    await repository.setCacheDirectory(cacheDir.path);
-  });
-
-  tearDownAll(() {
-    if (cacheDir.existsSync()) cacheDir.deleteSync(recursive: true);
   });
 
   test('catalog write populates the cache', () async {
@@ -62,10 +57,12 @@ void main() {
     expect(await repository.catalogIsFresh('wuguo', category: '1'), isFalse);
   });
 
-  test('cache file is written to the configured directory', () async {
+  test('cache file is written under the engine data directory', () async {
     await repository.catalog('wuguo', category: '1');
-    final file = File('${cacheDir.path}/catalogs.json');
-    expect(file.existsSync(), isTrue);
+    // 单例的数据目录以引擎诊断为准（`attached()` 不猜路径）。
+    final diagnostics = await repository.diagnostics();
+    final file = File(diagnostics.catalogFile);
+    expect(file.existsSync(), isTrue, reason: '缓存应落在引擎数据目录');
     expect(file.lengthSync(), greaterThan(100));
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

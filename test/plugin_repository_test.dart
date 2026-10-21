@@ -77,21 +77,27 @@ void main() {
       expect(SourceSite.values, isNotEmpty);
     });
 
-    test('引擎上报的插件站源会追加到列表', () {
+    test('引擎清单是源列表的唯一来源', () {
       SourceSite.clearReported();
-      final before = SourceSite.values.length;
+      // 未同步时按编译期清单兜底，保证启动早期 UI 不空。
+      expect(SourceSite.values, isNotEmpty);
+      expect(SourceSite.synced, isFalse);
+
       SourceSite.reportFromEngine(const [
         (id: 'guo.newguo', name: '新果', group: 'duanju'),
       ]);
-      expect(SourceSite.values.length, before + 1);
+      // 同步后只显示引擎声明的源：未在清单里的内置源不再出现。
+      expect(SourceSite.synced, isTrue);
+      expect(SourceSite.values.map((site) => site.id), ['guo.newguo']);
       expect(SourceSite.isAvailable('guo.newguo'), isTrue);
+      expect(SourceSite.isAvailable(SourceSite.hongguo.id), isFalse);
       expect(
         SourceSite.values.firstWhere((site) => site.id == 'guo.newguo').name,
         '新果',
       );
     });
 
-    test('内置 id 不会被引擎上报覆盖名称', () {
+    test('内置 id 的展示文案不会被引擎 Group 覆盖', () {
       SourceSite.clearReported();
       SourceSite.reportFromEngine(const [
         (id: 'hongguo', name: '被覆盖', group: 'duanju'),
@@ -99,7 +105,9 @@ void main() {
       final hongguo = SourceSite.values.firstWhere(
         (site) => site.id == SourceSite.hongguo.id,
       );
+      // 名称与描述属于产品文案，引擎只决定「有哪些源」。
       expect(hongguo.name, SourceSite.hongguo.name);
+      expect(hongguo.description, SourceSite.hongguo.description);
     });
 
     test('重复上报是幂等的', () {

@@ -5,8 +5,8 @@
 
 use guo_engine::{RuleDocument, RuleExecutor};
 
-const RULE: &str = include_str!("../../rules/diguo.json");
-const CATALOG: &str = include_str!("fixtures/diguo_catalog.html");
+const RULE: &str = include_str!("../../rules/dsd.json");
+const CATALOG: &str = include_str!("fixtures/dsd_catalog.html");
 
 fn rule() -> RuleDocument {
     RuleDocument::from_json(RULE).expect("帝果规则应可加载")
@@ -15,7 +15,7 @@ fn rule() -> RuleDocument {
 #[test]
 fn rule_loads_with_expected_metadata() {
     let rule = rule();
-    assert_eq!(rule.id, "diguo");
+    assert_eq!(rule.id, "dsd");
     assert_eq!(rule.name, "帝果");
     assert_eq!(rule.base, "https://www.dsd.com.se");
 }
@@ -28,9 +28,9 @@ fn catalog_parses_play_and_detail_links() {
     assert_eq!(page.items.len(), 2, "两种卡片 class 都要命中");
 
     let first = &page.items[0];
-    assert_eq!(first.source, "diguo");
+    assert_eq!(first.source, "dsd");
     assert_eq!(first.source_id, "456");
-    assert_eq!(first.id, "diguo:456");
+    assert_eq!(first.id, "dsd:456");
     assert_eq!(first.title, "帝果榜一");
     assert!(first.cover.ends_with("456.jpg"), "{}", first.cover);
 

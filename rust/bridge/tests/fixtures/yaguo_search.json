@@ -1,0 +1,51 @@
+{
+  "code": "ok",
+  "data": {
+    "theater": {
+      "search_data": [
+        {
+          "id": 2207,
+          "title": "开局离婚，她竟是豪门继承人",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_FqoWaCpwK0C4YPVjZfiblD9i6Bmd",
+          "introduction": "为了逼她离婚，失去记忆的她被自己老公送给了一个陌生男人，她心如死灰，签下离婚协议，不料一场车祸让她想起了自己团宠的身份！",
+          "total": 89,
+          "classes": [
+            "豪门总裁"
+          ],
+          "is_over": false,
+          "current_num": 89,
+          "tags": null,
+          "is_show_ai_icon": false
+        },
+        {
+          "id": 4763,
+          "title": "靠恶名整顿豪门",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_Flug6UZra1WspiImL5Zc-477SyEF",
+          "introduction": "苏凌云，这个在“恶人村”长大的苏家真千金，自小在边境村落的特殊环境中练就了果决狠戾的性子。村里的长辈嘱托，成年后需为村子办一件大事——赚够十亿修缮供奉着边境英雄牌位的祠堂。恰逢此时，沪圈豪门苏家寻回真千金，苏凌云顺势回归，表面装作乖巧顺从的模样，实则将苏家视为筹钱的“提款机”，开启了她的筹钱与复仇之路。",
+          "total": 65,
+          "classes": [
+            "豪门总裁"
+          ],
+          "is_over": false,
+          "current_num": 65,
+          "tags": null,
+          "is_show_ai_icon": false
+        },
+        {
+          "id": 3627,
+          "title": "隐婚后，她成了豪门萌宝的亲妈",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_Fky6-yqrR_1xYKJMW7sy6cMxoA-7",
+          "introduction": "叶今夏和时烨结婚三年却从未见面。叶今夏阴差阳错的与时烨走进同一房间却以为自己睡错了人。本以为缘尽于此，叶今夏却发现自己竟然还变成了‘睡错’的男人孩子的老师！种种巧合让二人的情感渐渐升温.....",
+          "total": 69,
+          "classes": [
+            "现代言情"
+          ],
+          "is_over": false,
+          "current_num": 69,
+          "tags": null,
+          "is_show_ai_icon": false
+        }
+      ]
+    }
+  }
+}

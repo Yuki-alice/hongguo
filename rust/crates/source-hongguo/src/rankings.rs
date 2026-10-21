@@ -85,11 +85,25 @@ pub fn parse_ranking_page(body: &str, board: &str, page: u32) -> Result<RankingP
         }
     }
 
-    // 两种承载形态：`loader.content` 直接给结构，或由 `data-fn-args` 脚本注入。
-    let content = loader
+    // 三种承载形态，按顺序尝试：
+    // 1. `loader.content` 直接给结构（服务端渲染完整时）；
+    // 2. `_ROUTER_DATA.fnArgs`（旧形态）；
+    // 3. `mergeLoaderData` 脚本属性（2026-10 起的形态）。
+    let owned;
+    let content = match loader
         .and_then(|loader| loader.get("content"))
         .filter(|value| value.as_object().is_some_and(|map| !map.is_empty()))
-        .or_else(|| inline_args(&data, &loader_key));
+    {
+        Some(content) => Some(content),
+        None => {
+            if let Some(content) = inline_args(&data, &loader_key) {
+                Some(content)
+            } else {
+                owned = merge_loader_content(body, &loader_key);
+                owned.as_ref()
+            }
+        }
+    };
     let content =
         content.ok_or_else(|| SourceError::parse("hongguo", "榜单数据尚未完整返回，请稍后重试"))?;
 
@@ -179,19 +193,96 @@ pub fn parse_ranking_page(body: &str, board: &str, page: u32) -> Result<RankingP
 /// 从 `data-fn-args` 脚本里取 `content`。
 ///
 /// 页面把 loader 数据拆成两段：结构在 `_ROUTER_DATA`，行数据由一段
-/// `data-script-src='modern-run-router-data-fn'` 的脚本注入。
+/// `data-script-src='modern-run-router-data-fn'` 的脚本注入。有两种承载形态：
+///
+/// 1. `_ROUTER_DATA.fnArgs = [route, "content", {...}]`（旧形态）；
+/// 2. `<script data-fn-name="mergeLoaderData" data-fn-args="[route, [{key,
+///    routerDataFnName, routerDataFnArgs}]]">`，真正的 JSON 在
+///    `routerDataFnArgs[0]` 里，且被 HTML 实体转义（新形态，2026-10 起）。
+///
+/// 站点会在两者之间来回切，两种都要认，否则榜单会退化成「数据尚未完整」。
 fn inline_args<'a>(data: &'a Value, loader_key: &str) -> Option<&'a Value> {
-    let args = data.get("fnArgs")?;
-    let array = args.as_array()?;
-    if array.len() != 3 {
-        return None;
+    if let Some(array) = data.get("fnArgs").and_then(Value::as_array) {
+        if array.len() == 3 {
+            let route = array[0].as_str().unwrap_or_default();
+            let field = array[1].as_str().unwrap_or_default();
+            if route == loader_key && field == "content" {
+                return Some(&array[2]);
+            }
+        }
     }
-    let route = array[0].as_str()?;
-    let field = array[1].as_str()?;
-    if route != loader_key || field != "content" {
-        return None;
+    None
+}
+
+/// 从 `mergeLoaderData` 脚本属性里取 `content`。
+///
+/// `raw` 是整页 HTML；`loader_key` 形如 `rank_hot-drama/page`。返回解析后的
+/// JSON 值（生命周期与调用方相同）。
+pub fn merge_loader_content(raw: &str, loader_key: &str) -> Option<Value> {
+    const MARKER: &str = "data-fn-name=\"mergeLoaderData\"";
+    let mut offset = 0;
+    while let Some(found) = raw[offset..].find(MARKER) {
+        let start = offset + found;
+        offset = start + MARKER.len();
+        // 属性都在同一个开始标签内，取到 `>` 为止即可。
+        let Some(tag_end) = raw[offset..].find('>') else {
+            continue;
+        };
+        let tag = &raw[start..offset + tag_end];
+        let Some(args) = attribute(tag, "data-fn-args") else {
+            continue;
+        };
+        let decoded = decode_entities(args);
+        let Ok(parsed) = serde_json::from_str::<Value>(&decoded) else {
+            continue;
+        };
+        let Some(array) = parsed.as_array() else {
+            continue;
+        };
+        if array.len() != 2 || array[0].as_str() != Some(loader_key) {
+            continue;
+        }
+        let Some(entries) = array[1].as_array() else {
+            continue;
+        };
+        for entry in entries {
+            if entry.get("key").and_then(Value::as_str) != Some("content") {
+                continue;
+            }
+            let Some(payload) = entry
+                .get("routerDataFnArgs")
+                .and_then(Value::as_array)
+                .and_then(|args| args.first())
+                .and_then(Value::as_str)
+            else {
+                continue;
+            };
+            if let Ok(value) = serde_json::from_str::<Value>(payload) {
+                return Some(value);
+            }
+        }
     }
-    Some(&array[2])
+    None
+}
+
+/// 取标签里某个属性的原始值（未解码实体）。
+fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+    let needle = format!("{name}=\"");
+    let start = tag.find(&needle)? + needle.len();
+    let end = tag[start..].find('"')? + start;
+    Some(&tag[start..end])
+}
+
+/// 只处理 JSON 里会出现的几个实体。
+///
+/// 属性值里的 JSON 被转义成 `&quot;`，少数文本还会带 `&amp;` / `&#39;`；
+/// 用完整的 HTML 解析器会拖进 `scraper`，这里手写足够且更可控。
+fn decode_entities(text: &str) -> String {
+    text.replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
 }
 
 fn text(value: &Value, keys: &[&str]) -> String {

@@ -5,7 +5,8 @@
 //! - 站源契约（`SourcePlugin`）、数据模型（`Drama` 等）与错误（`SourceError`）的重导出，
 //!   供集成测试与示例直接使用。
 //!
-//! 真正的实现分布在 `crates/` 下的六个 crate，这里保持薄索引（ARCHITECTURE.md §6.5）。
+//! 真正的实现分布在 `crates/` 下；引擎状态（注册表 / 会话 / 缓存 / 调度）
+//! 由 `guo-engine` 的进程级单例持有（ARCHITECTURE.md §6.5、§10）。
 
 pub mod api;
 
@@ -21,7 +22,13 @@ mod env {
 
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 
-pub use sources::{builtin_registry, last_load_report, plugin_directory, set_plugin_directory};
+pub use sources::register_builtin_sources;
+
+// 引擎运行时：单例、错误、取消、会话存储、进度事件
+pub use guo_engine_core::{
+    current, initialize, require, CancellationRegistry, DiskSourceStore, DownloadEvent, Engine,
+    EngineConfig, EngineError, EngineErrorKind, EventBus, NamespacedStore, RequestTicket,
+};
 
 // 契约层：类型与 trait
 pub use guo_source_api::{
@@ -53,3 +60,11 @@ pub use guo_source_hongguo::HongguoSource;
 pub use guo_source_huangju::HuangjuSource;
 pub use guo_source_maoguo::MaoguoSource;
 pub use guo_source_niuguo::NiuguoSource;
+pub use guo_source_yaguo::YaguoSource;
+
+/// 测试与示例用的独立注册表（不触碰单例）。
+///
+/// 与 `Engine` 的装配逻辑保持一致，避免夹具与实际运行时漂移。
+pub fn builtin_registry() -> SourceRegistry {
+    api::debug_registry()
+}

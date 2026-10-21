@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/src/rust/api.dart' as api;
 import 'package:duanju_app/src/rust/api/plugins.dart' as rust;
 import 'package:duanju_app/src/rust/frb_generated.dart';
@@ -174,6 +175,23 @@ class PluginRepository {
       url: url,
       publicKey: publicKey,
     );
+  }
+
+  /// 重建引擎注册表。安装 / 卸载 / 启停 / 回滚之后必须调用，
+  /// 否则站源清单仍是旧快照。会话、缓存与下载任务不受影响。
+  Future<int> reloadSources() async {
+    if (!initialized) return 0;
+    return api.reloadSources();
+  }
+
+  /// 读取引擎当前的站源清单并写回 `SourceSite`。
+  Future<int> syncSourceCatalog() async {
+    if (!initialized) return 0;
+    final catalog = await api.sourceCatalog();
+    SourceSite.reportFromEngine(
+      catalog.map((site) => (id: site.id, name: site.name, group: site.group)),
+    );
+    return catalog.length;
   }
 
   PluginEntry _fromSummary(api.PluginSummary summary) => PluginEntry(

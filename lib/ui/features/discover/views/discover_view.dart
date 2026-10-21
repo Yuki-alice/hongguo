@@ -559,7 +559,7 @@ class _DiscoverViewState extends State<DiscoverView> {
             child: Text(l10n.cancel),
           ),
         ] else ...[
-          if (widget.tabIndex == 1)
+          if (widget.tabIndex == 1 && controller.repository.capabilities.lan)
             IconButton(
               key: const ValueKey('follow-lan-sync'),
               tooltip: l10n.lanSyncTitle,

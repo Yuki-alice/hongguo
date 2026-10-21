@@ -1,0 +1,45 @@
+{
+  "code": "ok",
+  "data": {
+    "is_end": false,
+    "total": 300,
+    "list": [
+      {
+        "type": "Theater",
+        "theater": {
+          "id": 51,
+          "title": "女神的近身高手",
+          "descrip": "我是神医，又是兵王，纵横花都无人能挡！",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_FniaZ7GyIG54iJJ96E6DSaRD8ZbX",
+          "tags": null,
+          "total": 100,
+          "current_num": 100
+        }
+      },
+      {
+        "type": "Theater",
+        "theater": {
+          "id": 177,
+          "title": "天才萌宝：爹地别心急",
+          "descrip": "五年后，设计师妈咪携小宝惊艳全球！",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_FiCFzpz8JnJs9R_h8atD5frm22G0",
+          "tags": null,
+          "total": 90,
+          "current_num": 90
+        }
+      },
+      {
+        "type": "Theater",
+        "theater": {
+          "id": 367,
+          "title": "寒门小贵婿",
+          "descrip": "",
+          "cover_url": "https://qiniu.rongjuwh.cn/iv2_Fvia4tAQSFFoCIHwh8FWANeUbRyh",
+          "tags": null,
+          "total": 100,
+          "current_num": 100
+        }
+      }
+    ]
+  }
+}

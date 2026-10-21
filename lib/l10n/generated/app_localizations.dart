@@ -4593,6 +4593,174 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'确定卸载「{name}」？已下载的剧集与观看记录会保留。'**
   String pluginsUninstallConfirm(String name);
+
+  /// No description provided for @engineDiagnosticsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'引擎诊断'**
+  String get engineDiagnosticsTitle;
+
+  /// No description provided for @engineDiagnosticsRuntime.
+  ///
+  /// In zh, this message translates to:
+  /// **'运行状态'**
+  String get engineDiagnosticsRuntime;
+
+  /// No description provided for @engineDiagnosticsVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'引擎版本'**
+  String get engineDiagnosticsVersion;
+
+  /// No description provided for @engineDiagnosticsData.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据目录'**
+  String get engineDiagnosticsData;
+
+  /// No description provided for @engineDiagnosticsPlugins.
+  ///
+  /// In zh, this message translates to:
+  /// **'插件目录'**
+  String get engineDiagnosticsPlugins;
+
+  /// No description provided for @engineDiagnosticsUptime.
+  ///
+  /// In zh, this message translates to:
+  /// **'运行时长'**
+  String get engineDiagnosticsUptime;
+
+  /// No description provided for @engineDiagnosticsRequests.
+  ///
+  /// In zh, this message translates to:
+  /// **'请求计数'**
+  String get engineDiagnosticsRequests;
+
+  /// No description provided for @engineDiagnosticsSessions.
+  ///
+  /// In zh, this message translates to:
+  /// **'会话（磁盘 / 在途）'**
+  String get engineDiagnosticsSessions;
+
+  /// No description provided for @engineDiagnosticsCache.
+  ///
+  /// In zh, this message translates to:
+  /// **'目录缓存键'**
+  String get engineDiagnosticsCache;
+
+  /// No description provided for @engineDiagnosticsJobs.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载任务（排队 / 运行 / 完成 / 失败）'**
+  String get engineDiagnosticsJobs;
+
+  /// No description provided for @engineDiagnosticsCapabilities.
+  ///
+  /// In zh, this message translates to:
+  /// **'能力矩阵'**
+  String get engineDiagnosticsCapabilities;
+
+  /// No description provided for @engineDiagnosticsSources.
+  ///
+  /// In zh, this message translates to:
+  /// **'站源能力'**
+  String get engineDiagnosticsSources;
+
+  /// No description provided for @engineDiagnosticsPluginReport.
+  ///
+  /// In zh, this message translates to:
+  /// **'插件加载'**
+  String get engineDiagnosticsPluginReport;
+
+  /// No description provided for @engineDiagnosticsPluginLoaded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加载'**
+  String get engineDiagnosticsPluginLoaded;
+
+  /// No description provided for @engineDiagnosticsRecentErrors.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近错误'**
+  String get engineDiagnosticsRecentErrors;
+
+  /// No description provided for @engineDiagnosticsCatalog.
+  ///
+  /// In zh, this message translates to:
+  /// **'目录 / 详情 / 搜索'**
+  String get engineDiagnosticsCatalog;
+
+  /// No description provided for @engineDiagnosticsPlayback.
+  ///
+  /// In zh, this message translates to:
+  /// **'直连播放'**
+  String get engineDiagnosticsPlayback;
+
+  /// No description provided for @engineDiagnosticsDownloads.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载与离线播放'**
+  String get engineDiagnosticsDownloads;
+
+  /// No description provided for @engineDiagnosticsDanmaku.
+  ///
+  /// In zh, this message translates to:
+  /// **'弹幕'**
+  String get engineDiagnosticsDanmaku;
+
+  /// No description provided for @engineDiagnosticsRankings.
+  ///
+  /// In zh, this message translates to:
+  /// **'榜单'**
+  String get engineDiagnosticsRankings;
+
+  /// No description provided for @engineDiagnosticsRecommendations.
+  ///
+  /// In zh, this message translates to:
+  /// **'推荐流'**
+  String get engineDiagnosticsRecommendations;
+
+  /// No description provided for @engineDiagnosticsSuggestions.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索联想'**
+  String get engineDiagnosticsSuggestions;
+
+  /// No description provided for @engineDiagnosticsSourceManagement.
+  ///
+  /// In zh, this message translates to:
+  /// **'站源诊断 / 健康检查'**
+  String get engineDiagnosticsSourceManagement;
+
+  /// No description provided for @engineDiagnosticsResourceSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'代理 / DNS / CDN 设置'**
+  String get engineDiagnosticsResourceSettings;
+
+  /// No description provided for @engineDiagnosticsLan.
+  ///
+  /// In zh, this message translates to:
+  /// **'局域网设备互联'**
+  String get engineDiagnosticsLan;
+
+  /// No description provided for @engineDiagnosticsSupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'支持'**
+  String get engineDiagnosticsSupported;
+
+  /// No description provided for @engineDiagnosticsUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前版本不支持'**
+  String get engineDiagnosticsUnsupported;
+
+  /// No description provided for @engineDiagnosticsEntry.
+  ///
+  /// In zh, this message translates to:
+  /// **'引擎诊断'**
+  String get engineDiagnosticsEntry;
 }
 
 class _AppLocalizationsDelegate

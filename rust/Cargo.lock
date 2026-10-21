@@ -1112,6 +1112,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "guo-engine-core"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "guo-host",
+ "guo-plugin-host",
+ "guo-plugin-wasm",
+ "guo-runtime",
+ "guo-source-api",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "guo-host"
 version = "0.3.0"
 dependencies = [
@@ -1259,11 +1274,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "guo-source-yaguo"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "guo-source-api",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "guo_engine"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "flutter_rust_bridge",
+ "guo-engine-core",
  "guo-host",
  "guo-media",
  "guo-plugin-host",
@@ -1276,6 +1303,7 @@ dependencies = [
  "guo-source-huangju",
  "guo-source-maoguo",
  "guo-source-niuguo",
+ "guo-source-yaguo",
  "semver",
  "serde_json",
  "tokio",

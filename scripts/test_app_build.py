@@ -81,13 +81,15 @@ class AppBuildTests(unittest.TestCase):
                             mock.patch('subprocess.run') as run:
                         runpy.run_path(str(script), run_name='__main__')
                     calls = [call.args[0] for call in run.call_args_list]
-                    native = next(call for call in calls if any(str(arg).endswith('build_native.py') for arg in call))
+                    # Go 后端已退出构建链：不再有 build_native.py 这一步。
+                    self.assertFalse(
+                        any(str(arg).endswith('build_native.py') for call in calls for arg in call),
+                        '构建脚本不应再调用 build_native.py',
+                    )
                     flutter = next(call for call in calls if 'build' in call)
                     package = next(call for call in calls if any(str(arg).endswith('package_release.py') for arg in call))
-                    self.assertEqual('--all-sources' in native, enabled)
                     self.assertEqual('--all-sources' in package, enabled)
                     self.assertIn('--dart-define=ALL_SOURCES=' + str(enabled).lower(), flutter)
-                    self.assertIn('core.buildAllSources=' + str(enabled).lower(), BuildVariant(enabled).linker_flags)
 
 
 if __name__ == '__main__':

@@ -26,9 +26,12 @@ pub const DANMAKU_LIMIT: usize = 90;
 pub fn parse_suggestions(body: &str) -> Result<Vec<Suggestion>, SourceError> {
     let root: Value = serde_json::from_str(body)
         .map_err(|err| SourceError::parse("hongguo", format!("联想返回不是 JSON：{err}")))?;
+    // 外层键名随站点版本变过三次：`data` → `suggest_words` → `suggest_list`
+    // （2026-10 起的形态）。行结构一直是 `name` + `word_type`，因此只补键名。
     let records = root
-        .get("data")
+        .get("suggest_list")
         .and_then(Value::as_array)
+        .or_else(|| root.get("data").and_then(Value::as_array))
         .or_else(|| root.get("suggest_words").and_then(Value::as_array))
         .cloned()
         .unwrap_or_default();

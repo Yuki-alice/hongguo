@@ -1678,5 +1678,33 @@
         "type": "String"
       }
     }
-  }
+  },
+  "engineDiagnosticsTitle": "引擎诊断",
+  "engineDiagnosticsRuntime": "运行状态",
+  "engineDiagnosticsVersion": "引擎版本",
+  "engineDiagnosticsData": "数据目录",
+  "engineDiagnosticsPlugins": "插件目录",
+  "engineDiagnosticsUptime": "运行时长",
+  "engineDiagnosticsRequests": "请求计数",
+  "engineDiagnosticsSessions": "会话（磁盘 / 在途）",
+  "engineDiagnosticsCache": "目录缓存键",
+  "engineDiagnosticsJobs": "下载任务（排队 / 运行 / 完成 / 失败）",
+  "engineDiagnosticsCapabilities": "能力矩阵",
+  "engineDiagnosticsSources": "站源能力",
+  "engineDiagnosticsPluginReport": "插件加载",
+  "engineDiagnosticsPluginLoaded": "已加载",
+  "engineDiagnosticsRecentErrors": "最近错误",
+  "engineDiagnosticsCatalog": "目录 / 详情 / 搜索",
+  "engineDiagnosticsPlayback": "直连播放",
+  "engineDiagnosticsDownloads": "下载与离线播放",
+  "engineDiagnosticsDanmaku": "弹幕",
+  "engineDiagnosticsRankings": "榜单",
+  "engineDiagnosticsRecommendations": "推荐流",
+  "engineDiagnosticsSuggestions": "搜索联想",
+  "engineDiagnosticsSourceManagement": "站源诊断 / 健康检查",
+  "engineDiagnosticsResourceSettings": "代理 / DNS / CDN 设置",
+  "engineDiagnosticsLan": "局域网设备互联",
+  "engineDiagnosticsSupported": "支持",
+  "engineDiagnosticsUnsupported": "当前版本不支持",
+  "engineDiagnosticsEntry": "引擎诊断"
 }

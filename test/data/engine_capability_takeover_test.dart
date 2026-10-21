@@ -1,0 +1,191 @@
+import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/engine_backed_repository.dart';
+import 'package:duanju_app/data/engine_failure.dart';
+import 'package:duanju_app/data/repository_capabilities.dart';
+import 'package:duanju_app/data/engine_repository.dart';
+import 'package:duanju_app/domain/models.dart';
+import 'package:duanju_app/domain/ranking_models.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// 引擎接管榜单 / 推荐 / 联想之后的仓库行为。
+///
+/// 这些用例不触碰网络：假引擎只回答被调用的那部分，用来验证
+/// 「谁被调用、结果怎么合并、失败怎么分类」。
+class _FakeEngine extends EngineRepository {
+  _FakeEngine({super.initialized = true});
+
+  final calls = <String>[];
+  final sourcesResult = <SourceSummary>[
+    const SourceSummary(
+      id: 'hongguo',
+      name: '红果',
+      group: 'duanju',
+      apiLevel: 1,
+      capabilities: [
+        'catalog',
+        'detail',
+        'search',
+        'rankings',
+        'recommend',
+        'suggestions',
+      ],
+    ),
+    const SourceSummary(
+      id: 'wuguo',
+      name: '伍果',
+      group: 'duanju',
+      apiLevel: 1,
+      capabilities: ['catalog', 'detail'],
+    ),
+  ];
+
+  /// 榜单看板按源返回；未知源抛 Unsupported。
+  final boards = <String, List<RankingBoard>>{
+    'hongguo': const [
+      RankingBoard(id: 'hongguo-hot', source: 'hongguo', name: '总热播榜'),
+    ],
+  };
+
+  /// 推荐页：按 offset 返回不同条目，便于验证累积。
+  List<Drama> recommendPage(int offset) => [
+    for (var i = offset; i < offset + 2; i++)
+      Drama(id: 'hongguo:r$i', source: 'hongguo', sourceId: 'r$i', title: '推荐$i'),
+  ];
+
+  @override
+  Future<List<SourceSummary>> sources() async => sourcesResult;
+
+  @override
+  Future<List<RankingBoard>> rankingBoards(String source) async {
+    calls.add('boards:$source');
+    final rows = boards[source];
+    if (rows == null) throw UnsupportedFailure('榜单');
+    return rows;
+  }
+
+  @override
+  Future<RankingPage> ranking(
+    String source,
+    String boardId, {
+    int page = 1,
+  }) async {
+    calls.add('ranking:$source:$boardId:$page');
+    return RankingPage(
+      items: [
+        RankingItem(
+          1,
+          const Drama(id: 'hongguo:1', source: 'hongguo', sourceId: '1', title: '第一'),
+        ),
+      ],
+      page: page,
+      hasMore: true,
+      updatedText: '今天',
+    );
+  }
+
+  @override
+  Future<RecommendPage> recommend(
+    String source, {
+    int offset = 0,
+    String sessionId = '',
+    String genre = '',
+  }) async {
+    calls.add('recommend:$genre:$offset:$sessionId');
+    return RecommendPage(
+      items: recommendPage(offset),
+      offset: offset + 2,
+      sessionId: 'session-$offset',
+      hasMore: true,
+    );
+  }
+
+  @override
+  Future<List<String>> suggestions(String source, String keyword) async {
+    calls.add('suggest:$source:$keyword');
+    if (source != 'hongguo') throw UnsupportedFailure('搜索联想');
+    return ['总裁'];
+  }
+}
+
+/// 一个不会被调用的下层实现：任何调用都会让用例失败。
+class _ForbiddenDelegate extends AppRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    throw StateError('不应调用下层：${invocation.memberName}');
+  }
+
+  @override
+  Future<void> initialize() async {}
+}
+
+EngineBackedRepository build([_FakeEngine? engine]) => EngineBackedRepository(
+  delegate: _ForbiddenDelegate(),
+  engine: engine ?? _FakeEngine(),
+);
+
+void main() {
+  test('榜单看板只向声明了 rankings 的源请求', () async {
+    final engine = _FakeEngine();
+    final boards = await build(engine).rankingBoards();
+    expect(boards.map((board) => board.id), ['hongguo-hot']);
+    // 伍果没有 rankings 能力，不应被请求。
+    expect(engine.calls, ['boards:hongguo']);
+  });
+
+  test('榜单按看板 id 反查源并交给引擎', () async {
+    final engine = _FakeEngine();
+    final page = await build(engine).rankings('hongguo-hot', page: 2);
+    expect(page.items.first.rank, 1);
+    expect(engine.calls, ['ranking:hongguo:hongguo-hot:2']);
+  });
+
+  test('推荐翻页返回累积结果而不是增量', () async {
+    final repository = build();
+    final first = await repository.recommendations('短剧');
+    expect(first.items.map((drama) => drama.id), ['hongguo:r0', 'hongguo:r1']);
+
+    final next = await repository.recommendations('短剧', more: true);
+    // 第二页必须包含第一页的条目，否则「加载更多」会冲掉已有内容。
+    expect(next.items.map((drama) => drama.id), [
+      'hongguo:r0',
+      'hongguo:r1',
+      'hongguo:r2',
+      'hongguo:r3',
+    ]);
+    expect(next.hasMore, isTrue);
+  });
+
+  test('推荐游标在 genre 之间互不影响', () async {
+    final engine = _FakeEngine();
+    final repository = build(engine);
+    await repository.recommendations('短剧');
+    await repository.recommendations('漫剧');
+    // 两个 genre 都从 offset 0 开始，说明游标按 genre 隔离。
+    expect(
+      engine.calls.where((call) => call.startsWith('recommend:')).toList(),
+      ['recommend:短剧:0:', 'recommend:漫剧:0:'],
+    );
+  });
+
+  test('联想只在主源上请求', () async {
+    final engine = _FakeEngine();
+    expect(await build(engine).suggestions('总裁'), ['总裁']);
+    expect(engine.calls, ['suggest:hongguo:总裁']);
+  });
+
+  test('空关键词不触发请求', () async {
+    final engine = _FakeEngine();
+    expect(await build(engine).suggestions('   '), isEmpty);
+    expect(engine.calls, isEmpty);
+  });
+
+  test('能力矩阵如实标注未接入项', () {
+    final capabilities = build().capabilities;
+    expect(capabilities.rankings, isTrue);
+    expect(capabilities.recommendations, isTrue);
+    expect(capabilities.suggestions, isTrue);
+    // 弹幕依赖播放会话，Core-2 才接入；现在不能谎报可用。
+    expect(capabilities.danmaku, isFalse);
+    expect(capabilities.lan, isFalse);
+  });
+}

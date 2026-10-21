@@ -1,35 +1,29 @@
 import 'package:duanju_app/data/core_bridge.dart';
+import 'package:duanju_app/data/engine_failure.dart';
+import 'package:duanju_app/data/repository_capabilities.dart';
 import 'package:duanju_app/domain/danmaku_models.dart';
 import 'package:duanju_app/domain/download_collections.dart';
 import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/data/engine_routing.dart';
 import 'package:duanju_app/data/local_store.dart';
 import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/domain/ranking_models.dart';
 import 'package:duanju_app/domain/resource_settings.dart';
 import 'package:duanju_app/domain/source_status.dart';
 
-/// 把 Rust 引擎装配到既有 `AppRepository` 之上。
+/// 生产仓库：目录 / 详情 / 搜索 / 分类 / 取流由 Rust 引擎承担。
 ///
-/// 采用**装饰器**而非继承：只有引擎声明支持的站源与动作才切换实现，
-/// 其余情况原样委托给下层（Go 核心），保证迁移过程中功能不缺失。
-///
-/// 未开启 `ENGINE_ROUTE` 时本类不会被使用。
+/// 不再有路由开关，也没有「引擎不支持就切 Go」的静默回落（Go 后端已停止演进）。
+/// 引擎声明不支持的能力直接抛 [UnsupportedFailure]，由 [capabilities] 在渲染前
+/// 让 UI 隐藏入口；下载、LAN、站源诊断等仍在迁移中的能力暂时委托给下层实现，
+/// 并在 [capabilities] 中如实标注。
 class EngineBackedRepository extends AppRepository {
-  EngineBackedRepository({
-    required this.delegate,
-    required this.engine,
-    required this.route,
-  });
+  EngineBackedRepository({required this.delegate, required this.engine});
 
-  /// 下层仓库（当前为 Go 核心）。
+  /// 下层实现：承担尚未迁到引擎的本机能力（下载、媒体、LAN 等）。
   final AppRepository delegate;
 
   /// Rust 引擎访问层。
   final EngineRepository engine;
-
-  /// 路由策略。
-  final EngineRoute route;
 
   /// 引擎下载任务的本地上下文。
   ///
@@ -41,10 +35,20 @@ class EngineBackedRepository extends AppRepository {
   int get downloadContextCount => _downloads.length;
 
   /// 该站源是否交给引擎。
-  bool handles(String source) => engine.initialized && route.allows(source);
+  bool handles(String source) => engine.initialized && source.isNotEmpty;
 
-  /// 供诊断面板显示当前路由。
-  String get description => EngineRouting.description;
+  @override
+  RepositoryCapabilities get capabilities => RepositoryCapabilities(
+    sourceManagement: false,
+    downloads: delegate.supportsDownloads,
+    danmaku: false,
+    recommendations: true,
+    rankings: true,
+    suggestions: true,
+    resourceSettings: false,
+    localPlayback: delegate.supportsDownloads,
+    lan: false,
+  );
 
   @override
   LocalStore? get access => delegate.access;
@@ -63,29 +67,34 @@ class EngineBackedRepository extends AppRepository {
     String category = '',
     bool force = false,
   }) async {
-    if (!handles(source)) {
-      return delegate.catalog(
+    if (!handles(source)) return delegate.catalog(source, page: page, query: query, category: category, force: force);
+    try {
+      return await engine.catalog(
         source,
         page: page,
         query: query,
         category: category,
-        force: force,
       );
+    } on EngineException catch (error) {
+      throw await _translate(error, source);
     }
-    return engine.catalog(source, page: page, query: query, category: category);
   }
 
   @override
   Future<DramaDetail> detail(Drama drama) async {
     if (!handles(drama.source)) return delegate.detail(drama);
-    return engine.detail(drama);
+    try {
+      return await engine.detail(drama);
+    } on EngineException catch (error) {
+      throw await _translate(error, drama.source);
+    }
   }
 
   @override
   Future<CatalogPage> cached(String source, {String category = ''}) async {
     if (!handles(source)) return delegate.cached(source, category: category);
     final page = await engine.cachedCatalog(source, category: category);
-    // 引擎缓存为空时回落到下层，避免切换后端瞬间出现空列表。
+    // 引擎缓存为空时读下层缓存，避免切换后端瞬间出现空列表。
     if (page.items.isEmpty) return delegate.cached(source, category: category);
     return page;
   }
@@ -98,9 +107,12 @@ class EngineBackedRepository extends AppRepository {
     if (!handles(source)) return delegate.categories(source, force: force);
     try {
       return await engine.categories(source);
-    } catch (_) {
-      // 站源未声明分类能力时交给 Go 核心。
-      return delegate.categories(source, force: force);
+    } on EngineException catch (error) {
+      // 站源未声明分类能力：返回「全部」即可，不当作错误。
+      if (error.isUnsupported || error.kind == EngineFailureKind.parseChanged) {
+        return const [CatalogCategory.all];
+      }
+      rethrow;
     }
   }
 
@@ -119,9 +131,8 @@ class EngineBackedRepository extends AppRepository {
     }
     try {
       return await engine.resolve(drama, episode);
-    } catch (_) {
-      // 取流失败时回退到 Go 核心，避免因引擎覆盖不全导致无法播放。
-      return delegate.resolve(drama, episode, quality: quality);
+    } on EngineException catch (error) {
+      throw await _translate(error, drama.source);
     }
   }
 
@@ -179,29 +190,112 @@ class EngineBackedRepository extends AppRepository {
     required int durationMs,
   }) => delegate.danmaku(plan, startMs: startMs, durationMs: durationMs);
 
+  /// 元数据补全：只对「引擎详情能补的字段」生效。
+  ///
+  /// 红果目录页不带上线日期，详情页带；其余源目录与详情字段一致，
+  /// 因此这里直接复用详情结果，不再为补元数据单发一次请求。
   @override
-  Future<Drama?> supplementMetadata(Drama drama) =>
-      delegate.supplementMetadata(drama);
+  Future<Drama?> supplementMetadata(Drama drama) async {
+    if (drama.source != SourceSite.hongguo.id) return null;
+    if (drama.onlineDate.isNotEmpty) return null;
+    try {
+      final detail = await engine.detail(drama);
+      final fresh = detail.drama;
+      return fresh.onlineDate.isEmpty ? null : fresh;
+    } on EngineException catch (error) {
+      // 补元数据失败不应影响详情页主流程。
+      if (error.isUnsupported) return null;
+      rethrow;
+    }
+  }
 
+  /// 推荐流由主源直接返回；引擎没有该能力时显式不支持。
   @override
   Future<CatalogPage> recommendations(
     String genre, {
     bool more = false,
     bool force = false,
-  }) => delegate.recommendations(genre, more: more, force: force);
+  }) async {
+    try {
+      final page = await engine.recommend(
+        SourceSite.hongguo.id,
+        offset: more ? _recommendOffsets[genre] ?? 0 : 0,
+        sessionId: _recommendSessions[genre] ?? '',
+        genre: genre,
+      );
+      _recommendOffsets[genre] = page.offset;
+      _recommendSessions[genre] = page.sessionId;
+      // 推荐页整页替换而不是追加，因此这里必须返回累积结果；
+      // 只返回增量会让「加载更多」把已有条目冲掉。
+      final merged = more
+          ? {...{for (final drama in _recommendItems[genre] ?? const <Drama>[]) drama.id: drama},
+             for (final drama in page.items) drama.id: drama}
+          : {for (final drama in page.items) drama.id: drama};
+      _recommendItems[genre] = merged.values.toList();
+      return CatalogPage(
+        _recommendItems[genre]!,
+        hasMore: page.hasMore,
+        page: 1,
+        fresh: false,
+      );
+    } on EngineException catch (error) {
+      _recommendOffsets.remove(genre);
+      _recommendSessions.remove(genre);
+      if (!more) _recommendItems.remove(genre);
+      if (error.isUnsupported) throw UnsupportedFailure('推荐流');
+      throw await _translate(error, SourceSite.hongguo.id);
+    }
+  }
 
+  /// 推荐游标。引擎用 `(offset, sessionId)` 翻页，Dart 侧按 genre 记住上一页。
+  final _recommendOffsets = <String, int>{};
+  final _recommendSessions = <String, String>{};
+
+  /// 已加载的推荐条目，按 genre 累积。
+  final _recommendItems = <String, List<Drama>>{};
+
+  /// 榜单看板由引擎返回，`source` 取自引擎清单而不是 Dart 硬编码表。
   @override
-  Future<List<RankingBoard>> rankingBoards() => delegate.rankingBoards();
+  Future<List<RankingBoard>> rankingBoards() async {
+    final boards = <RankingBoard>[];
+    for (final source in await engine.sources()) {
+      if (!source.supports('rankings')) continue;
+      try {
+        boards.addAll(await engine.rankingBoards(source.id));
+      } on EngineException catch (error) {
+        // 单个源没有榜单不是错误，跳过即可；其它失败照常上报。
+        if (!error.isUnsupported) rethrow;
+      }
+    }
+    return boards;
+  }
 
   @override
   Future<RankingPage> rankings(
     String board, {
     int page = 1,
     bool force = false,
-  }) => delegate.rankings(board, page: page, force: force);
+  }) async {
+    final source = RankingBoard.sourceForID(board);
+    if (source.isEmpty) return delegate.rankings(board, page: page, force: force);
+    try {
+      return await engine.ranking(source, board, page: page);
+    } on EngineException catch (error) {
+      throw await _translate(error, source);
+    }
+  }
 
+  /// 联想只有主源提供；引擎没有该能力时返回空，不回落 Go。
   @override
-  Future<List<String>> suggestions(String query) => delegate.suggestions(query);
+  Future<List<String>> suggestions(String query) async {
+    if (query.trim().isEmpty) return const [];
+    try {
+      return await engine.suggestions(SourceSite.hongguo.id, query);
+    } on EngineException catch (error) {
+      if (error.isUnsupported) return const [];
+      rethrow;
+    }
+  }
 
   @override
   Future<Map<String, dynamic>> storage() => delegate.storage();
@@ -238,6 +332,8 @@ class EngineBackedRepository extends AppRepository {
           target: target,
           referer: plan.headers['Referer'] ?? '',
           title: episode.title,
+          dramaId: detail.drama.id,
+          episodeId: episode.id,
           segments: plan.segments,
           keyUri: plan.keyUri,
           keyIv: plan.keyIv,
@@ -248,7 +344,7 @@ class EngineBackedRepository extends AppRepository {
           index: episode.number,
         );
         accepted += 1;
-      } catch (_) {
+      } on Object {
         // 单个分集失败不影响其余分集，交给上层重试。
       }
     }
@@ -343,11 +439,32 @@ class EngineBackedRepository extends AppRepository {
   Future<ResourceSettings> saveResourceSettings(ResourceSettings settings) =>
       delegate.saveResourceSettings(settings);
 
+  /// 站源诊断 / 健康检查仍在下层实现（Core-2 之后迁入引擎）。
   @override
-  bool get supportsSourceManagement => delegate.supportsSourceManagement;
+  bool get supportsSourceManagement => capabilities.sourceManagement;
 
+  /// 下载能力以能力矩阵为唯一真相，避免「按钮可见但底层不支持」。
   @override
-  bool get supportsDownloads => delegate.supportsDownloads;
+  bool get supportsDownloads => capabilities.downloads;
+
+  /// 引擎失败补上站源上下文后原样抛出。
+  ///
+  /// 只做归一，不做「换源重试」：退避策略由 UI 按 `kind` 决定，
+  /// 在这里偷偷重试会让用户看到两次网络请求却无法解释。
+  Future<EngineException> _translate(
+    EngineException error,
+    String source,
+  ) async => error.sourceId.isEmpty
+      ? EngineException(
+          kind: error.kind,
+          message: error.message,
+          sourceId: source,
+          requestId: error.requestId,
+          retryable: error.retryable,
+          httpStatus: error.httpStatus,
+          retryAtMs: error.retryAtMs,
+        )
+      : error;
 }
 
 /// 引擎下载任务在 Dart 侧的上下文。

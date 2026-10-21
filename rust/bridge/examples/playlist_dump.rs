@@ -1,10 +1,17 @@
 use guo_engine::builtin_registry;
 
+fn engine_env(source: String) -> guo_engine::SourceEnv {
+    guo_engine::require().expect("engine").env(&source)
+}
+
 #[tokio::main]
 async fn main() {
+    let dir = std::env::temp_dir().join("guo-example");
+    guo_engine::api::init_engine_with_directory(dir.to_string_lossy().to_string(), String::new())
+        .expect("init");
     let registry = builtin_registry();
     let source = registry.get("maoguo").expect("maoguo");
-    let env = guo_engine::api::debug_env("maoguo".into()).expect("env");
+    let env = engine_env("maoguo".into());
     let page = source.catalog(&env, 1, "0").await.expect("catalog");
     let drama = &page.items[0];
     let detail = source.detail(&env, &drama.source_id).await.expect("detail");

@@ -1,0 +1,14 @@
+[package]
+name = "guo-source-yaguo"
+description = "芽果站源（设备登录令牌 + 剧场/榜单）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+guo-source-api = { path = "../source-api" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# 登录被并发限流时的重试间隔；只是计时器，不构成对宿主运行时的依赖。
+tokio = { workspace = true, features = ["time"] }

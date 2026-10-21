@@ -35,6 +35,11 @@ class SourceSite {
 
   static const hongguo = SourceSite('hongguo', '红果', '短剧 · 漫剧 · AI 剧');
   static const dsd = SourceSite('dsd', '帝果', '分类视频 · 在线搜索');
+
+  /// 旧 Go 后端使用的首个源标识。源列表已改由引擎驱动，
+  /// 这一个常量只用于读取历史数据时把 `huangdou:` 前缀改写为红果。
+  static const legacyHuangdou = 'huangdou';
+
   static const duanjuValues = [
     SourceSite('yaguo', '芽果', '星芽短剧 · 登录接口'),
     SourceSite('maoguo', '猫果', '七猫短剧 · 签名接口'),
@@ -46,81 +51,97 @@ class SourceSite {
     SourceSite('niuguo', '牛果', '牛牛短剧 · 分类接口'),
     SourceSite('wangguo', '网果', '短剧网站 · 网页目录'),
     SourceSite('faguo', '发果', '168 短剧 · 网页目录'),
-    SourceSite('piguo', '皮果', 'PTT 短剧 · 网页目录'),
     SourceSite('wuguo', '伍果', '五五短剧 · 网页目录'),
   ];
-  static const knownValues = [
-    hongguo,
-    SourceSite('huangdou', '黄豆', '精选短剧'),
-    SourceSite('huangju', '剧果', '热门 · 最新 · 分类短剧'),
-    SourceSite('yeguo', '野果', '分类短剧 · 在线搜索'),
-    dsd,
-    SourceSite('huangguo-video', '黄果视频', '视频剧集'),
-    SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
-    SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),
-    ...duanjuValues,
-  ];
-  static const allValues = [
-    hongguo,
-    SourceSite('huangdou', '黄豆', '精选短剧'),
-    SourceSite('huangju', '剧果', '热门 · 最新 · 分类短剧'),
-    SourceSite('yeguo', '野果', '分类短剧 · 在线搜索'),
-    dsd,
-    SourceSite('huangguo-video', '黄果视频', '视频剧集'),
-    SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
-    SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),
-    ...duanjuValues,
-  ];
 
-  /// 编译期内置的站源。加锁开关（`ALL_SOURCES`）在这里生效。
-  static const builtins = allSourcesEnabled ? knownValues : [hongguo];
-
-  /// 引擎报告的额外站源（安装插件后出现），只在运行时存在。
+  /// 展示用清单：只提供名称与描述，**不决定源是否存在**。
   ///
-  /// 站源列表正在从「Dart 常量」迁移到「引擎清单」：内置清单仍是编译期常量，
-  /// 保证离线与降级路径可用；引擎上报的条目（含插件安装的源）追加在这里。
+  /// 引擎上报的 id 不在表内时，用引擎给出的名称兜底；表内的 id 不在引擎
+  /// 清单里时，一律隐藏（`SourceSite.values` 只返回引擎报告的条目）。
+  ///
+  /// `ALL_SOURCES` 仍决定**编译进哪些源**：单源版只带红果，引擎清单里
+  /// 也只会有红果。版本开关不做运行时降级——引擎声明了却编译不进来，
+  /// 那属于构建缺陷，应当暴露而不是静默过滤。
+  static const allKnownValues = [
+    hongguo,
+    SourceSite('huangju', '剧果', '热门 · 最新 · 分类短剧'),
+    SourceSite('yeguo', '野果', '分类短剧 · 在线搜索'),
+    dsd,
+    SourceSite('huangguo-video', '黄果视频', '视频剧集'),
+    SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
+    SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),
+    ...duanjuValues,
+  ];
+
+  /// 当前版本可用的展示清单。
+  static const knownValues = allSourcesEnabled ? allKnownValues : [hongguo];
+
+  /// 引擎报告的站源（含插件安装的源）。这是源列表的唯一来源。
+  ///
+  /// 启动时由 `EngineRepository.syncSourceCatalog` 填充，插件安装 / 卸载后重填。
+  /// 尚未同步时（测试、启动早期）回退到 [knownValues]，保证 UI 不空。
   static final Map<String, SourceSite> _reported = {};
 
-  /// 当前可用站源：内置清单 + 引擎上报。
+  static bool _synced = false;
+
+  /// 当前可用站源。引擎同步过就以引擎为准；否则用内置表兜底。
   static List<SourceSite> get values {
-    if (_reported.isEmpty) return builtins;
-    final merged = <SourceSite>[...builtins];
-    for (final site in _reported.values) {
-      if (!merged.any((entry) => entry.id == site.id)) merged.add(site);
-    }
-    return merged;
+    if (!_synced) return knownValues;
+    return [for (final id in _reported.keys) _reported[id]!];
   }
 
-  /// 用引擎的站源清单覆盖「上报部分」。重复调用是幂等的。
+  /// 用引擎的站源清单替换当前列表。重复调用是幂等的。
   ///
-  /// 只接受内置清单之外的 id：内置条目的名称与描述属于产品文案，
-  /// 不应被引擎里的技术标识覆盖。
+  /// 引擎只给 id / name / group，展示文案仍优先取编译期版本：
+  /// 「帝果 · 分类视频」这类描述是产品文案，不该由引擎的 group 字段决定。
   static void reportFromEngine(
     Iterable<({String id, String name, String group})> entries,
   ) {
-    final builtinIds = builtins.map((site) => site.id).toSet();
     _reported
       ..clear()
       ..addEntries(
-        entries
-            .where((entry) => !builtinIds.contains(entry.id))
-            .map(
-              (entry) => MapEntry(
-                entry.id,
-                SourceSite(entry.id, entry.name, entry.group),
-              ),
-            ),
+        entries.map((entry) {
+          final known = knownValues.where((site) => site.id == entry.id);
+          return MapEntry(
+            entry.id,
+            known.isNotEmpty
+                ? known.first
+                : SourceSite(entry.id, entry.name, entry.group),
+          );
+        }),
       );
+    _synced = true;
   }
 
   /// 清空引擎上报（测试与「重置站源」用）。
-  static void clearReported() => _reported.clear();
+  static void clearReported() {
+    _reported.clear();
+    _synced = false;
+  }
 
+  /// 引擎是否已上报过清单。
+  static bool get synced => _synced;
+
+  /// 是否可用。
+  ///
+  /// 引擎同步过就以引擎清单为准——它已经包含版本裁剪的结果（单源构建里
+  /// 引擎只注册红果）。未同步时按编译期清单兜底，供启动早期与测试使用。
   static bool isAvailable(String id) =>
-      builtins.any((site) => site.id == id) || _reported.containsKey(id);
-  static bool isKnown(String id) => allValues.any((site) => site.id == id);
+      _synced
+      ? _reported.containsKey(id)
+      : knownValues.any((site) => site.id == id);
+  /// 是否是「认识」的 id。旧数据里可能引用已下线的源（`huangdou` / `piguo`），
+  /// 这些仍算已知，才能读回档案与历史而不报格式错误。
+  static bool isKnown(String id) =>
+      allKnownValues.any((site) => site.id == id) ||
+      id == legacyHuangdou ||
+      _reported.containsKey(id);
   static SourceSite byId(String id) =>
-      allValues.firstWhere((site) => site.id == id, orElse: () => hongguo);
+      _reported[id] ??
+      allKnownValues.firstWhere(
+        (site) => site.id == id,
+        orElse: () => hongguo,
+      );
 }
 
 class SourceGroup {

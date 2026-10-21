@@ -18,7 +18,13 @@ void main() {
   });
 
   test('engine DramaItem maps onto the existing Dart Drama model', () async {
-    final page = await fetchCatalog(sourceId: 'wuguo', page: 1, category: '1');
+    final page = await fetchCatalog(
+      sourceId: 'wuguo',
+      page: 1,
+      category: '1',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     expect(page.items, isNotEmpty);
 
     for (final item in page.items.take(5)) {
@@ -52,7 +58,13 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('engine identity format matches Go convention', () async {
-    final page = await fetchCatalog(sourceId: 'wuguo', page: 1, category: '1');
+    final page = await fetchCatalog(
+      sourceId: 'wuguo',
+      page: 1,
+      category: '1',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     for (final item in page.items.take(10)) {
       // Go 与 Dart 都按 `<source>:<sourceId>` 约定生成 ID。
       expect(item.id, '${item.source}:${item.sourceId}');
@@ -60,11 +72,18 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('chapter maps onto existing Dart Episode model', () async {
-    final page = await fetchCatalog(sourceId: 'maoguo', page: 1, category: '0');
+    final page = await fetchCatalog(
+      sourceId: 'maoguo',
+      page: 1,
+      category: '0',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     final target = page.items.first;
     final detail = await fetchDetail(
       sourceId: 'maoguo',
       dramaSourceId: target.sourceId,
+      requestId: 'test',
     );
 
     for (final chapter in detail.chapters.take(5)) {

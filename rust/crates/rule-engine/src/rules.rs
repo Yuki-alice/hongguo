@@ -1302,9 +1302,9 @@ mod tests {
     #[test]
     fn html_executor_uses_id_pattern() {
         // 同一份 HTML，写了 idPattern 才取到正确的 id。
-        let text = include_str!("../../../rules/diguo.json");
+        let text = include_str!("../../../rules/dsd.json");
         let rule = RuleDocument::from_json(text).expect("规则应可加载");
-        let html = include_str!("../../../bridge/tests/fixtures/diguo_catalog.html");
+        let html = include_str!("../../../bridge/tests/fixtures/dsd_catalog.html");
         let page = crate::RuleExecutor::new(&rule)
             .parse_catalog(html, 1)
             .expect("解析");

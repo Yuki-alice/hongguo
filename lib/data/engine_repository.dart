@@ -2,65 +2,75 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:duanju_app/data/engine_failure.dart';
 import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/domain/ranking_models.dart';
 import 'package:duanju_app/src/rust/api.dart' as rust;
-import 'package:duanju_app/src/rust/api/plugins.dart' as rust_plugins;
+import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
 import 'package:duanju_app/src/rust/frb_generated.dart';
 
-/// 把 Rust 引擎的返回结构映射为应用既有的 Dart 模型。
+/// Rust 引擎访问层。
 ///
-/// 刻意不修改 `Drama` / `CatalogPage` / `Episode` 的字段，
-/// 保证 UI 层不感知后端来源（见 `test/engine_model_parity_test.dart`）。
+/// 把引擎的返回结构映射为应用既有的 Dart 模型，并把 FRB 抛出的
+/// `EngineFailure` 统一转成 [EngineException]。所有状态都挂在 Rust 侧的
+/// 进程级单例上，这里不持有任何会话或缓存。
 class EngineRepository {
   EngineRepository({this.initialized = false});
 
-  /// 是否已完成 `RustLib.init()`。测试里由调用方预先初始化。
+  /// 是否已完成 `RustLib.init()` 并初始化引擎。测试里由调用方预先初始化。
   bool initialized;
 
-  static Future<EngineRepository> create() async {
+  /// 引擎数据目录（单例装配时确定）。
+  String dataDirectory = '';
+
+  /// 插件目录。
+  String pluginDirectory = '';
+
+  /// 启动引擎。重复调用只做一次实际初始化。
+  ///
+  /// [dataDirectory] 为应用数据目录；插件默认放在其下的 `plugins/`。
+  static Future<EngineRepository> create({
+    required String dataDirectory,
+    String? pluginDirectory,
+  }) async {
     await RustLib.init();
-    return EngineRepository(initialized: true);
+    await rust.initEngine();
+    final result = await _guard(
+      () => rust.initEngineWithDirectory(
+        dataDirectory: dataDirectory,
+        pluginDirectory: pluginDirectory ?? '',
+      ),
+    );
+    return EngineRepository(initialized: true)
+      ..dataDirectory = result.dataDirectory
+      ..pluginDirectory = result.pluginDirectory;
   }
+
+  /// 仅用于测试：假定 Rust 侧已初始化。
+  static EngineRepository attached() => EngineRepository(initialized: true);
 
   /// 引擎是否声明支持该站源。
   Future<bool> supports(String source) async {
     if (source.isEmpty) return false;
-    final catalog = await rust.sourceCatalog();
+    final catalog = await _guard(rust.sourceCatalog);
     return catalog.any((site) => site.id == source);
-  }
-
-  /// 指定插件根目录（安装、状态、日志都在这里）。
-  ///
-  /// 必须在任何插件调用之前设置一次；重复设置返回 `false`，不抛异常。
-  Future<bool> setPluginDirectory(String directory) async {
-    if (!initialized) return false;
-    return rust_plugins.setPluginDirectory(directory: directory);
   }
 
   /// 把引擎的站源清单同步到 [SourceSite]。
   ///
-  /// 只登记内置清单之外的新 id（插件安装的源）；内置条目的名称与描述
-  /// 属于产品文案，保留编译期版本。引擎不可用时静默跳过，
-  /// 站源列表仍以编译期常量工作。
+  /// 引擎清单是源列表的唯一来源：Go-only 源（黄豆 / 野果 / 皮果）不在清单里，
+  /// 因此在 UI 中自然消失。
   Future<int> syncSourceCatalog() async {
     if (!initialized) return 0;
-    try {
-      final catalog = await rust.sourceCatalog();
-      SourceSite.reportFromEngine(
-        catalog.map(
-          (site) => (id: site.id, name: site.name, group: site.group),
-        ),
-      );
-      return catalog.length;
-    } catch (error) {
-      debugPrint('读取引擎站源清单失败，保留编译期站源：$error');
-      return 0;
-    }
+    final catalog = await _guard(rust.sourceCatalog);
+    SourceSite.reportFromEngine(
+      catalog.map((site) => (id: site.id, name: site.name, group: site.group)),
+    );
+    return catalog.length;
   }
 
   Future<List<SourceSummary>> sources() async {
-    final catalog = await rust.sourceCatalog();
+    final catalog = await _guard(rust.sourceCatalog);
     return [
       for (final site in catalog)
         SourceSummary(
@@ -75,7 +85,9 @@ class EngineRepository {
 
   /// 榜单看板列表。站源不支持时返回空。
   Future<List<RankingBoard>> rankingBoards(String source) async {
-    final boards = await rust.fetchRankingBoards(sourceId: source);
+    final boards = await _guard(
+      () => rust.fetchRankingBoards(sourceId: source, requestId: _nextId()),
+    );
     return [
       for (final board in boards)
         RankingBoard(
@@ -93,10 +105,13 @@ class EngineRepository {
     String boardId, {
     int page = 1,
   }) async {
-    final result = await rust.fetchRanking(
-      sourceId: source,
-      boardId: boardId,
-      page: page,
+    final result = await _guard(
+      () => rust.fetchRanking(
+        sourceId: source,
+        boardId: boardId,
+        page: page,
+        requestId: _nextId(),
+      ),
     );
     return RankingPage(
       items: [
@@ -118,11 +133,14 @@ class EngineRepository {
     String sessionId = '',
     String genre = '',
   }) async {
-    final result = await rust.fetchRecommend(
-      sourceId: source,
-      offset: offset,
-      sessionId: sessionId,
-      genre: genre,
+    final result = await _guard(
+      () => rust.fetchRecommend(
+        sourceId: source,
+        offset: offset,
+        sessionId: sessionId,
+        genre: genre,
+        requestId: _nextId(),
+      ),
     );
     return RecommendPage(
       items: [for (final item in result.items) _drama(item)],
@@ -132,14 +150,17 @@ class EngineRepository {
     );
   }
 
-  /// 搜索联想词。
+  /// 搜索联想词。联想是锦上添花，失败返回空而不是抛错。
   Future<List<String>> suggestions(String source, String keyword) async {
     if (keyword.trim().isEmpty) return const [];
     try {
-      return await rust.fetchSuggestions(sourceId: source, keyword: keyword);
-    } catch (error) {
-      // 联想是「锦上添花」，失败不能拦住用户输入。
-      debugPrint('联想词获取失败：$error');
+      return await rust.fetchSuggestions(
+        sourceId: source,
+        keyword: keyword,
+        requestId: _nextId(),
+      );
+    } on rust_error.EngineFailure catch (error) {
+      debugPrint('联想词获取失败：${error.message}');
       return const [];
     }
   }
@@ -150,17 +171,13 @@ class EngineRepository {
     Episode episode, {
     int startMs = 0,
   }) async {
-    final items = await rust.fetchDanmaku(
-      sourceId: drama.source,
-      chapter: rust.ChapterInput(
-        id: episode.id,
-        title: episode.title,
-        sourceId: drama.sourceId,
-        videoUrl: episode.raw['videoUrl'] as String? ?? '',
-        pageUrl: episode.raw['pageUrl'] as String? ?? '',
-        referer: episode.raw['referer'] as String? ?? '',
+    final items = await _guard(
+      () => rust.fetchDanmaku(
+        sourceId: drama.source,
+        chapter: _chapterInput(drama, episode),
+        startMs: startMs,
+        requestId: _nextId(),
       ),
-      startMs: startMs,
     );
     return [
       for (final item in items)
@@ -172,7 +189,7 @@ class EngineRepository {
     ];
   }
 
-  /// 同一部剧的其它季。
+  /// 同一部剧的其它季。没有系列信息时返回空。
   Future<List<SeriesSeason>> seasons(Drama drama) async {
     try {
       final rows = await rust.fetchSeasons(
@@ -183,6 +200,7 @@ class EngineRepository {
           sourceId: drama.sourceId,
           title: drama.title,
         ),
+        requestId: _nextId(),
       );
       return [
         for (final row in rows)
@@ -192,15 +210,17 @@ class EngineRepository {
             sourceId: row.sourceId,
           ),
       ];
-    } catch (error) {
-      debugPrint('系列剧查询失败：$error');
+    } on rust_error.EngineFailure catch (error) {
+      debugPrint('系列剧查询失败：${error.message}');
       return const [];
     }
   }
 
   /// 读取站源分类，首项为引擎给出的「全部」。
   Future<List<CatalogCategory>> categories(String source) async {
-    final rows = await rust.fetchCategories(sourceId: source);
+    final rows = await _guard(
+      () => rust.fetchCategories(sourceId: source, requestId: _nextId()),
+    );
     return [for (final row in rows) CatalogCategory(row.id, row.name)];
   }
 
@@ -212,15 +232,22 @@ class EngineRepository {
     String category = '',
   }) async {
     final result = query.trim().isEmpty
-        ? await rust.fetchCatalog(
-            sourceId: source,
-            page: page,
-            category: category,
+        ? await _guard(
+            () => rust.fetchCatalog(
+              sourceId: source,
+              page: page,
+              category: category,
+              requestId: _nextId('catalog'),
+              session: 'catalog-$source',
+            ),
           )
-        : await rust.fetchSearch(
-            sourceId: source,
-            query: query.trim(),
-            page: page,
+        : await _guard(
+            () => rust.fetchSearch(
+              sourceId: source,
+              query: query.trim(),
+              page: page,
+              requestId: _nextId('search'),
+            ),
           );
 
     return CatalogPage(
@@ -232,16 +259,14 @@ class EngineRepository {
     );
   }
 
-  /// 指定缓存目录。必须在首次访问缓存前调用。
-  Future<bool> setCacheDirectory(String directory) =>
-      rust.setCacheDirectory(directory: directory);
-
   /// 读取缓存中的目录，不联网。
   Future<CatalogPage> cachedCatalog(
     String source, {
     String category = '',
   }) async {
-    final page = await rust.cachedCatalog(sourceId: source, category: category);
+    final page = await _guard(
+      () => rust.cachedCatalog(sourceId: source, category: category),
+    );
     return CatalogPage(
       [for (final item in page.items) _drama(item)],
       hasMore: page.hasMore,
@@ -252,18 +277,27 @@ class EngineRepository {
   }
 
   /// 缓存是否仍在有效期内。
-  Future<bool> catalogIsFresh(String source, {String category = ''}) =>
-      rust.catalogIsFresh(sourceId: source, category: category);
+  Future<bool> catalogIsFresh(String source, {String category = ''}) => _guard(
+    () => rust.catalogIsFresh(sourceId: source, category: category),
+  );
 
   /// 清空指定键的缓存。
-  Future<void> clearCatalog(String source, {String category = ''}) =>
-      rust.clearCatalog(sourceId: source, category: category);
+  Future<void> clearCatalog(String source, {String category = ''}) => _guard(
+    () => rust.clearCatalog(sourceId: source, category: category),
+  );
+
+  /// 取消某个会话的在途目录请求。
+  Future<bool> cancelCatalog(String source) =>
+      _guard(() => rust.cancelRequest(session: 'catalog-$source'));
 
   /// 读取详情，返回应用既有的 `DramaDetail`。
   Future<DramaDetail> detail(Drama drama) async {
-    final result = await rust.fetchDetail(
-      sourceId: drama.source,
-      dramaSourceId: drama.sourceId,
+    final result = await _guard(
+      () => rust.fetchDetail(
+        sourceId: drama.source,
+        dramaSourceId: drama.sourceId,
+        requestId: _nextId('detail'),
+      ),
     );
     final fresh = _drama(result.drama);
     return DramaDetail(fresh.merge(drama), [
@@ -284,15 +318,11 @@ class EngineRepository {
   ///
   /// HLS 会带回分片清单，播放器可直接按清单播放或预取。
   Future<PlaybackPlan> resolve(Drama drama, Episode episode) async {
-    final media = await rust.fetchMedia(
-      sourceId: drama.source,
-      chapter: rust.ChapterInput(
-        id: episode.id,
-        title: episode.title,
-        sourceId: drama.sourceId,
-        videoUrl: episode.raw['videoUrl'] as String? ?? '',
-        pageUrl: episode.raw['pageUrl'] as String? ?? '',
-        referer: episode.raw['referer'] as String? ?? '',
+    final media = await _guard(
+      () => rust.fetchMedia(
+        sourceId: drama.source,
+        chapter: _chapterInput(drama, episode),
+        requestId: _nextId('resolve'),
       ),
     );
     return PlaybackPlan(
@@ -313,36 +343,42 @@ class EngineRepository {
 
   /// 登记并执行一个下载任务。
   ///
-  /// 返回下载完成后的字节数；失败时抛出异常由调用方回退。
+  /// 返回下载完成后的字节数；失败时抛出 [EngineException]。
   Future<int> download({
     required String id,
     required String url,
     required String target,
     required String referer,
     required String title,
+    String dramaId = '',
+    String episodeId = '',
     List<String> segments = const [],
     String keyUri = '',
     String keyIv = '',
   }) async {
-    await rust.enqueueDownload(
-      request: rust.DownloadRequest(
-        id: id,
-        url: url,
-        target: target,
-        referer: referer,
-        title: title,
-        segments: segments,
-        keyUri: keyUri,
-        keyIv: keyIv,
+    await _guard(
+      () => rust.enqueueDownload(
+        request: rust.DownloadRequest(
+          id: id,
+          url: url,
+          target: target,
+          referer: referer,
+          title: title,
+          dramaId: dramaId,
+          episodeId: episodeId,
+          segments: segments,
+          keyUri: keyUri,
+          keyIv: keyIv,
+        ),
       ),
     );
-    final bytes = await rust.runDownload(id: id);
+    final bytes = await _guard(() => rust.runDownload(id: id));
     return bytes.toInt();
   }
 
   /// 当前下载任务快照。
   Future<List<DownloadSnapshotInfo>> downloads() async {
-    final rows = await rust.downloadSnapshot();
+    final rows = await _guard(rust.downloadSnapshot);
     return [
       for (final row in rows)
         DownloadSnapshotInfo(
@@ -357,9 +393,80 @@ class EngineRepository {
     ];
   }
 
+  /// 下载进度流。先补发当前任务，随后持续推送变化。
+  Stream<DownloadProgressInfo> watchDownloads() => rust
+      .downloadProgressStream()
+      .map(
+        (event) => DownloadProgressInfo(
+          id: event.id,
+          dramaId: event.dramaId,
+          episodeId: event.episodeId,
+          title: event.title,
+          state: event.state,
+          bytes: event.bytes.toInt(),
+          total: event.total,
+          progress: event.progress,
+          error: event.error,
+          revision: event.revision.toInt(),
+        ),
+      );
+
   /// 暂停 / 继续 / 重试 / 删除。
   Future<bool> controlDownload(String command, String id) =>
-      rust.controlDownload(command: command, id: id);
+      _guard(() => rust.controlDownload(command: command, id: id));
+
+  /// 批量控制，返回被处理的任务数。
+  Future<int> controlDownloads(String command, List<String> ids) =>
+      _guard(() => rust.controlDownloads(command: command, ids: ids));
+
+  /// 诊断快照。
+  Future<EngineDiagnosticsInfo> diagnostics() async {
+    final snapshot = await _guard(rust.engineDiagnostics);
+    return EngineDiagnosticsInfo.fromRust(snapshot);
+  }
+
+  /// 清空某个站源的会话（令牌 / Cookie）。
+  Future<int> clearSourceSession(String source) =>
+      _guard(() => rust.clearSourceSession(sourceId: source));
+
+  /// 插件安装 / 卸载后重建注册表。会话与下载任务保持不变。
+  Future<int> reloadSources() => _guard(rust.reloadSources);
+
+  /// 指定插件目录已由初始化确定，这里只暴露读取。
+  Future<bool> pluginsReady() async => pluginDirectory.isNotEmpty;
+
+  Future<String> describeSources() async {
+    final list = await sources();
+    return jsonEncode([
+      for (final site in list)
+        {
+          'id': site.id,
+          'name': site.name,
+          'group': site.group,
+          'apiLevel': site.apiLevel,
+          'capabilities': site.capabilities,
+        },
+    ]);
+  }
+
+  int _sequence = 0;
+
+  /// 生成请求号。同一进程内单调递增，UI 可据此丢弃过期回调。
+  String _nextId([String prefix = 'req']) {
+    _sequence += 1;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    return '$prefix-$stamp-$_sequence';
+  }
+
+  rust.ChapterInput _chapterInput(Drama drama, Episode episode) =>
+      rust.ChapterInput(
+        id: episode.id,
+        title: episode.title,
+        sourceId: drama.sourceId,
+        videoUrl: episode.raw['videoUrl'] as String? ?? '',
+        pageUrl: episode.raw['pageUrl'] as String? ?? '',
+        referer: episode.raw['referer'] as String? ?? '',
+      );
 
   Drama _drama(rust.DramaItem item) => Drama(
     id: item.id,
@@ -377,20 +484,16 @@ class EngineRepository {
     tags: item.tags,
     releaseStatus: item.releaseStatus,
   );
+}
 
-  /// 导出引擎站源清单为 JSON，便于诊断面板展示。
-  Future<String> describeSources() async {
-    final list = await sources();
-    return jsonEncode([
-      for (final site in list)
-        {
-          'id': site.id,
-          'name': site.name,
-          'group': site.group,
-          'apiLevel': site.apiLevel,
-          'capabilities': site.capabilities,
-        },
-    ]);
+/// 把 FRB 抛出的 `EngineFailure` 统一转成 [EngineException]。
+Future<T> _guard<T>(Future<T> Function() work) async {
+  try {
+    return await work();
+  } on rust_error.EngineFailure catch (failure) {
+    throw EngineException.fromRust(failure);
+  } on EngineException {
+    rethrow;
   }
 }
 
@@ -416,28 +519,6 @@ class SourceSummary {
   String toString() => '$id($name) ${capabilities.join(",")}';
 }
 
-/// 决定某个站源/动作是否交给 Rust 引擎处理。
-///
-/// 默认关闭，只有显式开启且引擎声明支持时才路由，
-/// 确保 Go 路径不受影响，可随时回退。
-class EngineRoute {
-  const EngineRoute({required this.enabled, this.sources = const {}});
-
-  /// 全局开关。
-  final bool enabled;
-
-  /// 允许交给引擎的站源集合；为空表示跟随引擎能力。
-  final Set<String> sources;
-
-  static final disabled = EngineRoute(enabled: false);
-
-  bool allows(String source) {
-    if (!enabled || source.isEmpty) return false;
-    if (sources.isEmpty) return true;
-    return sources.contains(source);
-  }
-}
-
 /// 下载任务快照（引擎侧只读视图）。
 class DownloadSnapshotInfo {
   const DownloadSnapshotInfo({
@@ -460,4 +541,153 @@ class DownloadSnapshotInfo {
 
   bool get finished => state == 'completed';
   bool get failed => state == 'failed';
+}
+
+/// 下载进度事件（引擎主动推送）。
+class DownloadProgressInfo {
+  const DownloadProgressInfo({
+    required this.id,
+    required this.dramaId,
+    required this.episodeId,
+    required this.title,
+    required this.state,
+    required this.bytes,
+    required this.total,
+    required this.progress,
+    required this.error,
+    required this.revision,
+  });
+
+  final String id;
+  final String dramaId;
+  final String episodeId;
+  final String title;
+  final String state;
+  final int bytes;
+  final int total;
+  final double progress;
+  final String error;
+  final int revision;
+
+  bool get finished => state == 'completed';
+  bool get failed => state == 'failed';
+
+  DownloadSnapshotInfo get snapshot => DownloadSnapshotInfo(
+    id: id,
+    title: title,
+    state: state,
+    bytes: bytes,
+    total: total,
+    progress: progress,
+    error: error,
+  );
+}
+
+/// 诊断快照的 Dart 视图。
+class EngineDiagnosticsInfo {
+  const EngineDiagnosticsInfo({
+    required this.version,
+    required this.dataDirectory,
+    required this.pluginDirectory,
+    required this.sessionFile,
+    required this.catalogFile,
+    required this.uptime,
+    required this.requestCount,
+    required this.registryRevision,
+    required this.activeSessions,
+    required this.sessionKeys,
+    required this.cachedCatalogs,
+    required this.queuedJobs,
+    required this.runningJobs,
+    required this.completedJobs,
+    required this.failedJobs,
+    required this.sources,
+    required this.pluginsLoaded,
+    required this.pluginsFailed,
+    required this.recentErrors,
+  });
+
+  final String version;
+  final String dataDirectory;
+  final String pluginDirectory;
+  final String sessionFile;
+  final String catalogFile;
+  final Duration uptime;
+  final int requestCount;
+  final int registryRevision;
+  final int activeSessions;
+  final int sessionKeys;
+  final int cachedCatalogs;
+  final int queuedJobs;
+  final int runningJobs;
+  final int completedJobs;
+  final int failedJobs;
+  final List<SourceCapabilityInfo> sources;
+  final List<String> pluginsLoaded;
+  final List<PluginFailureInfo> pluginsFailed;
+  final List<EngineException> recentErrors;
+
+  factory EngineDiagnosticsInfo.fromRust(rust.EngineDiagnostics snapshot) =>
+      EngineDiagnosticsInfo(
+        version: snapshot.version,
+        dataDirectory: snapshot.dataDirectory,
+        pluginDirectory: snapshot.pluginDirectory,
+        sessionFile: snapshot.sessionFile,
+        catalogFile: snapshot.catalogFile,
+        uptime: Duration(milliseconds: snapshot.uptimeMs.toInt()),
+        requestCount: snapshot.requestCount.toInt(),
+        registryRevision: snapshot.registryRevision.toInt(),
+        activeSessions: snapshot.activeSessions,
+        sessionKeys: snapshot.sessionKeys,
+        cachedCatalogs: snapshot.cachedCatalogs,
+        queuedJobs: snapshot.queuedJobs,
+        runningJobs: snapshot.runningJobs,
+        completedJobs: snapshot.completedJobs,
+        failedJobs: snapshot.failedJobs,
+        sources: [
+          for (final source in snapshot.sources)
+            SourceCapabilityInfo(
+              id: source.id,
+              name: source.name,
+              group: source.group,
+              apiLevel: source.apiLevel,
+              capabilities: source.capabilities,
+            ),
+        ],
+        pluginsLoaded: snapshot.pluginsLoaded,
+        pluginsFailed: [
+          for (final failure in snapshot.pluginsFailed)
+            PluginFailureInfo(id: failure.id, detail: failure.detail),
+        ],
+        recentErrors: [
+          for (final error in snapshot.recentErrors)
+            EngineException.fromRust(error),
+        ],
+      );
+}
+
+/// 单个站源的能力矩阵。
+class SourceCapabilityInfo {
+  const SourceCapabilityInfo({
+    required this.id,
+    required this.name,
+    required this.group,
+    required this.apiLevel,
+    required this.capabilities,
+  });
+
+  final String id;
+  final String name;
+  final String group;
+  final int apiLevel;
+  final List<String> capabilities;
+
+  bool supports(String capability) => capabilities.contains(capability);
+}
+
+/// 插件加载失败原因。
+class PluginFailureInfo {
+  const PluginFailureInfo({required this.id, required this.detail});
+  final String id;
+  final String detail;
 }

@@ -83,6 +83,7 @@ class PluginsController extends ChangeNotifier {
       );
       _errors.remove(entry.id);
       await refresh();
+      await _syncSources();
       return true;
     } catch (error) {
       _errors[entry.id] = _describe(error);
@@ -115,6 +116,7 @@ class PluginsController extends ChangeNotifier {
     try {
       await repository.setEnabled(pluginId, enabled);
       await refresh();
+      await _syncSources();
     } catch (error) {
       _errors[pluginId] = _describe(error);
     } finally {
@@ -129,6 +131,7 @@ class PluginsController extends ChangeNotifier {
     try {
       await repository.rollback(entry.id, version);
       await refresh();
+      await _syncSources();
     } catch (error) {
       _errors[entry.id] = _describe(error);
     } finally {
@@ -137,15 +140,15 @@ class PluginsController extends ChangeNotifier {
     }
   }
 
-  /// 安装/卸载后把站源清单同步回 `SourceSite`，让站源页立刻反映变化。
+  /// 安装 / 卸载 / 启停后重建引擎注册表并把清单同步回 `SourceSite`。
+  ///
+  /// 引擎清单是站源列表的唯一来源（Core-0）：插件装上但没重建注册表时，
+  /// 源列表不会出现该源；反之停用后必须消失。重建只动注册表，
+  /// 会话与下载任务保持不变（Core-1 验收项）。
   Future<void> _syncSources() async {
-    // 引擎侧注册表在下次 `sourceCatalog()` 时重建，因此这里只要把
-    // 已知的插件 id 登记为可用站源即可。
-    SourceSite.reportFromEngine(
-      _installed
-          .where((plugin) => plugin.enabled)
-          .map((plugin) => (id: plugin.id, name: plugin.name, group: 'duanju')),
-    );
+    await repository.reloadSources();
+    SourceSite.clearReported();
+    await repository.syncSourceCatalog();
   }
 
   String _describe(Object error) {

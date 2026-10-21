@@ -29,13 +29,25 @@ void main() {
 
   test('unknown source fails with a clear message', () async {
     await expectLater(
-      fetchCatalog(sourceId: 'does-not-exist', page: 1, category: ''),
+      fetchCatalog(
+      sourceId: 'does-not-exist',
+      page: 1,
+      category: '',
+      requestId: 'test',
+      session: 'catalog-test',
+    ),
       throwsA(isA<Object>()),
     );
   });
 
   test('declarative rule source parses real catalog', () async {
-    final page = await fetchCatalog(sourceId: 'wuguo', page: 1, category: '1');
+    final page = await fetchCatalog(
+      sourceId: 'wuguo',
+      page: 1,
+      category: '1',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     expect(page.items.length, greaterThanOrEqualTo(10));
 
     final first = page.items.first;
@@ -48,7 +60,13 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('code plugin source parses real catalog', () async {
-    final page = await fetchCatalog(sourceId: 'maoguo', page: 1, category: '0');
+    final page = await fetchCatalog(
+      sourceId: 'maoguo',
+      page: 1,
+      category: '0',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     expect(page.items.length, greaterThanOrEqualTo(10));
 
     final first = page.items.first;
@@ -58,12 +76,19 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('code plugin resolves real detail with chapters', () async {
-    final page = await fetchCatalog(sourceId: 'maoguo', page: 1, category: '0');
+    final page = await fetchCatalog(
+      sourceId: 'maoguo',
+      page: 1,
+      category: '0',
+      requestId: 'test',
+      session: 'catalog-test',
+    );
     final target = page.items.first;
 
     final detail = await fetchDetail(
       sourceId: 'maoguo',
       dramaSourceId: target.sourceId,
+      requestId: 'test',
     );
     expect(detail.chapters, isNotEmpty);
     expect(detail.chapters.first.videoUrl, isNotEmpty);

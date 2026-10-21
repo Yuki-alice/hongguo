@@ -5,16 +5,11 @@
 
 import '../api.dart';
 import '../frb_generated.dart';
+import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `host_transport`, `now_secs`, `semver_like`, `store`
+// These functions are ignored because they are not marked as `pub`: `engine`, `now_secs`, `plugin_error`, `semver_like`, `store`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `plugin_error_hint`
-
-/// 指定插件根目录。必须在任何插件调用前设置一次。
-Future<bool> setPluginDirectory({required String directory}) => RustLib
-    .instance
-    .api
-    .crateApiPluginsSetPluginDirectory(directory: directory);
 
 /// 校验 `repo.toml`，返回规范化后的摘要。
 Future<RepoSummary> parseRepository({required String text}) =>
@@ -84,10 +79,9 @@ Future<PluginLoadReport> pluginLoadReport() =>
 
 /// 从仓库完整安装：拉 `repo.toml` → `index.json`（含可选验签）→ 包 → 落盘。
 ///
-/// 传输层用宿主全局实例（连接池复用）；之所以不接受 Dart 传入，
+/// 传输层用引擎的全局实例（连接池复用）；之所以不接受 Dart 传入，
 /// 是因为 `Arc<dyn Transport>` 既不是 `Clone` 也不是可序列化类型，
 /// 跨 FFI 传递只会把「谁能构造网络层」这件事从引擎手里漏出去。
-/// 网络层的可测试性由 `guo-runtime` 的假传输层测试保证。
 Future<PluginSummary> installFromRepo({
   required String repoUrl,
   required String pluginId,

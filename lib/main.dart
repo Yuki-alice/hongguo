@@ -13,7 +13,6 @@ import 'package:window_manager/window_manager.dart';
 import 'package:duanju_app/data/core_bridge.dart';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:duanju_app/data/engine_backed_repository.dart';
-import 'package:duanju_app/data/engine_routing.dart';
 import 'package:duanju_app/ui/core/app_layout.dart';
 import 'package:duanju_app/ui/core/app_orientation.dart';
 import 'package:duanju_app/ui/core/app_theme.dart';
@@ -96,39 +95,32 @@ class _AppBootstrapState extends State<AppBootstrap>
         library.suspended = true;
         unawaited(library.cancel());
       }
+      // 走仓库契约而不是直接构造后端：下载队列仍在迁移中（Core-2），
+      // 由实现方决定能否暂停，入口这里不感知具体后端。
       unawaited(
-        NativeRepository(
-          background: true,
-        ).controlDownloads('pauseAll').catchError((Object _) {}),
+        _repository
+                ?.controlDownloads('pauseAll')
+                .catchError((Object _) {}) ??
+            Future<void>.value(),
       );
     } else if (state == AppLifecycleState.resumed) {
       if (library != null) library.suspended = false;
     }
   }
 
-  /// 装配仓库。引擎可用时用装饰器接管受支持的站源，
-  /// 失败则静默回退到纯 Go 核心，不影响启动。
+  /// 装配仓库。
+  ///
+  /// 引擎是唯一后端：初始化失败不会回退到 Go（已移除），而是把错误交给
+  /// 启动页展示并提供重试，避免「静默降级成功能不全」的假象。
   Future<AppRepository> _buildRepository() async {
     final core = NativeRepository();
-    if (!EngineRouting.enabled) return core;
-    try {
-      final engine = await EngineRepository.create();
-      // 缓存目录与应用数据目录同级，卸载后随应用数据一起清理。
-      final support = await getApplicationSupportDirectory();
-      await engine.setCacheDirectory('${support.path}/engine');
-      // 插件根目录与缓存同级：两者都随应用数据清理，但插件不能被当缓存删掉。
-      await engine.setPluginDirectory('${support.path}/engine/plugins');
-      // 把引擎上报的站源（含已安装插件）并入 SourceSite，供 UI 列表使用。
-      await engine.syncSourceCatalog();
-      return EngineBackedRepository(
-        delegate: core,
-        engine: engine,
-        route: EngineRouting.route,
-      );
-    } catch (error, stack) {
-      debugPrint('Rust 引擎不可用，回退到 Go 核心：$error\n$stack');
-      return core;
-    }
+    final support = await getApplicationSupportDirectory();
+    final engine = await EngineRepository.create(
+      dataDirectory: '${support.path}/engine',
+    );
+    // 把引擎上报的站源（含已安装插件）并入 SourceSite，供 UI 列表使用。
+    await engine.syncSourceCatalog();
+    return EngineBackedRepository(delegate: core, engine: engine);
   }
 
   Future<void> _refreshDevice() async {

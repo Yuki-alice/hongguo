@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/error.dart';
 import 'api/plugins.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -18,6 +19,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  RustStreamSink<DownloadProgressEvent>
+  dco_decode_StreamSink_download_progress_event_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -53,6 +61,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DanmakuItem dco_decode_danmaku_item(dynamic raw);
 
   @protected
+  DownloadProgressEvent dco_decode_download_progress_event(dynamic raw);
+
+  @protected
   DownloadRequest dco_decode_download_request(dynamic raw);
 
   @protected
@@ -68,10 +79,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DramaPage dco_decode_drama_page(dynamic raw);
 
   @protected
+  EngineDiagnostics dco_decode_engine_diagnostics(dynamic raw);
+
+  @protected
+  EngineFailure dco_decode_engine_failure(dynamic raw);
+
+  @protected
+  EngineInitResult dco_decode_engine_init_result(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
   FailedPlugin dco_decode_failed_plugin(dynamic raw);
+
+  @protected
+  FailedPluginReport dco_decode_failed_plugin_report(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
@@ -95,7 +118,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DramaItem> dco_decode_list_drama_item(dynamic raw);
 
   @protected
+  List<EngineFailure> dco_decode_list_engine_failure(dynamic raw);
+
+  @protected
   List<FailedPlugin> dco_decode_list_failed_plugin(dynamic raw);
+
+  @protected
+  List<FailedPluginReport> dco_decode_list_failed_plugin_report(dynamic raw);
 
   @protected
   List<PluginSummary> dco_decode_list_plugin_summary(dynamic raw);
@@ -114,6 +143,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SeasonItem> dco_decode_list_season_item(dynamic raw);
+
+  @protected
+  List<SourceCapabilities> dco_decode_list_source_capabilities(dynamic raw);
 
   @protected
   List<SourceSummary> dco_decode_list_source_summary(dynamic raw);
@@ -149,6 +181,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SeasonItem dco_decode_season_item(dynamic raw);
 
   @protected
+  SourceCapabilities dco_decode_source_capabilities(dynamic raw);
+
+  @protected
   SourceSummary dco_decode_source_summary(dynamic raw);
 
   @protected
@@ -162,6 +197,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<DownloadProgressEvent>
+  sse_decode_StreamSink_download_progress_event_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -201,6 +245,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DanmakuItem sse_decode_danmaku_item(SseDeserializer deserializer);
 
   @protected
+  DownloadProgressEvent sse_decode_download_progress_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DownloadRequest sse_decode_download_request(SseDeserializer deserializer);
 
   @protected
@@ -216,10 +265,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DramaPage sse_decode_drama_page(SseDeserializer deserializer);
 
   @protected
+  EngineDiagnostics sse_decode_engine_diagnostics(SseDeserializer deserializer);
+
+  @protected
+  EngineFailure sse_decode_engine_failure(SseDeserializer deserializer);
+
+  @protected
+  EngineInitResult sse_decode_engine_init_result(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
   FailedPlugin sse_decode_failed_plugin(SseDeserializer deserializer);
+
+  @protected
+  FailedPluginReport sse_decode_failed_plugin_report(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
@@ -247,7 +310,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DramaItem> sse_decode_list_drama_item(SseDeserializer deserializer);
 
   @protected
+  List<EngineFailure> sse_decode_list_engine_failure(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<FailedPlugin> sse_decode_list_failed_plugin(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FailedPluginReport> sse_decode_list_failed_plugin_report(
     SseDeserializer deserializer,
   );
 
@@ -274,6 +347,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SeasonItem> sse_decode_list_season_item(SseDeserializer deserializer);
+
+  @protected
+  List<SourceCapabilities> sse_decode_list_source_capabilities(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<SourceSummary> sse_decode_list_source_summary(
@@ -311,6 +389,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SeasonItem sse_decode_season_item(SseDeserializer deserializer);
 
   @protected
+  SourceCapabilities sse_decode_source_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SourceSummary sse_decode_source_summary(SseDeserializer deserializer);
 
   @protected
@@ -327,6 +410,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_download_progress_event_Sse(
+    RustStreamSink<DownloadProgressEvent> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -374,6 +469,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_danmaku_item(DanmakuItem self, SseSerializer serializer);
 
   @protected
+  void sse_encode_download_progress_event(
+    DownloadProgressEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_download_request(
     DownloadRequest self,
     SseSerializer serializer,
@@ -395,10 +496,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_drama_page(DramaPage self, SseSerializer serializer);
 
   @protected
+  void sse_encode_engine_diagnostics(
+    EngineDiagnostics self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_engine_failure(EngineFailure self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_engine_init_result(
+    EngineInitResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_failed_plugin(FailedPlugin self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_failed_plugin_report(
+    FailedPluginReport self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
@@ -437,8 +559,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_engine_failure(
+    List<EngineFailure> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_failed_plugin(
     List<FailedPlugin> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_failed_plugin_report(
+    List<FailedPluginReport> self,
     SseSerializer serializer,
   );
 
@@ -472,6 +606,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_season_item(
     List<SeasonItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_source_capabilities(
+    List<SourceCapabilities> self,
     SseSerializer serializer,
   );
 
@@ -519,6 +659,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_season_item(SeasonItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_source_capabilities(
+    SourceCapabilities self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_source_summary(SourceSummary self, SseSerializer serializer);

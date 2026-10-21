@@ -1,59 +1,45 @@
 import 'package:duanju_app/data/core_bridge.dart';
 import 'package:duanju_app/data/engine_backed_repository.dart';
 import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// 下载路由的纯逻辑测试：验证分流与回退，不触发网络。
+/// 引擎接管判定的纯逻辑测试：不再有路由开关，只区分「引擎是否就绪」。
 void main() {
-  EngineBackedRepository build({
-    required EngineRoute route,
-    bool initialized = true,
-  }) => EngineBackedRepository(
-    delegate: NativeRepository(),
-    engine: EngineRepository(initialized: initialized),
-    route: route,
-  );
+  EngineBackedRepository build({bool initialized = true}) =>
+      EngineBackedRepository(
+        delegate: NativeRepository(),
+        engine: EngineRepository(initialized: initialized),
+      );
 
-  Drama drama(String source) =>
-      Drama(id: '$source:1', source: source, sourceId: '1', title: '样本');
+  test('initialised engine handles every known source', () {
+    final repository = build();
+    expect(repository.handles('wuguo'), isTrue);
+    expect(repository.handles('hongguo'), isTrue);
+    expect(repository.handles('dsd'), isTrue);
+  });
 
-  test('engine handles download only for routed sources', () {
-    final repository = build(
-      route: EngineRoute(enabled: true, sources: {'wuguo'}),
-    );
-    expect(repository.handles(drama('wuguo').source), isTrue);
-    expect(repository.handles(drama('hongguo').source), isFalse);
+  test('empty source is never handled', () {
+    expect(build().handles(''), isFalse);
+  });
+
+  test('uninitialised engine hands off to the delegate', () {
+    expect(build(initialized: false).handles('wuguo'), isFalse);
   });
 
   test('engine job table starts empty', () {
-    final repository = build(route: EngineRoute(enabled: true));
-    // 无引擎任务时 downloads() 会委托给下层，这里只验证路由判定，
-    // 避免在纯 Dart 测试中触发未初始化的原生调用。
-    expect(repository.handles('wuguo'), isTrue);
-    expect(repository.downloadContextCount, 0);
+    expect(build().downloadContextCount, 0);
   });
 
-  test('engine download context is tracked per routed source', () {
-    final repository = build(
-      route: EngineRoute(enabled: true, sources: {'wuguo'}),
-    );
-    expect(repository.downloadContextCount, 0);
-    expect(repository.handles('wuguo'), isTrue);
-    expect(repository.handles('maoguo'), isFalse);
-  });
-
-  test('disabled route never touches the engine', () {
-    final repository = build(route: EngineRoute(enabled: false));
-    expect(repository.handles('wuguo'), isFalse);
-    expect(repository.handles('maoguo'), isFalse);
-  });
-
-  test('uninitialised engine keeps downloads on Go', () {
-    final repository = build(
-      route: EngineRoute(enabled: true),
-      initialized: false,
-    );
-    expect(repository.handles('wuguo'), isFalse);
+  test('capabilities report what is actually implemented', () {
+    final capabilities = build().capabilities;
+    // 引擎已接管的 D4 能力。
+    expect(capabilities.rankings, isTrue);
+    expect(capabilities.recommendations, isTrue);
+    expect(capabilities.suggestions, isTrue);
+    // 弹幕依赖播放会话（plan.session / danmakuId），Core-2 才接入。
+    expect(capabilities.danmaku, isFalse);
+    // LAN 与高级网络设置本轮明确不做，入口必须隐藏。
+    expect(capabilities.lan, isFalse);
+    expect(capabilities.resourceSettings, isFalse);
   });
 }

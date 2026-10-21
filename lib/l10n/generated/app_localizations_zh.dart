@@ -2498,4 +2498,88 @@ class AppLocalizationsZh extends AppLocalizations {
   String pluginsUninstallConfirm(String name) {
     return '确定卸载「$name」？已下载的剧集与观看记录会保留。';
   }
+
+  @override
+  String get engineDiagnosticsTitle => '引擎诊断';
+
+  @override
+  String get engineDiagnosticsRuntime => '运行状态';
+
+  @override
+  String get engineDiagnosticsVersion => '引擎版本';
+
+  @override
+  String get engineDiagnosticsData => '数据目录';
+
+  @override
+  String get engineDiagnosticsPlugins => '插件目录';
+
+  @override
+  String get engineDiagnosticsUptime => '运行时长';
+
+  @override
+  String get engineDiagnosticsRequests => '请求计数';
+
+  @override
+  String get engineDiagnosticsSessions => '会话（磁盘 / 在途）';
+
+  @override
+  String get engineDiagnosticsCache => '目录缓存键';
+
+  @override
+  String get engineDiagnosticsJobs => '下载任务（排队 / 运行 / 完成 / 失败）';
+
+  @override
+  String get engineDiagnosticsCapabilities => '能力矩阵';
+
+  @override
+  String get engineDiagnosticsSources => '站源能力';
+
+  @override
+  String get engineDiagnosticsPluginReport => '插件加载';
+
+  @override
+  String get engineDiagnosticsPluginLoaded => '已加载';
+
+  @override
+  String get engineDiagnosticsRecentErrors => '最近错误';
+
+  @override
+  String get engineDiagnosticsCatalog => '目录 / 详情 / 搜索';
+
+  @override
+  String get engineDiagnosticsPlayback => '直连播放';
+
+  @override
+  String get engineDiagnosticsDownloads => '下载与离线播放';
+
+  @override
+  String get engineDiagnosticsDanmaku => '弹幕';
+
+  @override
+  String get engineDiagnosticsRankings => '榜单';
+
+  @override
+  String get engineDiagnosticsRecommendations => '推荐流';
+
+  @override
+  String get engineDiagnosticsSuggestions => '搜索联想';
+
+  @override
+  String get engineDiagnosticsSourceManagement => '站源诊断 / 健康检查';
+
+  @override
+  String get engineDiagnosticsResourceSettings => '代理 / DNS / CDN 设置';
+
+  @override
+  String get engineDiagnosticsLan => '局域网设备互联';
+
+  @override
+  String get engineDiagnosticsSupported => '支持';
+
+  @override
+  String get engineDiagnosticsUnsupported => '当前版本不支持';
+
+  @override
+  String get engineDiagnosticsEntry => '引擎诊断';
 }

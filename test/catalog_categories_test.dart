@@ -243,8 +243,9 @@ void main() {
         ..failLegacy = true
         ..paginate = true;
       final browser = CatalogBrowser(repository);
+      // 黄果三源属于全量清单；单源构建下 `knownValues` 只有红果。
       final group = SourceGroup.fromSources(
-        SourceSite.knownValues,
+        SourceSite.allKnownValues,
       ).firstWhere((group) => group.id == 'huangguo');
       final first = await browser.load(group);
       expect(first.items.length, 2);

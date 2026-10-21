@@ -108,22 +108,6 @@ jobs:
       - name: Test (在线站源)
         run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
 
-  go:
-    # Go 后端（`native/`）仍是默认运行路径：`ENGINE_ROUTE` 未设置时
-    # `lib/main.dart` 直接用 Go 核心，Rust 引擎挂在开关后面。
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: native/go.mod
-          cache-dependency-path: native/go.sum
-      - run: go test -race ./...
-        working-directory: native
-      - run: go test -race -ldflags="-X duanjuapp/native/core.buildAllSources=true" ./...
-        working-directory: native
-
   scripts:
     # 构建脚本自身的单元测试（scripts/test_*.py）。
     runs-on: ubuntu-latest

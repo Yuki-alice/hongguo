@@ -13,7 +13,7 @@ mod plugin;
 mod request;
 mod sha256;
 
-pub use env::{LogSink, ScriptHost, SourceEnv, SourceStore, Transport};
+pub use env::{preview, LogSink, ScriptHost, SourceEnv, SourceStore, Transport};
 pub use error::SourceError;
 pub use md5::{md5_hash, md5_hex};
 pub use model::{

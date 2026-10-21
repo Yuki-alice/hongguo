@@ -201,13 +201,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     })
   >
   _televisionEntries(AppLocalizations l10n) => [
-    (
-      id: 'lan',
-      icon: Icons.devices_rounded,
-      title: l10n.deviceInterop,
-      subtitle: l10n.lanAutoSyncHint,
-      onPressed: () => openLanSync(context),
-    ),
+    // 局域网互联当前不提供（PLAN.md §5），入口按能力矩阵隐藏。
+    if (widget.repository.capabilities.lan)
+      (
+        id: 'lan',
+        icon: Icons.devices_rounded,
+        title: l10n.deviceInterop,
+        subtitle: l10n.lanAutoSyncHint,
+        onPressed: () => openLanSync(context),
+      ),
     if (widget.repository.supportsSourceManagement)
       (
         id: 'sources',
@@ -246,14 +248,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: l10n.storageEntryHint,
         onPressed: () => context.push(AppRoutes.storage),
       ),
+    // 诊断页始终可达：它同时承担「未支持能力可见」的职责。
+    (
+      id: 'diagnostics',
+      icon: Icons.monitor_heart_outlined,
+      title: l10n.engineDiagnosticsEntry,
+      subtitle: l10n.engineDiagnosticsRuntime,
+      onPressed: () => context.push(AppRoutes.engineDiagnostics),
+    ),
     if (widget.store.profile.admin) ...[
-      (
-        id: 'resources',
-        icon: Icons.settings_ethernet_rounded,
-        title: l10n.resourceSettingsTitle,
-        subtitle: l10n.networkResourcesHint,
-        onPressed: () => context.push(AppRoutes.resourceSettings),
-      ),
+      // 代理 / DNS / CDN 属于首发不做的高级网络设置（PLAN.md §5）。
+      if (widget.repository.capabilities.resourceSettings)
+        (
+          id: 'resources',
+          icon: Icons.settings_ethernet_rounded,
+          title: l10n.resourceSettingsTitle,
+          subtitle: l10n.networkResourcesHint,
+          onPressed: () => context.push(AppRoutes.resourceSettings),
+        ),
       (
         id: 'auto-export',
         icon: Icons.movie_filter_outlined,
@@ -324,14 +336,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      ListTile(
-                        key: const ValueKey('lan-settings'),
-                        leading: const Icon(Icons.devices_rounded),
-                        title: Text(l10n.deviceInterop),
-                        subtitle: Text(l10n.lanAutoSyncHint),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => openLanSync(context),
-                      ),
+                      if (widget.repository.capabilities.lan)
+                        ListTile(
+                          key: const ValueKey('lan-settings'),
+                          leading: const Icon(Icons.devices_rounded),
+                          title: Text(l10n.deviceInterop),
+                          subtitle: Text(l10n.lanAutoSyncHint),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => openLanSync(context),
+                        ),
                       if (widget.repository.supportsSourceManagement)
                         ListTile(
                           leading: const Icon(Icons.dns_outlined),
@@ -376,14 +389,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: Text(l10n.storageEntryHint),
                           onTap: () => context.push(AppRoutes.storage),
                         ),
+                      ListTile(
+                        key: const ValueKey('engine-diagnostics-settings'),
+                        leading: const Icon(Icons.monitor_heart_outlined),
+                        title: Text(l10n.engineDiagnosticsEntry),
+                        subtitle: Text(l10n.engineDiagnosticsRuntime),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push(AppRoutes.engineDiagnostics),
+                      ),
                       if (widget.store.profile.admin) ...[
-                        ListTile(
-                          leading: const Icon(Icons.settings_ethernet_rounded),
-                          title: Text(l10n.resourceSettingsTitle),
-                          subtitle: Text(l10n.networkResourcesHint),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => context.push(AppRoutes.resourceSettings),
-                        ),
+                        if (widget.repository.capabilities.resourceSettings)
+                          ListTile(
+                            leading: const Icon(Icons.settings_ethernet_rounded),
+                            title: Text(l10n.resourceSettingsTitle),
+                            subtitle: Text(l10n.networkResourcesHint),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => context.push(AppRoutes.resourceSettings),
+                          ),
                         SwitchListTile(
                           value: widget.store.autoExport,
                           title: Text(l10n.autoExportEmby),

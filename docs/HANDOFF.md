@@ -593,21 +593,28 @@ test/ui/features/
 
 ---
 
-## 6.5 Rust 引擎现状（2026-10-21 第十八轮）
+## 6.5 Rust 引擎现状（2026-10-21 第二十二轮）
 
-引擎侧已从「一个 crate 堆全部」拆成 9 crate 工作区，并把插件体系做成可运行的代码。
+引擎侧已从「一个 crate 堆全部」拆成 13 crate 工作区，并把插件体系做成可运行的代码。
 细节见 `docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
 
 | 事项 | 现状 |
 | --- | --- |
 | 工作区 | `rust/Cargo.toml` 虚清单；`bridge/` 只做 FRB 边界，实现在 `rust/crates/*` |
-| 主源 | `guo-source-hongguo` 已注册进 `builtin_registry()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类；发果规则带在线验证用例（`--ignored`） |
-| 插件安装 | `bridge/src/api/plugins.rs` 暴露 `setPluginDirectory` / `parseRepository` / `installPlugin` / `installedPlugins` / `uninstallPlugin` / `setPluginEnabled` / `rollbackPlugin` / `rememberRepository`，Dart 绑定已生成到 `lib/src/rust/api/plugins.dart` |
+| 主源 | `guo-source-hongguo` 已注册进 `register_builtin_sources()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类；发果规则带在线验证用例（`--ignored`） |
+| 引擎单例 | `guo-engine-core`（`rust/crates/engine/`）持有配置、注册表、会话存储、目录缓存、调度、事件总线、取消表与诊断计数；桥接层所有 API 走 `guo_engine_core::require()` |
+| 插件安装 | `bridge/src/api/plugins.rs` 暴露 `parseRepository` / `installPlugin` / `installedPlugins` / `uninstallPlugin` / `setPluginEnabled` / `rollbackPlugin` / `rememberRepository`；插件目录由 `init_engine_with_directory` 确定，`setPluginDirectory` 已移除 |
 | 代码插件 | WIT 契约 `rust/crates/plugin-wasm/wit/source-plugin.wit`；模板 `rust/examples/plugin-template/`（`./build.sh`） |
-| 站源 | 引擎注册 16 个：红果主源；代码源猫果、牛果、剧果、黄果旧版、黄果 AI、黄果视频；9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / 帝果 / 发果） |
-| CI | `rust` / `flutter` / `go` / `scripts` / `engine-online` / `windows` 六个 job 启用；`android` / `ios` 仍为 `if: false` |
-| 测试标签 | `test/engine_*.dart` 中 9 个文件请求真实站点，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
-| 测试 | `cargo test --workspace` 367 项；Dart 引擎测试由 native-assets 钩子自动备库 |
+| 站源 | 引擎注册 17 个：红果主源；代码源猫果、牛果、剧果、芽果、黄果旧版、黄果 AI、黄果视频；9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / **帝果 `dsd`** / 发果）。`diguo` 已统一为 `dsd`，旧数据 `dsd:<id>` 主键继续可用 |
+| 错误契约 | 全部 FRB 函数返回 `Result<_, EngineFailure>`（`kind` / `message` / `source_id` / `request_id` / `retryable` / `http_status` / `retry_at_ms`）；Dart 侧映射为 `EngineException` |
+| 会话 | `sessions.json` 按 `source_id/` 命名空间落盘，原子写；芽果令牌三级回落：内存 → 磁盘 → 登录 |
+| 取消与进度 | 目录 / 详情 / 搜索 / 分类 / 取流带 `request_id`（目录另带 `session`）；`download_progress_stream` 推送下载进度，替代轮询 |
+| 诊断 | `engine_diagnostics` 返回版本、数据/插件路径、能力矩阵、插件加载报告、最近错误、请求计数与任务计数；Dart 侧入口 `/settings/diagnostics` |
+| D4 接管 | 榜单 / 推荐 / 联想由引擎直出，不再委托 Go；能力矩阵是 `supportsDownloads` / `supportsSourceManagement` 的唯一真相 |
+| 站点结构 | 榜单行数据改由 `mergeLoaderData` 脚本注入（`rankings::merge_loader_content`）；联想外层键为 `suggest_list`（旧键仍兼容） |
+| CI | `rust` / `flutter` / `scripts` / `engine-online` / `windows` 五个 job；`go` job 已删除；`android` / `ios` 仍为 `if: false` |
+| 测试标签 | `test/engine_*.dart` 请求真实站源，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
+| 测试 | `cargo test --workspace` 449 项通过；`flutter test --exclude-tags engine` 305 通过 / 1 跳过；`flutter test --tags engine` 51 通过；引擎动态库由 native-assets 钩子自动构建 |
 
 **Dart 测试的动态库**：native-assets 构建钩子（`hook/build.dart`，调
 `flutter_rust_bridge_hooks`）在 `flutter test` / `flutter build` 启动时自动用
@@ -617,10 +624,16 @@ Cargo 构建并注册 `guo_engine` 代码资产，**无需任何手工准备**�
 cargokit 一起删除。
 
 **重新生成绑定**（`flutter_rust_bridge_codegen generate`）后：
-若新增了 FRB 不可序列化的 Rust 类型，给对应函数加
-`#[flutter_rust_bridge::frb(ignore)]`（`debug_env`、`plugin_error_hint`
-就是这么处理的）。`ioDirectory` 仅作 `dart run` 等非打包场景的兜底路径，
-无需手工修改。
+
+1. 若新增了 FRB 不可序列化的 Rust 类型，给对应函数加
+   `#[flutter_rust_bridge::frb(ignore)]`（`debug_registry`、`plugin_error_hint`、
+   `failure` 就是这么处理的）；
+2. 检查 `kDefaultExternalLibraryLoaderConfig` 的 `ioDirectory` 仍是
+   `rust/target/release/`：生成器默认写成 `rust/bridge/target/release/`，
+   而本仓库是 workspace 共享 target，必须手工改回；
+3. 外部 crate 的类型（如 `guo_engine_core::EngineError`）会被当成不透明句柄，
+   Dart 读不到字段。需要跨边界的类型必须在 `bridge/src/api/` 里定义扁平 DTO
+   （`EngineFailure` 即此例）。
 
 ---
 

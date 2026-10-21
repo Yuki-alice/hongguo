@@ -1,20 +1,21 @@
 use guo_engine::builtin_registry;
 
+fn engine_env(source: String) -> guo_engine::SourceEnv {
+    guo_engine::require().expect("engine").env(&source)
+}
+
 #[tokio::main]
 async fn main() {
+    let dir = std::env::temp_dir().join("guo-example");
+    guo_engine::api::init_engine_with_directory(dir.to_string_lossy().to_string(), String::new())
+        .expect("init");
     let registry = builtin_registry();
     for id in ["wuguo", "huaguo", "maoguo"] {
         let Some(source) = registry.get(id) else {
             continue;
         };
         println!("=== {id} ===");
-        let env = match guo_engine::api::debug_env(id.to_string()) {
-            Ok(env) => env,
-            Err(e) => {
-                println!("  env error: {e}");
-                continue;
-            }
-        };
+        let env = engine_env(id.to_string());
         let category = match id {
             "wuguo" => "1",
             "huaguo" => "27",

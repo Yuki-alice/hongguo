@@ -1,0 +1,61 @@
+{
+  "code": "ok",
+  "data": {
+    "id": 51,
+    "title": "女神的近身高手",
+    "cover_url": "https://qiniu.rongjuwh.cn/iv2_FniaZ7GyIG54iJJ96E6DSaRD8ZbX",
+    "share_title": "女神的近身高手",
+    "share_cover": "https://qiniu.rongjuwh.cn/iv2_FniaZ7GyIG54iJJ96E6DSaRD8ZbX",
+    "is_over": 2,
+    "total": 100,
+    "checkpoint": 800,
+    "ad_unlock_number": 2,
+    "tags": null,
+    "like_num": 50636,
+    "introduction": "混入花都当了医生,女神讨厌、萝莉气愤,老实如他怎样才能抱得美人归?",
+    "is_mark": 0,
+    "score": "9.5",
+    "current_num": 100,
+    "descrip": "我是神医，又是兵王，纵横花都无人能挡！",
+    "theater_parent_update_daily_status": 0,
+    "quality_grade": "S",
+    "is_ai_maker": false,
+    "is_show_ai_icon": false,
+    "is_new_filing_font": false,
+    "theaters": [
+      {
+        "id": 61842,
+        "parent_id": 51,
+        "son_title": "女神的近身高手1",
+        "son_cover_url": "",
+        "son_video_url": "http://qcapp.xingya.com.cn/wz_mp41208jinshen1.mp4?sign=1df6d735fe6aad31b7c83ee7b47427c1&t=6ad8b3f3",
+        "num": 1,
+        "video_time": 72,
+        "created_at": "2023-03-31 12:02:48",
+        "updated_at": "2024-05-27 13:47:44"
+      },
+      {
+        "id": 54517,
+        "parent_id": 51,
+        "son_title": "女神的近身高手2",
+        "son_cover_url": "",
+        "son_video_url": "http://qcapp.xingya.com.cn/wz_mp41116jinshengaoshou2.mp4?sign=909f0c1c91a120ccc2fb4fbb4f83dc2b&t=6ad8b3f3",
+        "num": 2,
+        "video_time": 99,
+        "created_at": "2023-03-31 12:02:31",
+        "updated_at": "2024-08-25 18:54:30"
+      },
+      {
+        "id": 52939,
+        "parent_id": 51,
+        "son_title": "女神的近身高手3",
+        "son_cover_url": "",
+        "son_video_url": "http://qcapp.xingya.com.cn/wz_mp41116jinshengaoshou3.mp4?sign=6f59f1cd30d2711bace0abdc97f350a7&t=6ad8b3f3",
+        "num": 3,
+        "video_time": 65,
+        "created_at": "2023-03-31 12:02:27",
+        "updated_at": "2024-08-25 18:54:30"
+      }
+    ]
+  }
+}

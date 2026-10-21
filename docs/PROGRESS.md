@@ -11,7 +11,7 @@
 | 声明式规则引擎 | ✅ `guo-rule-engine`：HTML / JSON / 内嵌 JSON 三类取数，加载期校验 |
 | HTTP 传输层 | ✅ `guo-host`：reqwest + 流式截断，live 请求验证 |
 | 代码插件层 | ✅ 猫果签名源；✅ WASM 组件宿主（真实组件端到端） |
-| 站源迁移 | 🔄 15/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果、剧果、黄果三源） |
+| 站源迁移 | 🔄 16/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果、剧果、芽果、黄果三源） |
 | 取流（resolve） | ✅ 引擎接管，含 HLS 解析与回退 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 解密 |
 | 目录缓存 | ✅ 版本化落盘 + TTL + 分页游标合并 |
@@ -22,7 +22,200 @@
 | **P1 地基** | ✅ 2026-10-20：9 crate 工作区、插件宿主、红果主源、真实组件链路（见第十三轮） |
 | **插件生态闭环** | ✅ 2026-10-20：仓库客户端 + 官方规则包 + 插件管理 UI（见第十四轮） |
 | **D4 主源能力面** | ✅ 2026-10-20：榜单 / 推荐 / 联想 / 弹幕 / 系列剧（见第十五轮） |
-| **P2 站源迁移** | 🔄 15/20（黄果三源；剩芽果 / 皮果 / 黄豆 / 野果） |
+| **P2 站源迁移** | 🔄 16/20（芽果；剩皮果 / 黄豆 / 野果） |
+| **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
+| **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
+
+## 第二十二轮：Core-0 收口 —— D4 能力接管 + 站点结构修复（2026-10-21）
+
+目标：把 Core-0 的剩余项做完——引擎已实现的 D4 能力不再绕 Go，
+未支持能力对用户可见。
+
+### 引擎接管的能力
+
+| 能力 | 之前 | 现在 |
+| --- | --- | --- |
+| 榜单看板 / 榜单 | 委托 Go | `rankingBoards` 按能力位向每个源询问；`rankings` 用 `RankingBoard.sourceForID` 反查源后交给引擎 |
+| 推荐流 | 委托 Go | 引擎主源直出；Dart 侧按 `genre` 维护 `(offset, sessionId)` 游标并累积条目 |
+| 搜索联想 | 委托 Go | 引擎主源直出；非主源返回空而不是抛错 |
+| 元数据补全 | 委托 Go（含已停用的黄豆分支） | 复用引擎详情结果补红果 `onlineDate`，不再单发一次请求 |
+
+能力矩阵成为唯一真相：`supportsDownloads` / `supportsSourceManagement` 都从
+`RepositoryCapabilities` 派生，不再与下层实现各说一套。
+
+### 修掉的两个真实站点结构变更
+
+这两处都是**引擎解析落后于站点**，属于实现缺陷而不是环境问题：
+
+1. **榜单行数据位置变了**。原来从 `_ROUTER_DATA.fnArgs` 取，2026-10 起站点改成
+   `<script data-fn-name="mergeLoaderData" data-fn-args="[route, [{key, routerDataFnName,
+   routerDataFnArgs}]]">`，真正的 JSON 在 `routerDataFnArgs[0]` 里且被 HTML 实体转义。
+   新增 `merge_loader_content()`，三种承载形态按顺序回落。
+2. **联想外层键名变了**。`data` / `suggest_words` → `suggest_list`。行结构
+   （`name` + `word_type`）未变，因此只补键名，旧键继续可用。
+
+两个夹具都取自真实响应，放在
+`rust/bridge/tests/fixtures/hongguo_ranking.html` 与
+`rust/crates/source-hongguo/tests/fixtures/suggestions.json`。
+
+### 诊断页
+
+新增 `/settings/diagnostics`（设置页入口「引擎诊断」），展示：
+
+- 运行状态：版本、数据/插件目录、运行时长、请求计数、会话数、缓存键数、任务计数；
+- **能力矩阵**：每一项都显式写出「支持 / 当前版本不支持」，包括下载、弹幕、
+  站源诊断、高级网络设置、LAN —— 用户能看懂入口为什么不见了；
+- 站源能力：引擎清单里每个源的能力位；
+- 插件加载结果（含失败原因）与最近 20 条错误。
+
+入口按能力矩阵隐藏的三处也补齐了：LAN（设置 / 发现页）、资源设置（设置页）、
+诊断页本身始终可达。
+
+### 未接入项与原因
+
+| 项 | 原因 |
+| --- | --- |
+| 弹幕 | 依赖 `PlaybackPlan.session` / `danmakuId`，引擎 `resolve` 不产出这两个字段；属于 Core-2 的播放会话 |
+| 下载 / 离线播放 / 媒体处理 | 需要引擎侧下载索引与断点续传，Core-2 |
+| 封面缓存 | 需要引擎侧下载与图片缓存，Core-2 |
+| 站源诊断 / 健康检查 | PLAN.md §5 暂缓 |
+| 高级网络设置 | 首发仅直连 |
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 449 通过（新增 12 项：榜单夹具 6、联想夹具 6） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 305 通过 / 1 跳过 / 0 失败（新增 12 项：诊断页 5、能力接管 7） |
+| `flutter test --tags engine` | 51 通过（含新增 `engine_capabilities_live_test.dart` 7 项） |
+
+### 环境事实
+
+推荐流走 App 接口（`api5-normal-sinfonlineb.fqnovel.com`）。该域名在当前网络下
+返回 HTTP 200 但**响应体为空**，因此在线用例把推荐失败当作可分类的
+`parseChanged` / `network` 处理，而不是当成回归。榜单与联想走网页接口，
+本机实测可用。
+
+## 第二十一轮：Core-0 切轨 + Core-1 运行时内核（2026-10-21）
+
+目标：停止双栈，把「状态正确」落到代码里（`docs/PLAN.md` 的 Core-0 / Core-1）。
+
+### Core-0 · 切轨
+
+| 事项 | 结果 |
+| --- | --- |
+| 源身份统一 | `rules/diguo.json` → `rules/dsd.json`，`id` 改为 `dsd`；夹具与测试同步改名（`dsd_fixtures.rs` / `dsd_catalog.html`）；`rust/dist` 已用 `pack_rules` 重新打包 |
+| 源列表 | `SourceSite` 改为**引擎清单为唯一来源**：`reportFromEngine` 直接替换列表，不再「内置 + 追加」；未同步时才用编译期表兜底 |
+| 版本开关 | `ALL_SOURCES` 仍决定编译进哪些源；单源构建下 `knownValues` 只有红果 |
+| Go-only 源 | 黄豆 / 野果 / 皮果不在引擎注册表里，因此不再出现在 UI；`isKnown` 仍认这些旧 id，历史与档案数据不会因此报格式错误 |
+| 路由开关 | 删除 `ENGINE_ROUTE` / `EngineRouting` / `EngineRoute` 与 `test/engine_routing_test.dart` |
+| LAN 入口 | 设置页与发现页的入口改由 `RepositoryCapabilities.lan` 门控（当前为 `false`，入口隐藏） |
+| Go 构建链 | 删除 CI 的 `go` job；`build_android.py` / `build_windows.py` 不再调 `build_native.py`；`package_release.py` 不再要求 `libduanju_core.so` / `duanju_core.dll` |
+
+### Core-1 · 运行时内核
+
+新增 crate `guo-engine-core`（`rust/crates/engine/`）：
+
+| 模块 | 内容 |
+| --- | --- |
+| `engine.rs` | 进程级单例：配置、注册表、会话存储、目录缓存、下载调度、事件总线、取消表、诊断计数；`rebuild_registry` 只换注册表，会话与任务保留 |
+| `store.rs` | `DiskSourceStore`（`sessions.json`，临时文件 + rename）；`NamespacedStore` 按 `source_id` 加前缀，站源互相看不到 |
+| `error.rs` | `EngineError` / `EngineErrorKind`（11 类），带 `source_id` / `request_id` / `retryable` / `http_status` / `retry_at_ms`；站源错误按可重试性原样映射 |
+| `cancel.rs` | `CancellationRegistry`：同会话新请求作废旧请求，显式取消与票据回收 |
+| `events.rs` | `EventBus`（broadcast + latest）：下载进度推送，迟到订阅者先拿到最新快照 |
+
+FRB 边界：
+
+- 所有函数从 `Result<_, String>` 改为 `Result<_, EngineFailure>`；`EngineFailure` 是扁平 DTO（外部 crate 的类型会被 FRB 当成不透明句柄，Dart 读不到字段）
+- 目录 / 详情 / 搜索 / 分类 / 取流都带 `request_id`；目录额外带 `session`，切页时旧结果返回 `Cancelled`
+- 新增：`init_engine_with_directory`、`engine_diagnostics`、`cancel_request`、`clear_source_session`、`reload_sources`、`control_downloads`、`download_progress_stream`
+
+Dart 侧：
+
+- 新增 `lib/data/engine_failure.dart`（`EngineException` / `EngineFailureKind`）与 `lib/data/repository_capabilities.dart`
+- `EngineRepository` 全面切到新 API，所有 FRB 失败统一转 `EngineException`
+- `EngineBackedRepository` 去掉路由参数，失败不再静默回退到 Go
+- 插件安装 / 卸载 / 启停后调用 `reload_sources` 再同步源清单
+
+### 芽果令牌落盘
+
+原来令牌只存在源实例的 `Mutex` 里，进程重启即丢。现在按三级回落：
+内存 → `SourceStore`（`token` 键，存值与获取时间）→ 登录。401 时同时清内存与磁盘。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 431 通过（新增 28 项：引擎单例 22、Core-1 回归 6） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 278 通过 / 1 跳过 / 0 失败 |
+| `flutter test --tags engine`（新增 `engine_singleton_test.dart`） | 5 通过（真实请求芽果，验证会话落盘与诊断） |
+| `python3 -m unittest discover -s scripts` | 9 通过 |
+
+### 已知缺口
+
+- 下载、媒体处理、LAN 协议仍在 Go 侧（`NativeRepository`），Core-2 才迁完
+- `EngineBackedRepository.capabilities` 目前如实报告 `sourceManagement` / `resourceSettings` / `lan` 为 `false`
+- 声明式插件包已按 `dsd` 重新打包，但尚未做预装分发（Core-3）
+
+## 第二十轮：P2 第五个站源 —— 芽果（2026-10-21）
+
+目标：迁移一个「设备登录 + 顶层分组 + 榜单分类」的接口源，同时修掉 Go 侧
+分类读取的失效路径。
+
+### 链路特点
+
+| 环节 | 事实 |
+| --- | --- |
+| 会话 | `POST /user/v1/account/login`，请求体 `{"device": <固定设备号>}`，令牌在 `data.token`；业务接口用 `authorization` 头，6 小时有效，失效返回 401 |
+| 分类 | `/cloud/v2/theater/classes` 的**顶层分组**：剧场(1) / 新剧(3) / 排行榜(9) / 热播剧(2) / 星选好剧(7) |
+| 榜单 | 分类 `9` 走 `/cloud/v1/first_level_ranking/detail?id=1`，不分页 |
+| 目录 | `/cloud/v2/theater/home_page`，`theater_class_id` 接分组 id，每页 24 条 |
+| 详情 | `/v2/theater_parent/detail`，分集直接给 `son_video_url`（MP4），取流只做透传 |
+| 搜索 | `POST /v3/search`，请求体 `{"text": ...}`，结果在 `data.theater.search_data` |
+
+### 修掉的 Go 缺陷
+
+Go 的 `fetchYaguoCategories` 把响应 `data` 当数组遍历
+（`duanjuFindList(response, "data")`），而真实响应是 `data.list`。该函数从未成功过，
+分类一直退回写死的「剧场 / 榜单」两项。Rust 按真实结构读取顶层分组，
+得到完整五项，且分类 `9` 自动走榜单接口。
+
+### 并发登录限流
+
+同一设备号并发登录时服务端返回 `2010007`（system busy）。登录阶段最多重试 3 次、
+间隔 250ms，并把服务端 `msg` 带进错误信息。在线用例并发执行时由 2 项失败转为全部通过。
+
+### 交付
+
+| 文件 | 内容 |
+| --- | --- |
+| `rust/crates/source-yaguo/` | 目录 / 榜单分类 / 详情 / 搜索 / 分类 / 直链取流 |
+| `rust/bridge/tests/yaguo_fixtures.rs` | 11 项：登录先行、令牌复用、401 重登、繁忙重试、分类分组、榜单分类、详情、搜索、空搜索、直链取流、能力位 |
+| `rust/bridge/tests/yaguo_live.rs` | 3 项在线验证（`#[ignore]`） |
+| `rust/bridge/tests/fixtures/yaguo_{classes,catalog,ranking,detail,search}.json` | 2026-10-21 真实响应裁剪 |
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ 407 项通过（本轮新增 17），9 项在线用例默认忽略 |
+| `cargo fmt --check` / `clippy -D warnings` | ✅ 干净 |
+| 在线目录 / 详情 / 取流 / 分类 / 搜索 | ✅ 全部通过（取流返回真实 MP4 直链） |
+| Dart 引擎站源清单 | ✅ 新增 `yaguo`，能力位 `catalog/detail/search/categories/resolve` |
+| `flutter test --exclude-tags engine` | ✅ 289 通过 / 1 跳过（native-assets 钩子成功编入新 crate） |
+| `dart format --set-exit-if-changed` | ✅ 185 文件无改动 |
+
+### 未做
+
+- 皮果 / 黄豆 / 野果仍待迁移；
+- 芽果的 VIP 标记未解析（详情里有 `vip` / `pay_type`，Go 版未使用）；
+- 分类以接口返回为准：Go 静态表只有「剧场 / 榜单」，Rust 返回站点完整五个分组。
 
 ## 第十九轮：黄果三源接线 + CI 补回 Dart 校验（2026-10-21）
 

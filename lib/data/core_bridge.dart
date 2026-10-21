@@ -19,6 +19,7 @@ import 'package:duanju_app/ui/core/cover_decoder.dart';
 import 'package:duanju_app/data/catalog_updates.dart';
 import 'package:duanju_app/domain/download_collections.dart';
 import 'package:duanju_app/domain/resource_settings.dart';
+import 'package:duanju_app/data/repository_capabilities.dart';
 
 typedef _NativeRequest = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef _DartRequest = Pointer<Utf8> Function(Pointer<Utf8>);
@@ -69,6 +70,9 @@ class AppFailure implements Exception {
 abstract class AppRepository {
   /// 本地用户与权限状态。下载/权限判定需要它，允许为空。
   LocalStore? access;
+
+  /// 能力矩阵：UI 用它决定是否渲染入口，而不是点击后才报「不支持」。
+  RepositoryCapabilities get capabilities => const RepositoryCapabilities();
   Future<Map<String, dynamic>> lan(
     String command,
     Map<String, dynamic> payload,

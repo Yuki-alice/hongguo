@@ -3,21 +3,33 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import 'api/error.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_env`, `cache`, `join_url`, `scheduler`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MemoryStore`, `SilentLog`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `debug`, `from`, `from`, `from`, `from`, `get`, `set`, `warn`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_env`
+// These functions are ignored because they are not marked as `pub`: `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `join_url`, `media_inner`, `prepare`, `run`, `search_inner`, `timeout_for`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_registry`
 
 /// 初始化日志与运行时。Dart 侧在启动时调用一次。
 Future<void> initEngine() => RustLib.instance.api.crateApiInitEngine();
 
-/// 引擎版本，便于 Dart 侧自检与 Go 核心版本对齐。
+/// 初始化进程级引擎。重复调用返回既有实例并报告 `false`。
+///
+/// `data_directory` 下会创建 `catalogs.json`、`sessions.json` 与 `plugins/`；
+/// `plugin_directory` 传空字符串表示用默认值 `<data>/plugins`。
+Future<EngineInitResult> initEngineWithDirectory({
+  required String dataDirectory,
+  required String pluginDirectory,
+}) => RustLib.instance.api.crateApiInitEngineWithDirectory(
+  dataDirectory: dataDirectory,
+  pluginDirectory: pluginDirectory,
+);
+
+/// 引擎版本，便于 Dart 侧自检与发布物对齐。
 Future<String> engineVersion() => RustLib.instance.api.crateApiEngineVersion();
 
-/// 内置站源清单，替代 Dart 侧硬编码的 `SourceSite` 列表。
+/// 内置站源清单，Dart 源列表的唯一来源。
 Future<List<SourceSummary>> sourceCatalog() =>
     RustLib.instance.api.crateApiSourceCatalog();
 
@@ -43,7 +55,7 @@ Future<List<ChapterItem>> parseDetailWithRule({
   drama: drama,
 );
 
-/// 校验规则 JSON，供编辑器即时提示。
+/// 校验规则 JSON，供编辑器即时提示。返回规则 id。
 Future<String> validateRule({required String ruleJson}) =>
     RustLib.instance.api.crateApiValidateRule(ruleJson: ruleJson);
 
@@ -57,10 +69,6 @@ Future<DramaPage> fetchCatalogWithRule({
   page: page,
   category: category,
 );
-
-/// 指定缓存目录。必须在首次访问缓存前调用。
-Future<bool> setCacheDirectory({required String directory}) =>
-    RustLib.instance.api.crateApiSetCacheDirectory(directory: directory);
 
 /// 读取缓存中的目录；未命中返回空。
 Future<DramaPage> cachedCatalog({
@@ -89,26 +97,37 @@ Future<void> clearCatalog({
   category: category,
 );
 
-/// 按站源 id 读取目录。规则源与代码插件共用这一入口。
+/// 按站源 id 读取目录。
 ///
-/// 这是 Dart 侧替换 Go `catalog` action 的对应实现。
+/// `request_id` 由调用方生成；同一 `session` 上的新请求会作废旧请求，
+/// 旧请求返回 `Cancelled`（ADR-9）。
 Future<DramaPage> fetchCatalog({
   required String sourceId,
   required int page,
   required String category,
+  required String requestId,
+  required String session,
 }) => RustLib.instance.api.crateApiFetchCatalog(
   sourceId: sourceId,
   page: page,
   category: category,
+  requestId: requestId,
+  session: session,
 );
+
+/// 取消某个会话的当前请求。返回是否真的取消了在途请求。
+Future<bool> cancelRequest({required String session}) =>
+    RustLib.instance.api.crateApiCancelRequest(session: session);
 
 /// 按站源 id 读取详情。
 Future<ChapterList> fetchDetail({
   required String sourceId,
   required String dramaSourceId,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchDetail(
   sourceId: sourceId,
   dramaSourceId: dramaSourceId,
+  requestId: requestId,
 );
 
 /// 按站源 id 搜索。
@@ -116,42 +135,57 @@ Future<DramaPage> fetchSearch({
   required String sourceId,
   required String query,
   required int page,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchSearch(
   sourceId: sourceId,
   query: query,
   page: page,
+  requestId: requestId,
 );
 
 /// 按站源 id 读取分类清单。
 ///
-/// 与 Go 侧一致，首项固定为「全部」；站源未声明分类时报错，由 Dart 侧回退。
-Future<List<CategorySummary>> fetchCategories({required String sourceId}) =>
-    RustLib.instance.api.crateApiFetchCategories(sourceId: sourceId);
+/// 与 Go 侧一致，首项固定为「全部」；站源未声明分类能力时报 `Unsupported`，
+/// 由 Dart 侧回退到缓存或隐藏筛选。
+Future<List<CategorySummary>> fetchCategories({
+  required String sourceId,
+  required String requestId,
+}) => RustLib.instance.api.crateApiFetchCategories(
+  sourceId: sourceId,
+  requestId: requestId,
+);
 
 /// 取流：把分集地址解析为可播放地址。
-///
-/// 播放页会先抓取并提取媒体地址；HLS 会拉取播放列表并返回分片清单。
 Future<MediaResult> fetchMedia({
   required String sourceId,
   required ChapterInput chapter,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchMedia(
   sourceId: sourceId,
   chapter: chapter,
+  requestId: requestId,
 );
 
 /// 榜单看板列表。
-Future<List<RankingBoardItem>> fetchRankingBoards({required String sourceId}) =>
-    RustLib.instance.api.crateApiFetchRankingBoards(sourceId: sourceId);
+Future<List<RankingBoardItem>> fetchRankingBoards({
+  required String sourceId,
+  required String requestId,
+}) => RustLib.instance.api.crateApiFetchRankingBoards(
+  sourceId: sourceId,
+  requestId: requestId,
+);
 
 /// 榜单的一页。
 Future<RankingResult> fetchRanking({
   required String sourceId,
   required String boardId,
   required int page,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchRanking(
   sourceId: sourceId,
   boardId: boardId,
   page: page,
+  requestId: requestId,
 );
 
 /// 推荐流的一页。
@@ -160,20 +194,24 @@ Future<RecommendResult> fetchRecommend({
   required int offset,
   required String sessionId,
   required String genre,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchRecommend(
   sourceId: sourceId,
   offset: offset,
   sessionId: sessionId,
   genre: genre,
+  requestId: requestId,
 );
 
 /// 搜索联想词。
 Future<List<String>> fetchSuggestions({
   required String sourceId,
   required String keyword,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchSuggestions(
   sourceId: sourceId,
   keyword: keyword,
+  requestId: requestId,
 );
 
 /// 一集的分段弹幕。
@@ -181,18 +219,31 @@ Future<List<DanmakuItem>> fetchDanmaku({
   required String sourceId,
   required ChapterInput chapter,
   required PlatformInt64 startMs,
+  required String requestId,
 }) => RustLib.instance.api.crateApiFetchDanmaku(
   sourceId: sourceId,
   chapter: chapter,
   startMs: startMs,
+  requestId: requestId,
 );
 
 /// 找出同一部剧的其它季。
 Future<List<SeasonItem>> fetchSeasons({
   required String sourceId,
   required DramaInput drama,
-}) =>
-    RustLib.instance.api.crateApiFetchSeasons(sourceId: sourceId, drama: drama);
+  required String requestId,
+}) => RustLib.instance.api.crateApiFetchSeasons(
+  sourceId: sourceId,
+  drama: drama,
+  requestId: requestId,
+);
+
+/// 订阅下载进度。
+///
+/// 先补发一次当前全部任务（迟到订阅者不会从 0 开始），随后持续推送状态变化。
+/// 引擎未初始化时立即以 `Internal` 结束流，不 panic。
+Stream<DownloadProgressEvent> downloadProgressStream() =>
+    RustLib.instance.api.crateApiDownloadProgressStream();
 
 /// 登记一个下载任务。
 Future<BigInt> enqueueDownload({required DownloadRequest request}) =>
@@ -209,6 +260,23 @@ Future<List<DownloadSnapshot>> downloadSnapshot() =>
 /// 暂停 / 继续 / 重试 / 删除。
 Future<bool> controlDownload({required String command, required String id}) =>
     RustLib.instance.api.crateApiControlDownload(command: command, id: id);
+
+/// 批量控制。返回每个任务是否被处理。
+Future<int> controlDownloads({
+  required String command,
+  required List<String> ids,
+}) => RustLib.instance.api.crateApiControlDownloads(command: command, ids: ids);
+
+/// 读取诊断快照。
+Future<EngineDiagnostics> engineDiagnostics() =>
+    RustLib.instance.api.crateApiEngineDiagnostics();
+
+/// 清空某个站源的会话（令牌 / Cookie）。
+Future<int> clearSourceSession({required String sourceId}) =>
+    RustLib.instance.api.crateApiClearSourceSession(sourceId: sourceId);
+
+/// 重新装配注册表（插件安装 / 卸载后调用）。会话与下载任务保持不变。
+Future<int> reloadSources() => RustLib.instance.api.crateApiReloadSources();
 
 /// 站源分类项。
 class CategorySummary {
@@ -353,6 +421,64 @@ class DanmakuItem {
           color == other.color;
 }
 
+/// 下载进度事件：由引擎主动推送，替代 Dart 侧轮询快照。
+class DownloadProgressEvent {
+  final String id;
+  final String dramaId;
+  final String episodeId;
+  final String title;
+
+  /// `queued` / `running` / `completed` / `failed` / `paused`。
+  final String state;
+  final BigInt bytes;
+  final PlatformInt64 total;
+  final double progress;
+  final String error;
+  final BigInt revision;
+
+  const DownloadProgressEvent({
+    required this.id,
+    required this.dramaId,
+    required this.episodeId,
+    required this.title,
+    required this.state,
+    required this.bytes,
+    required this.total,
+    required this.progress,
+    required this.error,
+    required this.revision,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      dramaId.hashCode ^
+      episodeId.hashCode ^
+      title.hashCode ^
+      state.hashCode ^
+      bytes.hashCode ^
+      total.hashCode ^
+      progress.hashCode ^
+      error.hashCode ^
+      revision.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadProgressEvent &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          dramaId == other.dramaId &&
+          episodeId == other.episodeId &&
+          title == other.title &&
+          state == other.state &&
+          bytes == other.bytes &&
+          total == other.total &&
+          progress == other.progress &&
+          error == other.error &&
+          revision == other.revision;
+}
+
 /// 下载登记参数。
 class DownloadRequest {
   final String id;
@@ -360,6 +486,8 @@ class DownloadRequest {
   final String target;
   final String referer;
   final String title;
+  final String dramaId;
+  final String episodeId;
 
   /// HLS 分片；非空时走分片下载。
   final List<String> segments;
@@ -376,6 +504,8 @@ class DownloadRequest {
     required this.target,
     required this.referer,
     required this.title,
+    required this.dramaId,
+    required this.episodeId,
     required this.segments,
     required this.keyUri,
     required this.keyIv,
@@ -388,6 +518,8 @@ class DownloadRequest {
       target.hashCode ^
       referer.hashCode ^
       title.hashCode ^
+      dramaId.hashCode ^
+      episodeId.hashCode ^
       segments.hashCode ^
       keyUri.hashCode ^
       keyIv.hashCode;
@@ -402,6 +534,8 @@ class DownloadRequest {
           target == other.target &&
           referer == other.referer &&
           title == other.title &&
+          dramaId == other.dramaId &&
+          episodeId == other.episodeId &&
           segments == other.segments &&
           keyUri == other.keyUri &&
           keyIv == other.keyIv;
@@ -463,7 +597,7 @@ class DownloadSnapshot {
           revision == other.revision;
 }
 
-/// 站源元信息，用于 Dart 侧动态构建站源列表。
+/// 剧集输入。
 class DramaInput {
   final String id;
   final String source;
@@ -591,6 +725,155 @@ class DramaPage {
           hasMore == other.hasMore &&
           page == other.page &&
           warning == other.warning;
+}
+
+/// 诊断快照：版本、路径、能力矩阵、插件报告、最近错误与请求计数。
+class EngineDiagnostics {
+  final String version;
+  final String dataDirectory;
+  final String pluginDirectory;
+  final String sessionFile;
+  final String catalogFile;
+  final BigInt uptimeMs;
+  final BigInt requestCount;
+  final BigInt registryRevision;
+  final int activeSessions;
+  final int sessionKeys;
+  final int cachedCatalogs;
+  final int queuedJobs;
+  final int runningJobs;
+  final int completedJobs;
+  final int failedJobs;
+  final List<SourceCapabilities> sources;
+  final List<String> pluginsLoaded;
+  final List<FailedPluginReport> pluginsFailed;
+  final List<EngineFailure> recentErrors;
+
+  const EngineDiagnostics({
+    required this.version,
+    required this.dataDirectory,
+    required this.pluginDirectory,
+    required this.sessionFile,
+    required this.catalogFile,
+    required this.uptimeMs,
+    required this.requestCount,
+    required this.registryRevision,
+    required this.activeSessions,
+    required this.sessionKeys,
+    required this.cachedCatalogs,
+    required this.queuedJobs,
+    required this.runningJobs,
+    required this.completedJobs,
+    required this.failedJobs,
+    required this.sources,
+    required this.pluginsLoaded,
+    required this.pluginsFailed,
+    required this.recentErrors,
+  });
+
+  @override
+  int get hashCode =>
+      version.hashCode ^
+      dataDirectory.hashCode ^
+      pluginDirectory.hashCode ^
+      sessionFile.hashCode ^
+      catalogFile.hashCode ^
+      uptimeMs.hashCode ^
+      requestCount.hashCode ^
+      registryRevision.hashCode ^
+      activeSessions.hashCode ^
+      sessionKeys.hashCode ^
+      cachedCatalogs.hashCode ^
+      queuedJobs.hashCode ^
+      runningJobs.hashCode ^
+      completedJobs.hashCode ^
+      failedJobs.hashCode ^
+      sources.hashCode ^
+      pluginsLoaded.hashCode ^
+      pluginsFailed.hashCode ^
+      recentErrors.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EngineDiagnostics &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          dataDirectory == other.dataDirectory &&
+          pluginDirectory == other.pluginDirectory &&
+          sessionFile == other.sessionFile &&
+          catalogFile == other.catalogFile &&
+          uptimeMs == other.uptimeMs &&
+          requestCount == other.requestCount &&
+          registryRevision == other.registryRevision &&
+          activeSessions == other.activeSessions &&
+          sessionKeys == other.sessionKeys &&
+          cachedCatalogs == other.cachedCatalogs &&
+          queuedJobs == other.queuedJobs &&
+          runningJobs == other.runningJobs &&
+          completedJobs == other.completedJobs &&
+          failedJobs == other.failedJobs &&
+          sources == other.sources &&
+          pluginsLoaded == other.pluginsLoaded &&
+          pluginsFailed == other.pluginsFailed &&
+          recentErrors == other.recentErrors;
+}
+
+/// 初始化结果，供 Dart 侧确认路径与首次装配状态。
+class EngineInitResult {
+  final String version;
+  final String dataDirectory;
+  final String pluginDirectory;
+
+  /// 是否为本次调用首次装配。
+  final bool fresh;
+  final int sourceCount;
+
+  const EngineInitResult({
+    required this.version,
+    required this.dataDirectory,
+    required this.pluginDirectory,
+    required this.fresh,
+    required this.sourceCount,
+  });
+
+  @override
+  int get hashCode =>
+      version.hashCode ^
+      dataDirectory.hashCode ^
+      pluginDirectory.hashCode ^
+      fresh.hashCode ^
+      sourceCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EngineInitResult &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          dataDirectory == other.dataDirectory &&
+          pluginDirectory == other.pluginDirectory &&
+          fresh == other.fresh &&
+          sourceCount == other.sourceCount;
+}
+
+/// 插件加载失败记录。
+class FailedPluginReport {
+  final String id;
+  final String detail;
+
+  const FailedPluginReport({required this.id, required this.detail});
+
+  @override
+  int get hashCode => id.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FailedPluginReport &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          detail == other.detail;
 }
 
 /// 取流结果。
@@ -863,6 +1146,42 @@ class SeasonItem {
           season == other.season &&
           title == other.title &&
           sourceId == other.sourceId;
+}
+
+/// 单个站源的能力矩阵。
+class SourceCapabilities {
+  final String id;
+  final String name;
+  final String group;
+  final int apiLevel;
+  final List<String> capabilities;
+
+  const SourceCapabilities({
+    required this.id,
+    required this.name,
+    required this.group,
+    required this.apiLevel,
+    required this.capabilities,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      group.hashCode ^
+      apiLevel.hashCode ^
+      capabilities.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SourceCapabilities &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          group == other.group &&
+          apiLevel == other.apiLevel &&
+          capabilities == other.capabilities;
 }
 
 /// Dart 可见的站源摘要。

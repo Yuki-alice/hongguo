@@ -29,8 +29,10 @@ if options.platform == 'android':
             raise SystemExit('缺少 APK：' + str(source))
         with zipfile.ZipFile(source) as archive:
             names = set(archive.namelist())
+            # Go 核心已退出构建链；Rust 引擎由 native-assets 打进
+            # `lib/libguo_engine.so`，不再是 `libduanju_core.so`。
             required = [f'lib/{abi}/{library}' for library in
-                        ['libduanju_core.so', 'libflutter.so', 'libapp.so', 'libmpv.so', 'libffmpegkit.so']]
+                        ['libflutter.so', 'libapp.so', 'libmpv.so', 'libffmpegkit.so']]
             missing = set(required) - names
             if missing:
                 raise SystemExit('APK 缺少原生库：' + ', '.join(sorted(missing)))
@@ -39,7 +41,8 @@ if options.platform == 'android':
         artifacts.append(target)
 else:
     bundle = root / 'build' / 'windows' / 'x64' / 'runner' / 'Release'
-    required = ['zhenguojian.exe', 'duanju_core.dll', 'flutter_windows.dll', 'libffmpegkit.dll',
+    # `duanju_core.dll`（Go）已退出构建链。
+    required = ['zhenguojian.exe', 'flutter_windows.dll', 'libffmpegkit.dll',
                 'libmpv-2.dll', 'msvcp140.dll', 'vcruntime140.dll',
                 'data/icudtl.dat', 'data/app.so']
     missing = [name for name in required if not (bundle / name).is_file()]

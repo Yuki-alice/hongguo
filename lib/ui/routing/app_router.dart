@@ -10,6 +10,7 @@ import 'package:duanju_app/domain/download_preferences.dart';
 import 'package:duanju_app/main.dart' show DuanjuBootstrap;
 import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
 import 'package:duanju_app/ui/features/home/views/home_screen.dart';
+import 'package:duanju_app/data/engine_backed_repository.dart';
 import 'package:duanju_app/data/lan/lan_controller.dart';
 import 'package:duanju_app/ui/features/lan/views/lan_screen.dart';
 import 'package:duanju_app/data/local_profiles.dart';
@@ -21,6 +22,7 @@ import 'package:duanju_app/ui/features/player/views/player_screen.dart';
 import 'package:duanju_app/ui/features/profiles/views/profiles_screen.dart';
 import 'package:duanju_app/ui/features/rankings/views/rankings_screen.dart';
 import 'package:duanju_app/ui/features/settings/views/resource_settings_screen.dart';
+import 'package:duanju_app/ui/features/settings/views/engine_diagnostics_screen.dart';
 import 'package:duanju_app/ui/features/settings/views/settings_screen.dart';
 import 'package:duanju_app/ui/features/plugins/views/plugins_screen.dart';
 import 'package:duanju_app/ui/features/sources/views/sources_screen.dart';
@@ -50,6 +52,7 @@ abstract final class AppRoutes {
   static const lanConflicts = '/lan/conflicts';
   static const downloadPreferences = '/settings/downloads';
   static const storage = '/settings/storage';
+  static const engineDiagnostics = '/settings/diagnostics';
   static const downloadPicker = '/download-picker/:source/:sourceId';
   static const profileEditor = '/profiles/editor';
 
@@ -335,6 +338,24 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
           path: AppRoutes.downloadPreferences,
           builder: (context, state) =>
               DownloadPreferencesScreen(store: ref.read(readyStoreProvider)),
+        ),
+        GoRoute(
+          path: AppRoutes.engineDiagnostics,
+          builder: (context, state) {
+            final repository = ref.read(repositoryProvider);
+            final engine = repository is EngineBackedRepository
+                ? repository.engine
+                : null;
+            if (engine == null) {
+              return _InvalidRoute(
+                message: AppLocalizations.of(context).engineDiagnosticsUnsupported,
+              );
+            }
+            return EngineDiagnosticsScreen(
+              engine: engine,
+              capabilities: repository.capabilities,
+            );
+          },
         ),
         GoRoute(
           path: AppRoutes.storage,

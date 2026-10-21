@@ -148,7 +148,7 @@ void main() {
     () async {
       final repository = NativeRepository(background: true);
       final denied = [
-        ...SourceSite.allValues
+        ...SourceSite.knownValues
             .where((source) => !SourceSite.isAvailable(source.id))
             .map((source) => source.id),
         'unknown',
