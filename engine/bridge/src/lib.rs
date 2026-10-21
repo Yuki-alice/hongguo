@@ -51,3 +51,4 @@ pub use guo_runtime::{
 // 内置代码源
 pub use guo_source_hongguo::HongguoSource;
 pub use guo_source_maoguo::MaoguoSource;
+pub use guo_source_niuguo::NiuguoSource;

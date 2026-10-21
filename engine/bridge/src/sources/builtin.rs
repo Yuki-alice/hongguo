@@ -16,6 +16,7 @@ use guo_runtime::{load_installed, LoadReport, RuleSource};
 use guo_source_api::{SourcePlugin, SourceRegistry};
 use guo_source_hongguo::HongguoSource;
 use guo_source_maoguo::MaoguoSource;
+use guo_source_niuguo::NiuguoSource;
 
 /// 插件根目录。由 Dart 侧在启动时通过 `set_plugin_directory` 指定。
 static PLUGIN_DIRECTORY: OnceLock<std::path::PathBuf> = OnceLock::new();
@@ -42,6 +43,7 @@ pub fn builtin_registry() -> SourceRegistry {
     // 主源固定注册：它随包分发，不走插件体系（ARCHITECTURE.md §5）。
     registry.register(Arc::new(HongguoSource::new()));
     registry.register(Arc::new(MaoguoSource::new()));
+    registry.register(Arc::new(NiuguoSource::new()));
     for text in BUILTIN_RULES {
         match RuleSource::from_json(text) {
             Ok(source) => {

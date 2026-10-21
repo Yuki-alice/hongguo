@@ -1,0 +1,16 @@
+[package]
+name = "guo-source-niuguo"
+description = "牛果站源（响应 AES-ECB 解密 + 外部分集解析）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+guo-media = { path = "../media" }
+guo-source-api = { path = "../source-api" }
+async-trait.workspace = true
+serde_json.workspace = true
+aes.workspace = true
+base64.workspace = true
+# 重试间隔用的 `sleep`；只是计时器，不构成对宿主运行时的依赖。
+tokio = { workspace = true, features = ["time"] }
