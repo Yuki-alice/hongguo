@@ -46,6 +46,15 @@ pub struct Job {
     pub drama_id: String,
     pub episode_id: String,
     pub title: String,
+    /// 剧名。重启后 UI 仍要能显示「哪部剧」，不能只靠 id。
+    #[serde(default)]
+    pub drama_title: String,
+    /// 集号。与 `episode_id` 不同：前者是显示用的序号。
+    #[serde(default)]
+    pub episode_index: u32,
+    /// 剧集封面 URL；重启后列表缩略图仍可用。
+    #[serde(default)]
+    pub cover_url: String,
     pub url: String,
     #[serde(default)]
     pub referer: String,
@@ -79,6 +88,9 @@ impl Job {
             drama_id: String::new(),
             episode_id: String::new(),
             title: String::new(),
+            drama_title: String::new(),
+            episode_index: 0,
+            cover_url: String::new(),
             url: url.into(),
             referer: String::new(),
             target: target.into().to_string_lossy().to_string(),

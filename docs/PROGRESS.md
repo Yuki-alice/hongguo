@@ -25,7 +25,65 @@
 | **P2 站源迁移** | 🔄 16/20（芽果；剩皮果 / 黄豆 / 野果） |
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
-| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制与封面待完成 |
+| **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
+
+## 第二十六轮：Core-2 收口 —— 批量控制、封面缓存、重启列表（2026-10-21）
+
+目标：补完 Core-2 剩余三项，让下载链路不再依赖 Go 的队列语义。
+
+### 批量控制
+
+新增 `control_download_batch(command, ids, expectedVersions)`：
+
+| 语义 | 说明 |
+| --- | --- |
+| 逐任务执行 | 单个失败不中断其余，失败原因逐条返回 |
+| 版本门控 | `expectedVersions` 与任务 `revision` 不一致时跳过，用于「合并后清理原分集」 |
+| 结果 | `completed` + `failures`，Dart 侧直接映射为 `DownloadBatchResult` |
+
+Dart 侧按「本进程登记过的 id」分流：引擎任务走引擎，其余（旧 Go 记录）交给下层，
+两边结果合并后返回。
+
+### 封面缓存
+
+新增 `guo-engine-core::cover`：
+
+- 按 URL 的 SHA-256 命名，`<data>/covers/<前两位>/<哈希>`，两级目录避免单目录膨胀；
+- 临时文件 + rename，中途被杀不会留下半张图被当成有效缓存；
+- 单张上限 8 MiB，空内容与 HTTP 错误都明确报错；
+- `force` 绕过缓存（对应 UI 的重试），`clear` 清空缓存。
+
+不做图片解码 / 转码（Dart 侧已有 `CoverDecoder` 处理 HEIC），也不做容量淘汰。
+
+### 修掉的缺陷：重启后下载列表消失
+
+`downloads()` 以前依赖进程内 `_downloads` 映射来补 `Drama` / `Episode`。
+重启后映射为空，引擎索引里的任务全部被 `continue` 跳过——**任务还在磁盘上，
+但列表里看不见了**。
+
+修法：给 `Job` 增加 `drama_title` / `episode_index` / `cover_url`，
+索引落盘时一并保存；`downloads()` 在没有内存上下文时从快照重建。
+
+### 预加载
+
+`preload` 改为引擎内提前 `resolve`。失败返回 `null`——预加载是优化，
+不该把错误抛给正在浏览的用户。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 471 通过（新增 7 项封面缓存） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 308 通过 / 1 跳过 |
+| `flutter test --tags engine` | 57 通过（新增 `engine_cover_test.dart` 3 项） |
+
+### Core-2 状态：已完成
+
+首发功能矩阵里的下载、离线播放、弹幕、封面现在都由引擎承担。
+仍在 Go 侧的只剩：下载目录迁移（暂缓）、站源诊断（暂缓）、资源设置（暂缓）、LAN（Core-4 删除）。
 
 ## 第二十五轮：Core-2 旧下载索引只读迁移（2026-10-21）
 

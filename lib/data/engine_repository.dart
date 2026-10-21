@@ -361,6 +361,9 @@ class EngineRepository {
     required String title,
     String dramaId = '',
     String episodeId = '',
+    String dramaTitle = '',
+    int episodeIndex = 0,
+    String coverUrl = '',
     List<String> segments = const [],
     String keyUri = '',
     String keyIv = '',
@@ -375,6 +378,9 @@ class EngineRepository {
           title: title,
           dramaId: dramaId,
           episodeId: episodeId,
+          dramaTitle: dramaTitle,
+          episodeIndex: episodeIndex,
+          coverUrl: coverUrl,
           segments: segments,
           keyUri: keyUri,
           keyIv: keyIv,
@@ -398,6 +404,11 @@ class EngineRepository {
           total: row.total,
           progress: row.progress,
           error: row.error,
+          dramaId: row.dramaId,
+          episodeId: row.episodeId,
+          dramaTitle: row.dramaTitle,
+          episodeIndex: row.episodeIndex,
+          coverUrl: row.coverUrl,
         ),
     ];
   }
@@ -456,6 +467,25 @@ class EngineRepository {
     final snapshot = await _guard(rust.engineDiagnostics);
     return EngineDiagnosticsInfo.fromRust(snapshot);
   }
+
+  /// 取封面本地路径。命中缓存直接返回，否则下载后落盘。
+  Future<CoverInfo> cover(
+    Drama drama, {
+    bool force = false,
+  }) async {
+    final result = await _guard(
+      () => rust.fetchCover(
+        sourceId: drama.source,
+        url: drama.cover,
+        referer: '',
+        force: force,
+      ),
+    );
+    return CoverInfo(path: result.path, cached: result.cached);
+  }
+
+  /// 清空封面缓存，返回删除的文件数。
+  Future<int> clearCoverCache() => _guard(rust.clearCoverCache);
 
   /// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。
   ///
@@ -546,6 +576,15 @@ Future<T> _guard<T>(Future<T> Function() work) async {
   }
 }
 
+/// 封面缓存结果。
+class CoverInfo {
+  const CoverInfo({required this.path, required this.cached});
+  final String path;
+
+  /// 是否命中缓存（未发网络请求）。
+  final bool cached;
+}
+
 /// 旧下载索引的迁移结果。
 class LegacyMigrationInfo {
   const LegacyMigrationInfo({
@@ -600,6 +639,11 @@ class DownloadSnapshotInfo {
     required this.total,
     required this.progress,
     required this.error,
+    this.dramaId = '',
+    this.episodeId = '',
+    this.dramaTitle = '',
+    this.episodeIndex = 0,
+    this.coverUrl = '',
   });
 
   final String id;
@@ -609,6 +653,13 @@ class DownloadSnapshotInfo {
   final int total;
   final double progress;
   final String error;
+
+  /// 重启后用于重建展示上下文；旧版本索引里可能为空。
+  final String dramaId;
+  final String episodeId;
+  final String dramaTitle;
+  final int episodeIndex;
+  final String coverUrl;
 
   bool get finished => state == 'completed';
   bool get failed => state == 'failed';

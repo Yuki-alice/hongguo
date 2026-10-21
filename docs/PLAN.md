@@ -49,7 +49,10 @@
 | 离线播放 | ✅ `local_playback` 把已完成任务映射为本地路径 |
 | 下载暂停 / 恢复 / 续传 | ✅ 分片边界暂停，续传跳过已完成分片 |
 | Go 旧下载索引只读迁移 | ✅ `migrate` 模块，幂等且损坏不拦启动 |
-| 批量控制 / 封面 / 预加载 | ⏳ 未开始 |
+| 批量控制（含版本门控） | ✅ 引擎执行，Dart 按任务归属分流 |
+| 封面缓存 | ✅ `<data>/covers/<hash>`，8 MiB 上限，force / clear |
+| 预加载 | ✅ 引擎提前 resolve，失败返回 null |
+| 重启后下载列表 | ✅ 索引带剧名 / 集号 / 封面，列表不再消失 |
 
 ### 1.4 仍在 Go 侧的能力（Core-2 的边界）
 
@@ -165,7 +168,7 @@ Flutter UI
 - ✅ UI 能区分「可重试 / 不可重试 / 不支持」（`EngineFailureKind` + `retryable`）。
 - ✅ 全部 FRB 函数不再返回 `String` 错误。
 
-### Core-2 · 播放与下载（下一个阶段）
+### Core-2 · 播放与下载 ✅ 已完成
 
 **目标**：完成首个可发布 engine-only 版本的核心体验，把 `NativeRepository` 从主路径移除。
 
@@ -274,7 +277,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第二十五轮）：cargo 464 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-21，第二十六轮）：cargo 471 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 
@@ -289,8 +292,8 @@ Core-3 起增加：
 3. ~~**下载控制**：暂停 / 恢复 / 重试 / 删除；断点续传与 HLS 分片在引擎内闭环。~~ ✅ 第二十四轮（批量控制待迁）
 4. ~~**离线播放**：完成记录 → 本地 `PlaybackPlan`。~~ ✅ 第二十三轮
 5. ~~**Go 索引只读迁移**：解析旧 `downloads/index.json`，转为新任务表。~~ ✅ 第二十五轮
-6. **封面缓存**：引擎下载 + 本地缓存，替换 `delegate.cover`。
-7. **预加载 / 投屏准备**：`preload` 走引擎；`prepareHandoff` 随 LAN 一起删除。
+6. ~~**封面缓存**：引擎下载 + 本地缓存，替换 `delegate.cover`。~~ ✅ 第二十六轮
+7. **预加载 / 投屏准备**：`preload` 已走引擎（第二十六轮）；`prepareHandoff` 随 LAN 一起删除。
 8. **移除主路径 Go 依赖**：`EngineBackedRepository` 不再持有 `NativeRepository`。
 
 > 顺序建议：1 → 2 → 3 → 4 → 5 → 6 → 7 → 8。第 1 步会触及 `PlaybackPlan`

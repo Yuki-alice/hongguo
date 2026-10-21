@@ -11,6 +11,8 @@ import 'package:duanju_app/domain/models.dart';
 import 'package:duanju_app/domain/ranking_models.dart';
 import 'package:duanju_app/domain/resource_settings.dart';
 import 'package:duanju_app/domain/source_status.dart';
+import 'package:duanju_app/src/rust/api.dart' as rust;
+import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
 
 /// 生产仓库：目录 / 详情 / 搜索 / 分类 / 取流由 Rust 引擎承担。
 ///
@@ -135,9 +137,15 @@ class EngineBackedRepository extends AppRepository {
     }
   }
 
+  /// 封面：引擎有 URL 时自己下载并缓存；没有 URL 时交给下层（旧记录）。
   @override
-  Future<String> cover(Drama drama, {bool force = false}) =>
-      delegate.cover(drama, force: force);
+  Future<String> cover(Drama drama, {bool force = false}) async {
+    if (drama.cover.isEmpty) return delegate.cover(drama, force: force);
+    // 失败直接抛出：`CachedCoverImage` 的 FutureBuilder 会渲染占位与重试，
+    // 静默回退下层只会让同一张图被下载两次。
+    final result = await engine.cover(drama, force: force);
+    return result.path;
+  }
 
   @override
   Future<PlaybackPlan> resolve(
@@ -183,13 +191,25 @@ class EngineBackedRepository extends AppRepository {
   @override
   Future<void> cancelHandoff() => delegate.cancelHandoff();
 
+  /// 预加载：引擎取流本身无副作用，提前 resolve 一次即可。
+  ///
+  /// 失败返回 `null`（预加载是优化，不该把错误抛给正在浏览的用户）。
   @override
   Future<PlaybackPlan?> preload(
     Drama drama,
     Episode episode, {
     int quality = 0,
     bool online = false,
-  }) => delegate.preload(drama, episode, quality: quality, online: online);
+  }) async {
+    if (!handles(drama.source)) {
+      return delegate.preload(drama, episode, quality: quality, online: online);
+    }
+    try {
+      return await engine.resolve(drama, episode);
+    } on EngineException {
+      return null;
+    }
+  }
 
   @override
   Future<PlaybackPlan?> prepareHandoff(
@@ -403,6 +423,9 @@ class EngineBackedRepository extends AppRepository {
           title: episode.title,
           dramaId: detail.drama.id,
           episodeId: episode.id,
+          dramaTitle: detail.drama.title,
+          episodeIndex: episode.number,
+          coverUrl: detail.drama.cover,
           segments: plan.segments,
           keyUri: plan.keyUri,
           keyIv: plan.keyIv,
@@ -436,9 +459,13 @@ class EngineBackedRepository extends AppRepository {
   @override
   Future<List<DownloadJob>> downloads() async {
     final rows = await engine.downloads();
+    if (rows.isEmpty) {
+      // 引擎没有任何任务时才回落到下层，避免两套队列同时出现在 UI。
+      return delegate.downloads();
+    }
     final jobs = <DownloadJob>[];
     for (final row in rows) {
-      final context = _downloads[row.id];
+      final context = _downloads[row.id] ?? _contextFromSnapshot(row);
       if (context == null) continue;
       jobs.add(
         DownloadJob(
@@ -453,9 +480,33 @@ class EngineBackedRepository extends AppRepository {
         ),
       );
     }
-    // 引擎没有任何任务时才回落到下层，避免两套队列同时出现在 UI。
-    if (rows.isEmpty) return delegate.downloads();
     return jobs;
+  }
+
+  /// 重启后从索引里的展示字段重建上下文。
+  ///
+  /// 索引现在带剧名 / 集号 / 封面，因此进程重启后任务不会在列表里消失。
+  /// 旧索引没有这些字段时返回 `null`，任务由下次下载操作重新登记。
+  _EngineDownload? _contextFromSnapshot(DownloadSnapshotInfo row) {
+    if (row.dramaId.isEmpty) return null;
+    final drama = Drama(
+      id: row.dramaId,
+      source: row.dramaId.split(':').first,
+      sourceId: row.dramaId.split(':').length > 1
+          ? row.dramaId.split(':')[1]
+          : '',
+      title: row.dramaTitle.isEmpty ? row.dramaId : row.dramaTitle,
+      cover: row.coverUrl,
+    );
+    final episode = Episode({
+      'id': row.episodeId,
+      'title': row.title,
+    }, row.episodeIndex == 0 ? 1 : row.episodeIndex);
+    return _EngineDownload(
+      drama: drama,
+      episode: episode,
+      index: row.episodeIndex,
+    );
   }
 
   @override
@@ -468,16 +519,75 @@ class EngineBackedRepository extends AppRepository {
     if (command == 'delete') _downloads.remove(id);
   }
 
+  /// 批量控制：引擎任务走引擎，其余（旧 Go 记录）交给下层。
+  ///
+  /// 分流依据是本进程登记过的任务 id。`expectedVersions` 是「合并完成后
+  /// 清理原分集」的版本闸门：值与引擎 `revision` 不一致的任务会被跳过，
+  /// 而不是误删已被替换的文件。
   @override
   Future<DownloadBatchResult> controlDownloadBatch(
     String command,
     List<String> ids, {
     Map<String, String> expectedVersions = const {},
-  }) => delegate.controlDownloadBatch(
-    command,
-    ids,
-    expectedVersions: expectedVersions,
-  );
+  }) async {
+    final engineIds = <String>[];
+    final legacyIds = <String>[];
+    for (final id in ids.toSet()) {
+      if (_downloads.containsKey(id)) {
+        engineIds.add(id);
+      } else {
+        legacyIds.add(id);
+      }
+    }
+    if (engineIds.isEmpty) {
+      return delegate.controlDownloadBatch(
+        command,
+        legacyIds,
+        expectedVersions: expectedVersions,
+      );
+    }
+
+    final versions = <rust.DownloadVersion>[
+      for (final id in engineIds)
+        if (expectedVersions[id] != null)
+          rust.DownloadVersion(
+            id: id,
+            revision: BigInt.from(int.tryParse(expectedVersions[id]!) ?? 0),
+          ),
+    ];
+    final rust.DownloadBatchOutcome outcome;
+    try {
+      outcome = await rust.controlDownloadBatch(
+        command: command,
+        ids: engineIds,
+        expectedVersions: versions,
+      );
+    } on rust_error.EngineFailure catch (failure) {
+      throw EngineException.fromRust(failure);
+    }
+    final completed = <String>[...outcome.completed];
+    final failures = <String, String>{
+      for (final failure in outcome.failures) failure.id: failure.detail,
+    };
+    if (legacyIds.isNotEmpty) {
+      final legacy = await delegate.controlDownloadBatch(
+        command,
+        legacyIds,
+        expectedVersions: {
+          for (final entry in expectedVersions.entries)
+            if (legacyIds.contains(entry.key)) entry.key: entry.value,
+        },
+      );
+      completed.addAll(legacy.completed);
+      failures.addAll(legacy.failures);
+    }
+    if (command == 'delete' || command == 'remove') {
+      for (final id in completed) {
+        _downloads.remove(id);
+      }
+    }
+    return DownloadBatchResult(completed: completed, failures: failures);
+  }
 
   @override
   Future<int> updateDownloadCollection(

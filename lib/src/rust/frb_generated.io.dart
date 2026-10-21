@@ -61,7 +61,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChapterList dco_decode_chapter_list(dynamic raw);
 
   @protected
+  CoverResult dco_decode_cover_result(dynamic raw);
+
+  @protected
   DanmakuItem dco_decode_danmaku_item(dynamic raw);
+
+  @protected
+  DownloadBatchOutcome dco_decode_download_batch_outcome(dynamic raw);
+
+  @protected
+  DownloadFailure dco_decode_download_failure(dynamic raw);
 
   @protected
   DownloadProgressEvent dco_decode_download_progress_event(dynamic raw);
@@ -71,6 +80,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DownloadSnapshot dco_decode_download_snapshot(dynamic raw);
+
+  @protected
+  DownloadVersion dco_decode_download_version(dynamic raw);
 
   @protected
   DramaInput dco_decode_drama_input(dynamic raw);
@@ -118,7 +130,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DanmakuItem> dco_decode_list_danmaku_item(dynamic raw);
 
   @protected
+  List<DownloadFailure> dco_decode_list_download_failure(dynamic raw);
+
+  @protected
   List<DownloadSnapshot> dco_decode_list_download_snapshot(dynamic raw);
+
+  @protected
+  List<DownloadVersion> dco_decode_list_download_version(dynamic raw);
 
   @protected
   List<DramaItem> dco_decode_list_drama_item(dynamic raw);
@@ -265,7 +283,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChapterList sse_decode_chapter_list(SseDeserializer deserializer);
 
   @protected
+  CoverResult sse_decode_cover_result(SseDeserializer deserializer);
+
+  @protected
   DanmakuItem sse_decode_danmaku_item(SseDeserializer deserializer);
+
+  @protected
+  DownloadBatchOutcome sse_decode_download_batch_outcome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DownloadFailure sse_decode_download_failure(SseDeserializer deserializer);
 
   @protected
   DownloadProgressEvent sse_decode_download_progress_event(
@@ -277,6 +306,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DownloadSnapshot sse_decode_download_snapshot(SseDeserializer deserializer);
+
+  @protected
+  DownloadVersion sse_decode_download_version(SseDeserializer deserializer);
 
   @protected
   DramaInput sse_decode_drama_input(SseDeserializer deserializer);
@@ -330,7 +362,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DanmakuItem> sse_decode_list_danmaku_item(SseDeserializer deserializer);
 
   @protected
+  List<DownloadFailure> sse_decode_list_download_failure(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DownloadSnapshot> sse_decode_list_download_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DownloadVersion> sse_decode_list_download_version(
     SseDeserializer deserializer,
   );
 
@@ -516,7 +558,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_chapter_list(ChapterList self, SseSerializer serializer);
 
   @protected
+  void sse_encode_cover_result(CoverResult self, SseSerializer serializer);
+
+  @protected
   void sse_encode_danmaku_item(DanmakuItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_download_batch_outcome(
+    DownloadBatchOutcome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_download_failure(
+    DownloadFailure self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_download_progress_event(
@@ -533,6 +590,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_download_snapshot(
     DownloadSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_download_version(
+    DownloadVersion self,
     SseSerializer serializer,
   );
 
@@ -603,8 +666,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_download_failure(
+    List<DownloadFailure> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_download_snapshot(
     List<DownloadSnapshot> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_download_version(
+    List<DownloadVersion> self,
     SseSerializer serializer,
   );
 

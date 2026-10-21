@@ -193,6 +193,29 @@ void main() {
     expect(info.skipped['文件不存在'], 1);
   });
 
+  test('重启后从索引重建下载列表而不是丢弃', () async {
+    // 模拟「进程重启」：仓库刚构造，_downloads 为空，但引擎索引里仍有任务。
+    final repository = EngineBackedRepository(
+      delegate: _ForbiddenDelegate(),
+      engine: _SnapshotEngine(),
+    );
+    final jobs = await repository.downloads();
+    expect(jobs, hasLength(1), reason: '引擎任务不能因为重启而消失');
+    final job = jobs.single;
+    expect(job.drama.title, '重启测试剧');
+    expect(job.drama.source, 'hongguo');
+    expect(job.episode.number, 3);
+    expect(job.state, 'completed');
+  });
+
+  test('旧索引缺少展示字段时跳过而不是崩溃', () async {
+    final repository = EngineBackedRepository(
+      delegate: _ForbiddenDelegate(),
+      engine: _SnapshotEngine(dramaId: ''),
+    );
+    expect(await repository.downloads(), isEmpty);
+  });
+
   test('能力矩阵如实标注未接入项', () {
     final capabilities = build().capabilities;
     expect(capabilities.rankings, isTrue);
@@ -221,4 +244,28 @@ class _MigrationEngine extends _FakeEngine {
 class _StorageDelegate extends _ForbiddenDelegate {
   @override
   Future<Map<String, dynamic>> storage() async => {'directory': '/legacy'};
+}
+
+/// 返回固定快照的假引擎，用于验证重启后的列表重建。
+class _SnapshotEngine extends _FakeEngine {
+  _SnapshotEngine({this.dramaId = 'hongguo:42'});
+  final String dramaId;
+
+  @override
+  Future<List<DownloadSnapshotInfo>> downloads() async => [
+    DownloadSnapshotInfo(
+      id: 'hongguo:42:ep3',
+      title: '第3集',
+      state: 'completed',
+      bytes: 100,
+      total: 100,
+      progress: 1,
+      error: '',
+      dramaId: dramaId,
+      episodeId: 'ep3',
+      dramaTitle: '重启测试剧',
+      episodeIndex: 3,
+      coverUrl: 'https://img.test/c.jpg',
+    ),
+  ];
 }

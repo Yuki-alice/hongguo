@@ -21,6 +21,7 @@ use guo_runtime::{load_installed, CatalogCache, Job, LoadReport, RuleSource, Sch
 use guo_source_api::{LogSink, SourceEnv, SourcePlugin, SourceRegistry, SourceStore, Transport};
 
 use crate::cancel::{CancellationRegistry, RequestTicket};
+use crate::cover::{CoverCache, CoverResult};
 use crate::error::{EngineError, EngineErrorKind};
 use crate::events::{DownloadEvent, EventBus};
 use crate::store::{DiskSourceStore, NamespacedStore};
@@ -94,6 +95,7 @@ pub struct Engine {
     transport: Arc<dyn Transport>,
     store: Arc<DiskSourceStore>,
     cache: CatalogCache,
+    covers: CoverCache,
     scheduler: Scheduler,
     cancel: CancellationRegistry,
     events: EventBus,
@@ -121,6 +123,7 @@ impl Engine {
             .map_err(|err| EngineError::internal(format!("初始化网络层失败：{err}")))?;
         let store = Arc::new(DiskSourceStore::open(&config.data_directory));
         let cache = CatalogCache::open(&config.data_directory);
+        let covers = CoverCache::open(config.data_directory.join("covers"));
         // 下载索引落在数据目录：重启后任务表可恢复（Core-2）。
         let scheduler = Scheduler::open(
             config.download_concurrency,
@@ -131,6 +134,7 @@ impl Engine {
             transport,
             store,
             cache,
+            covers,
             scheduler,
             cancel: CancellationRegistry::new(),
             events: EventBus::default(),
@@ -276,6 +280,25 @@ impl Engine {
 
     pub fn cache(&self) -> &CatalogCache {
         &self.cache
+    }
+
+    pub fn covers(&self) -> &CoverCache {
+        &self.covers
+    }
+
+    /// 取封面：命中缓存直接返回，否则下载后落盘。
+    pub async fn cover(
+        &self,
+        source_id: &str,
+        url: &str,
+        referer: &str,
+        force: bool,
+    ) -> Result<CoverResult, crate::EngineError> {
+        let env = self.env(source_id);
+        self.covers
+            .fetch(&env, url, referer, force)
+            .await
+            .map_err(|err| crate::EngineError::from_source(&err, source_id, ""))
     }
 
     pub fn scheduler(&self) -> &Scheduler {

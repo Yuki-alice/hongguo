@@ -279,9 +279,43 @@ Future<int> controlDownloads({
   required List<String> ids,
 }) => RustLib.instance.api.crateApiControlDownloads(command: command, ids: ids);
 
+/// 批量控制：逐任务执行并聚合结果。
+///
+/// `expected_versions` 非空时，只有任务当前 revision 与期望值一致才执行
+/// （用于「合并完成后清理原分集」这类需要确认文件没被改过的场景）。
+/// 不一致、任务不存在或命令无法处理都会进入 `failures`，不中断其余任务。
+Future<DownloadBatchOutcome> controlDownloadBatch({
+  required String command,
+  required List<String> ids,
+  required List<DownloadVersion> expectedVersions,
+}) => RustLib.instance.api.crateApiControlDownloadBatch(
+  command: command,
+  ids: ids,
+  expectedVersions: expectedVersions,
+);
+
 /// 读取诊断快照。
 Future<EngineDiagnostics> engineDiagnostics() =>
     RustLib.instance.api.crateApiEngineDiagnostics();
+
+/// 取封面本地路径：命中缓存直接返回，否则下载后落盘。
+///
+/// `referer` 由调用方给出（部分站点校验来源）。返回 `cached` 让 UI
+/// 区分「秒开」与「刚下载完」。
+Future<CoverResult> fetchCover({
+  required String sourceId,
+  required String url,
+  required String referer,
+  required bool force,
+}) => RustLib.instance.api.crateApiFetchCover(
+  sourceId: sourceId,
+  url: url,
+  referer: referer,
+  force: force,
+);
+
+/// 清空封面缓存，返回删除的文件数。
+Future<int> clearCoverCache() => RustLib.instance.api.crateApiClearCoverCache();
 
 /// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。
 ///
@@ -418,6 +452,25 @@ class ChapterList {
           chapters == other.chapters;
 }
 
+/// 封面结果。
+class CoverResult {
+  final String path;
+  final bool cached;
+
+  const CoverResult({required this.path, required this.cached});
+
+  @override
+  int get hashCode => path.hashCode ^ cached.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CoverResult &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          cached == other.cached;
+}
+
 /// 一条弹幕。
 class DanmakuItem {
   final PlatformInt64 timeMs;
@@ -441,6 +494,44 @@ class DanmakuItem {
           timeMs == other.timeMs &&
           text == other.text &&
           color == other.color;
+}
+
+/// 批量控制结果。
+class DownloadBatchOutcome {
+  final List<String> completed;
+  final List<DownloadFailure> failures;
+
+  const DownloadBatchOutcome({required this.completed, required this.failures});
+
+  @override
+  int get hashCode => completed.hashCode ^ failures.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadBatchOutcome &&
+          runtimeType == other.runtimeType &&
+          completed == other.completed &&
+          failures == other.failures;
+}
+
+/// 单个任务的失败原因。
+class DownloadFailure {
+  final String id;
+  final String detail;
+
+  const DownloadFailure({required this.id, required this.detail});
+
+  @override
+  int get hashCode => id.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadFailure &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          detail == other.detail;
 }
 
 /// 下载进度事件：由引擎主动推送，替代 Dart 侧轮询快照。
@@ -511,6 +602,13 @@ class DownloadRequest {
   final String dramaId;
   final String episodeId;
 
+  /// 剧名，用于重启后仍能显示「哪部剧」。
+  final String dramaTitle;
+  final int episodeIndex;
+
+  /// 剧集封面 URL。
+  final String coverUrl;
+
   /// HLS 分片；非空时走分片下载。
   final List<String> segments;
 
@@ -528,6 +626,9 @@ class DownloadRequest {
     required this.title,
     required this.dramaId,
     required this.episodeId,
+    required this.dramaTitle,
+    required this.episodeIndex,
+    required this.coverUrl,
     required this.segments,
     required this.keyUri,
     required this.keyIv,
@@ -542,6 +643,9 @@ class DownloadRequest {
       title.hashCode ^
       dramaId.hashCode ^
       episodeId.hashCode ^
+      dramaTitle.hashCode ^
+      episodeIndex.hashCode ^
+      coverUrl.hashCode ^
       segments.hashCode ^
       keyUri.hashCode ^
       keyIv.hashCode;
@@ -558,6 +662,9 @@ class DownloadRequest {
           title == other.title &&
           dramaId == other.dramaId &&
           episodeId == other.episodeId &&
+          dramaTitle == other.dramaTitle &&
+          episodeIndex == other.episodeIndex &&
+          coverUrl == other.coverUrl &&
           segments == other.segments &&
           keyUri == other.keyUri &&
           keyIv == other.keyIv;
@@ -569,6 +676,9 @@ class DownloadSnapshot {
   final String dramaId;
   final String episodeId;
   final String title;
+  final String dramaTitle;
+  final int episodeIndex;
+  final String coverUrl;
   final String state;
   final BigInt bytes;
   final PlatformInt64 total;
@@ -581,6 +691,9 @@ class DownloadSnapshot {
     required this.dramaId,
     required this.episodeId,
     required this.title,
+    required this.dramaTitle,
+    required this.episodeIndex,
+    required this.coverUrl,
     required this.state,
     required this.bytes,
     required this.total,
@@ -595,6 +708,9 @@ class DownloadSnapshot {
       dramaId.hashCode ^
       episodeId.hashCode ^
       title.hashCode ^
+      dramaTitle.hashCode ^
+      episodeIndex.hashCode ^
+      coverUrl.hashCode ^
       state.hashCode ^
       bytes.hashCode ^
       total.hashCode ^
@@ -611,11 +727,33 @@ class DownloadSnapshot {
           dramaId == other.dramaId &&
           episodeId == other.episodeId &&
           title == other.title &&
+          dramaTitle == other.dramaTitle &&
+          episodeIndex == other.episodeIndex &&
+          coverUrl == other.coverUrl &&
           state == other.state &&
           bytes == other.bytes &&
           total == other.total &&
           progress == other.progress &&
           error == other.error &&
+          revision == other.revision;
+}
+
+/// 批量控制的期望版本。
+class DownloadVersion {
+  final String id;
+  final BigInt revision;
+
+  const DownloadVersion({required this.id, required this.revision});
+
+  @override
+  int get hashCode => id.hashCode ^ revision.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadVersion &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
           revision == other.revision;
 }
 

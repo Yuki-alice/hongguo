@@ -752,6 +752,9 @@ pub struct DownloadSnapshot {
     pub drama_id: String,
     pub episode_id: String,
     pub title: String,
+    pub drama_title: String,
+    pub episode_index: u32,
+    pub cover_url: String,
     pub state: String,
     pub bytes: u64,
     pub total: i64,
@@ -766,6 +769,9 @@ pub fn enqueue_download(request: DownloadRequest) -> Result<u64, EngineFailure> 
     let mut job = Job::new(request.id, request.target, request.url);
     job.drama_id = request.drama_id;
     job.episode_id = request.episode_id;
+    job.drama_title = request.drama_title;
+    job.episode_index = request.episode_index;
+    job.cover_url = request.cover_url;
     job.referer = request.referer;
     job.title = request.title;
     job.segments = request.segments;
@@ -783,6 +789,11 @@ pub struct DownloadRequest {
     pub title: String,
     pub drama_id: String,
     pub episode_id: String,
+    /// 剧名，用于重启后仍能显示「哪部剧」。
+    pub drama_title: String,
+    pub episode_index: u32,
+    /// 剧集封面 URL。
+    pub cover_url: String,
     /// HLS 分片；非空时走分片下载。
     pub segments: Vec<String>,
     /// HLS AES-128 密钥地址。
@@ -823,6 +834,9 @@ pub fn download_snapshot() -> Result<Vec<DownloadSnapshot>, EngineFailure> {
                 drama_id: job.drama_id,
                 episode_id: job.episode_id,
                 title: job.title,
+                drama_title: job.drama_title,
+                episode_index: job.episode_index,
+                cover_url: job.cover_url,
                 state: job.state.as_str().to_string(),
                 bytes: job.bytes,
                 total: job.total,
@@ -898,6 +912,74 @@ pub fn control_downloads(command: String, ids: Vec<String>) -> Result<u32, Engin
         }
     }
     Ok(handled)
+}
+
+/// 批量控制：逐任务执行并聚合结果。
+///
+/// `expected_versions` 非空时，只有任务当前 revision 与期望值一致才执行
+/// （用于「合并完成后清理原分集」这类需要确认文件没被改过的场景）。
+/// 不一致、任务不存在或命令无法处理都会进入 `failures`，不中断其余任务。
+pub fn control_download_batch(
+    command: String,
+    ids: Vec<String>,
+    expected_versions: Vec<DownloadVersion>,
+) -> Result<DownloadBatchOutcome, EngineFailure> {
+    let engine = engine()?;
+    let expected: std::collections::BTreeMap<String, u64> = expected_versions
+        .into_iter()
+        .map(|entry| (entry.id, entry.revision))
+        .collect();
+    let mut completed = Vec::new();
+    let mut failures = Vec::new();
+    for id in ids {
+        let Some(job) = engine.scheduler().get(&id) else {
+            failures.push(DownloadFailure {
+                id,
+                detail: "任务不存在".to_string(),
+            });
+            continue;
+        };
+        if let Some(wanted) = expected.get(&id) {
+            if job.revision != *wanted {
+                failures.push(DownloadFailure {
+                    id,
+                    detail: "任务已被更新，已跳过".to_string(),
+                });
+                continue;
+            }
+        }
+        if !engine.scheduler().control(&command, &id) {
+            failures.push(DownloadFailure {
+                id,
+                detail: format!("不支持的操作：{command}"),
+            });
+            continue;
+        }
+        engine.broadcast_job(&id);
+        completed.push(id);
+    }
+    Ok(DownloadBatchOutcome {
+        completed,
+        failures,
+    })
+}
+
+/// 批量控制的期望版本。
+pub struct DownloadVersion {
+    pub id: String,
+    pub revision: u64,
+}
+
+/// 单个任务的失败原因。
+pub struct DownloadFailure {
+    pub id: String,
+    pub detail: String,
+}
+
+/// 批量控制结果。
+pub struct DownloadBatchOutcome {
+    pub completed: Vec<String>,
+    pub failures: Vec<DownloadFailure>,
 }
 
 /// 取流输入。
@@ -1119,6 +1201,43 @@ pub fn engine_diagnostics() -> Result<EngineDiagnostics, EngineFailure> {
             .map(EngineFailure::from)
             .collect(),
     })
+}
+
+/// 取封面本地路径：命中缓存直接返回，否则下载后落盘。
+///
+/// `referer` 由调用方给出（部分站点校验来源）。返回 `cached` 让 UI
+/// 区分「秒开」与「刚下载完」。
+pub async fn fetch_cover(
+    source_id: String,
+    url: String,
+    referer: String,
+    force: bool,
+) -> Result<CoverResult, EngineFailure> {
+    let engine = engine()?;
+    let result = engine
+        .cover(&source_id, &url, &referer, force)
+        .await
+        .map_err(EngineFailure::from)?;
+    Ok(CoverResult {
+        path: result.path,
+        cached: result.cached,
+    })
+}
+
+/// 封面结果。
+pub struct CoverResult {
+    pub path: String,
+    pub cached: bool,
+}
+
+/// 清空封面缓存，返回删除的文件数。
+pub fn clear_cover_cache() -> Result<u32, EngineFailure> {
+    let engine = engine()?;
+    engine
+        .covers()
+        .clear()
+        .map(|count| count as u32)
+        .map_err(|err| EngineFailure::from(EngineError::from_source(&err, "cover", "")))
 }
 
 /// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。

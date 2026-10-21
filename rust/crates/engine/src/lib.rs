@@ -8,6 +8,7 @@
 //! 这样「主源 + 随包规则 + 插件」的边界只在一个地方定义。
 
 mod cancel;
+mod cover;
 mod engine;
 mod error;
 mod events;
@@ -15,6 +16,7 @@ mod migrate;
 mod store;
 
 pub use cancel::{CancellationRegistry, RequestTicket};
+pub use cover::{CoverCache, CoverResult};
 pub use engine::{current, initialize, require, BuiltinSources, Engine, EngineConfig};
 pub use error::{timeout_error, EngineError, EngineErrorKind};
 pub use events::{DownloadEvent, EventBus};
