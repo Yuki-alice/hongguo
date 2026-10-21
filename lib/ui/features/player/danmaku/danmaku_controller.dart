@@ -36,11 +36,12 @@ class DanmakuController extends ChangeNotifier {
   double _anchorRate = 1;
   bool _anchorMoving = false;
 
+  /// 是否具备弹幕能力。
+  ///
+  /// 只要求「非本地 + 有分集标识」：`session` 是 Go 播放会话的产物，
+  /// 引擎取流不产出它，把它当门槛会让弹幕永远不可用。
   bool get supported =>
-      _plan != null &&
-      !_plan!.local &&
-      _plan!.session.isNotEmpty &&
-      _plan!.danmakuId.isNotEmpty;
+      _plan != null && !_plan!.local && _plan!.danmakuId.isNotEmpty;
   bool get visible =>
       !_closed &&
       supported &&

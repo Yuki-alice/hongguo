@@ -121,7 +121,11 @@ impl Engine {
             .map_err(|err| EngineError::internal(format!("初始化网络层失败：{err}")))?;
         let store = Arc::new(DiskSourceStore::open(&config.data_directory));
         let cache = CatalogCache::open(&config.data_directory);
-        let scheduler = Scheduler::new(config.download_concurrency);
+        // 下载索引落在数据目录：重启后任务表可恢复（Core-2）。
+        let scheduler = Scheduler::open(
+            config.download_concurrency,
+            config.data_directory.join("downloads").join("index.json"),
+        );
         Ok(Self {
             config,
             transport,

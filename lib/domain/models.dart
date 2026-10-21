@@ -372,8 +372,17 @@ class PlaybackPlan {
     this.segments = const [],
     this.keyUri = '',
     this.keyIv = '',
+    this.source = '',
+    this.sourceId = '',
   });
   final String url;
+
+  /// 来源站源与分集标识。
+  ///
+  /// 弹幕、下载与离线播放都要按「哪一源的哪一集」定位，而 URL 本身
+  /// 可能随时效或签名变化，不能反推。引擎产出的计划会带上这两项。
+  final String source;
+  final String sourceId;
 
   /// HLS 分片清单；非空表示可按分片下载。
   final List<String> segments;
@@ -413,6 +422,8 @@ class PlaybackPlan {
     routeCount: intValue(json['routeCount']) > 0
         ? intValue(json['routeCount'])
         : 1,
+    source: json['source'] as String? ?? '',
+    sourceId: json['sourceId'] as String? ?? '',
   );
 }
 

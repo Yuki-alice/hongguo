@@ -46,6 +46,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DramaInput dco_decode_box_autoadd_drama_input(dynamic raw);
 
   @protected
+  LocalPlayback dco_decode_box_autoadd_local_playback(dynamic raw);
+
+  @protected
   CategorySummary dco_decode_category_summary(dynamic raw);
 
   @protected
@@ -151,10 +154,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSummary> dco_decode_list_source_summary(dynamic raw);
 
   @protected
+  LocalPlayback dco_decode_local_playback(dynamic raw);
+
+  @protected
   MediaResult dco_decode_media_result(dynamic raw);
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  LocalPlayback? dco_decode_opt_box_autoadd_local_playback(dynamic raw);
 
   @protected
   PluginLoadReport dco_decode_plugin_load_report(dynamic raw);
@@ -228,6 +237,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DramaInput sse_decode_box_autoadd_drama_input(SseDeserializer deserializer);
+
+  @protected
+  LocalPlayback sse_decode_box_autoadd_local_playback(
+    SseDeserializer deserializer,
+  );
 
   @protected
   CategorySummary sse_decode_category_summary(SseDeserializer deserializer);
@@ -359,10 +373,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LocalPlayback sse_decode_local_playback(SseDeserializer deserializer);
+
+  @protected
   MediaResult sse_decode_media_result(SseDeserializer deserializer);
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  LocalPlayback? sse_decode_opt_box_autoadd_local_playback(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PluginLoadReport sse_decode_plugin_load_report(SseDeserializer deserializer);
@@ -447,6 +469,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_drama_input(
     DramaInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_local_playback(
+    LocalPlayback self,
     SseSerializer serializer,
   );
 
@@ -622,10 +650,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_local_playback(LocalPlayback self, SseSerializer serializer);
+
+  @protected
   void sse_encode_media_result(MediaResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_local_playback(
+    LocalPlayback? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_plugin_load_report(

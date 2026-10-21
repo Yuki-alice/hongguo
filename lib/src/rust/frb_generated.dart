@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1909174934;
+  int get rustContentHash => -1732294252;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -221,6 +221,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<PluginSummary>> crateApiPluginsListRepoPlugins({
     required String repoUrl,
+  });
+
+  Future<LocalPlayback?> crateApiLocalPlayback({
+    required String dramaId,
+    required String episodeId,
   });
 
   Future<DramaPage> crateApiParseCatalogWithRule({
@@ -1305,6 +1310,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<LocalPlayback?> crateApiLocalPlayback({
+    required String dramaId,
+    required String episodeId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dramaId, serializer);
+          sse_encode_String(episodeId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_local_playback,
+          decodeErrorData: sse_decode_engine_failure,
+        ),
+        constMeta: kCrateApiLocalPlaybackConstMeta,
+        argValues: [dramaId, episodeId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLocalPlaybackConstMeta => const TaskConstMeta(
+    debugName: "local_playback",
+    argNames: ["dramaId", "episodeId"],
+  );
+
+  @override
   Future<DramaPage> crateApiParseCatalogWithRule({
     required String ruleJson,
     required String html,
@@ -1320,7 +1359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1357,7 +1396,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1388,7 +1427,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1418,7 +1457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1448,7 +1487,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1475,7 +1514,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1509,7 +1548,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1544,7 +1583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1575,7 +1614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1607,7 +1646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1637,7 +1676,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1665,7 +1704,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1696,7 +1735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1761,6 +1800,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DramaInput dco_decode_box_autoadd_drama_input(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_drama_input(raw);
+  }
+
+  @protected
+  LocalPlayback dco_decode_box_autoadd_local_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_local_playback(raw);
   }
 
   @protected
@@ -2144,17 +2189,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LocalPlayback dco_decode_local_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LocalPlayback(
+      url: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      bytes: dco_decode_u_64(arr[2]),
+    );
+  }
+
+  @protected
   MediaResult dco_decode_media_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return MediaResult(
       url: dco_decode_String(arr[0]),
       referer: dco_decode_String(arr[1]),
       playlist: dco_decode_list_String(arr[2]),
       keyUri: dco_decode_String(arr[3]),
       keyIv: dco_decode_String(arr[4]),
+      cookies: dco_decode_String(arr[5]),
+      origin: dco_decode_String(arr[6]),
     );
   }
 
@@ -2162,6 +2222,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  LocalPlayback? dco_decode_opt_box_autoadd_local_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_local_playback(raw);
   }
 
   @protected
@@ -2386,6 +2452,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DramaInput sse_decode_box_autoadd_drama_input(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_drama_input(deserializer));
+  }
+
+  @protected
+  LocalPlayback sse_decode_box_autoadd_local_playback(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_local_playback(deserializer));
   }
 
   @protected
@@ -2929,6 +3003,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LocalPlayback sse_decode_local_playback(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_url = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_bytes = sse_decode_u_64(deserializer);
+    return LocalPlayback(url: var_url, title: var_title, bytes: var_bytes);
+  }
+
+  @protected
   MediaResult sse_decode_media_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_url = sse_decode_String(deserializer);
@@ -2936,12 +3019,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_playlist = sse_decode_list_String(deserializer);
     var var_keyUri = sse_decode_String(deserializer);
     var var_keyIv = sse_decode_String(deserializer);
+    var var_cookies = sse_decode_String(deserializer);
+    var var_origin = sse_decode_String(deserializer);
     return MediaResult(
       url: var_url,
       referer: var_referer,
       playlist: var_playlist,
       keyUri: var_keyUri,
       keyIv: var_keyIv,
+      cookies: var_cookies,
+      origin: var_origin,
     );
   }
 
@@ -2951,6 +3038,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_bool(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  LocalPlayback? sse_decode_opt_box_autoadd_local_playback(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_local_playback(deserializer));
     } else {
       return null;
     }
@@ -3201,6 +3301,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_drama_input(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_local_playback(
+    LocalPlayback self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_local_playback(self, serializer);
   }
 
   @protected
@@ -3622,6 +3731,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_local_playback(LocalPlayback self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.url, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_u_64(self.bytes, serializer);
+  }
+
+  @protected
   void sse_encode_media_result(MediaResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.url, serializer);
@@ -3629,6 +3746,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.playlist, serializer);
     sse_encode_String(self.keyUri, serializer);
     sse_encode_String(self.keyIv, serializer);
+    sse_encode_String(self.cookies, serializer);
+    sse_encode_String(self.origin, serializer);
   }
 
   @protected
@@ -3638,6 +3757,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_bool(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_local_playback(
+    LocalPlayback? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_local_playback(self, serializer);
     }
   }
 

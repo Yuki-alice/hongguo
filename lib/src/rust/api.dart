@@ -257,6 +257,18 @@ Future<BigInt> runDownload({required String id}) =>
 Future<List<DownloadSnapshot>> downloadSnapshot() =>
     RustLib.instance.api.crateApiDownloadSnapshot();
 
+/// 离线播放：把已完成任务映射为本地播放计划。
+///
+/// `episode_id` 与 `drama_id` 由 Dart 侧传入（下载登记时的标识）。
+/// 找不到已完成任务或文件已被删除时返回 `None`，由调用方回退到在线播放。
+Future<LocalPlayback?> localPlayback({
+  required String dramaId,
+  required String episodeId,
+}) => RustLib.instance.api.crateApiLocalPlayback(
+  dramaId: dramaId,
+  episodeId: episodeId,
+);
+
 /// 暂停 / 继续 / 重试 / 删除。
 Future<bool> controlDownload({required String command, required String id}) =>
     RustLib.instance.api.crateApiControlDownload(command: command, id: id);
@@ -876,6 +888,32 @@ class FailedPluginReport {
           detail == other.detail;
 }
 
+/// 离线播放计划。
+class LocalPlayback {
+  /// 本地文件路径（不带 `file://` 前缀，播放器自行处理）。
+  final String url;
+  final String title;
+  final BigInt bytes;
+
+  const LocalPlayback({
+    required this.url,
+    required this.title,
+    required this.bytes,
+  });
+
+  @override
+  int get hashCode => url.hashCode ^ title.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LocalPlayback &&
+          runtimeType == other.runtimeType &&
+          url == other.url &&
+          title == other.title &&
+          bytes == other.bytes;
+}
+
 /// 取流结果。
 class MediaResult {
   final String url;
@@ -888,12 +926,20 @@ class MediaResult {
   /// HLS AES-128 的 IV。
   final String keyIv;
 
+  /// 播放时必须随请求发送的 Cookie（CDN 签名源需要）。
+  final String cookies;
+
+  /// 播放请求必须携带的 `Origin`（部分 CDN 会校验来源）。
+  final String origin;
+
   const MediaResult({
     required this.url,
     required this.referer,
     required this.playlist,
     required this.keyUri,
     required this.keyIv,
+    required this.cookies,
+    required this.origin,
   });
 
   @override
@@ -902,7 +948,9 @@ class MediaResult {
       referer.hashCode ^
       playlist.hashCode ^
       keyUri.hashCode ^
-      keyIv.hashCode;
+      keyIv.hashCode ^
+      cookies.hashCode ^
+      origin.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -913,7 +961,9 @@ class MediaResult {
           referer == other.referer &&
           playlist == other.playlist &&
           keyUri == other.keyUri &&
-          keyIv == other.keyIv;
+          keyIv == other.keyIv &&
+          cookies == other.cookies &&
+          origin == other.origin;
 }
 
 /// 可安装 / 已安装插件的摘要。`installed` 与 `enabled` 共同决定 UI 上的按钮状态。

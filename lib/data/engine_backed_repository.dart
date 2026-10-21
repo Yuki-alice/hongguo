@@ -41,7 +41,7 @@ class EngineBackedRepository extends AppRepository {
   RepositoryCapabilities get capabilities => RepositoryCapabilities(
     sourceManagement: false,
     downloads: delegate.supportsDownloads,
-    danmaku: false,
+    danmaku: true,
     recommendations: true,
     rankings: true,
     suggestions: true,
@@ -179,16 +179,66 @@ class EngineBackedRepository extends AppRepository {
     int quality = 0,
   }) => delegate.prepareHandoff(drama, episode, quality: quality);
 
+  /// 离线播放优先走引擎的下载索引；没有完成任务时交给下层（旧 Go 记录）。
   @override
-  Future<PlaybackPlan?> localPlayback(Drama drama, Episode episode) =>
-      delegate.localPlayback(drama, episode);
+  Future<PlaybackPlan?> localPlayback(Drama drama, Episode episode) async {
+    try {
+      final plan = await engine.localPlayback(
+        dramaId: drama.id,
+        episodeId: episode.id,
+        source: drama.source,
+        sourceId: drama.sourceId,
+      );
+      if (plan != null) return plan;
+    } on EngineException catch (error) {
+      // 未下载完成是常态，回退到下层旧记录；其它错误照常上报。
+      if (!error.isUnsupported) rethrow;
+    }
+    return delegate.localPlayback(drama, episode);
+  }
 
+  /// 弹幕：引擎按 `startMs` 返回该窗口内的条目，这里补上分页语义。
+  ///
+  /// 引擎的分段粒度是 60 秒（与 Go 版一致），因此窗口固定为
+  /// `[startMs, startMs + 60s)`，且不越过本集时长。
   @override
   Future<DanmakuPage> danmaku(
     PlaybackPlan plan, {
     required int startMs,
     required int durationMs,
-  }) => delegate.danmaku(plan, startMs: startMs, durationMs: durationMs);
+  }) async {
+    if (plan.local || plan.danmakuId.isEmpty || plan.source.isEmpty) {
+      throw UnsupportedFailure('弹幕');
+    }
+    final next = _min(startMs + 60000, durationMs);
+    if (next <= startMs) throw UnsupportedFailure('弹幕');
+    final items = await engine.danmaku(
+      Drama(
+        id: '${plan.source}:${plan.danmakuId}',
+        source: plan.source,
+        sourceId: plan.sourceId,
+        title: '',
+      ),
+      Episode({'id': plan.danmakuId}, 1),
+      startMs: startMs,
+    );
+    return DanmakuPage(
+      episodeId: plan.danmakuId,
+      startMs: startMs,
+      nextMs: next,
+      items: [
+        for (final item in items)
+          if (item.timeMs >= startMs && item.timeMs < next)
+            DanmakuItem(
+              id: '${item.timeMs}:${item.text.hashCode}',
+              text: item.text,
+              timeMs: item.timeMs.toInt(),
+            ),
+      ],
+    );
+  }
+
+  static int _min(int a, int b) => a < b ? a : b;
 
   /// 元数据补全：只对「引擎详情能补的字段」生效。
   ///
@@ -359,9 +409,13 @@ class EngineBackedRepository extends AppRepository {
     return '$directory/$safeDrama/${episode.id}_$safeEpisode';
   }
 
+  /// 下载任务列表：引擎索引 + 下层旧记录。
+  ///
+  /// 引擎任务在重启后仍然存在（索引落盘），但快照只带 id；上下文
+  /// （`Drama` / `Episode`）由登记时缓存在这里，重启后为空，
+  /// 因此这类任务只能靠 `downloadProgress` 流补齐展示字段。
   @override
   Future<List<DownloadJob>> downloads() async {
-    if (_downloads.isEmpty) return delegate.downloads();
     final rows = await engine.downloads();
     final jobs = <DownloadJob>[];
     for (final row in rows) {
@@ -380,6 +434,8 @@ class EngineBackedRepository extends AppRepository {
         ),
       );
     }
+    // 引擎没有任何任务时才回落到下层，避免两套队列同时出现在 UI。
+    if (rows.isEmpty) return delegate.downloads();
     return jobs;
   }
 

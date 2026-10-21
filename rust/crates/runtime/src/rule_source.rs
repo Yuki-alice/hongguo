@@ -265,6 +265,7 @@ impl RuleSource {
                 key_uri: String::new(),
                 key_iv: String::new(),
                 cookies: String::new(),
+                origin: String::new(),
             });
         }
         // 已确认是播放列表：再拉完整内容（主列表与分片清单都在这一步拿到）。
@@ -285,6 +286,7 @@ impl RuleSource {
             key_uri: playlist.key_uri.clone().unwrap_or_default(),
             key_iv: playlist.key_iv.clone().unwrap_or_default(),
             cookies: String::new(),
+            origin: String::new(),
         })
     }
 

@@ -295,6 +295,7 @@ impl SourcePlugin for HuangjuSource {
             url,
             referer: format!("{SITE}/"),
             cookies,
+            origin: SITE.to_string(),
             ..Default::default()
         })
     }

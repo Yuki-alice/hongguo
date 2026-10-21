@@ -327,13 +327,22 @@ class EngineRepository {
     );
     return PlaybackPlan(
       url: media.url,
+      // CDN 签名源（剧果等）必须同时带 Cookie 与 Origin，否则播放器与
+      // 下载器都会被拒。两者都为空时不写入，避免发出空头。
       headers: {
         if (media.referer.isNotEmpty) 'Referer': media.referer,
+        if (media.cookies.isNotEmpty) 'Cookie': media.cookies,
+        if (media.origin.isNotEmpty) 'Origin': media.origin,
         'User-Agent': _engineUserAgent,
       },
       segments: media.playlist,
       keyUri: media.keyUri,
       keyIv: media.keyIv,
+      // 弹幕按分集取，不需要额外会话；这里用分集 id 作为弹幕标识，
+      // 让 DanmakuController 的 `danmakuId` 门槛成立。
+      danmakuId: episode.id,
+      source: drama.source,
+      sourceId: drama.sourceId,
     );
   }
 
@@ -414,6 +423,29 @@ class EngineRepository {
   /// 暂停 / 继续 / 重试 / 删除。
   Future<bool> controlDownload(String command, String id) =>
       _guard(() => rust.controlDownload(command: command, id: id));
+
+  /// 离线播放：把已完成任务映射为本地播放计划。
+  ///
+  /// 返回 `null` 表示任务已完成但文件已被删除；未下载完成时抛
+  /// `Unsupported`，调用方据此回退到在线播放。
+  Future<PlaybackPlan?> localPlayback({
+    required String dramaId,
+    required String episodeId,
+    String source = '',
+    String sourceId = '',
+  }) async {
+    final local = await _guard(
+      () => rust.localPlayback(dramaId: dramaId, episodeId: episodeId),
+    );
+    if (local == null) return null;
+    return PlaybackPlan(
+      url: local.url,
+      local: true,
+      danmakuId: episodeId,
+      source: source,
+      sourceId: sourceId,
+    );
+  }
 
   /// 批量控制，返回被处理的任务数。
   Future<int> controlDownloads(String command, List<String> ids) =>

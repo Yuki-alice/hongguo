@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1909174934;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1732294252;
 
 // Section: executor
 
@@ -1192,6 +1192,40 @@ fn wire__crate__api__plugins__list_repo_plugins_impl(
         },
     )
 }
+fn wire__crate__api__local_playback_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "local_playback",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_drama_id = <String>::sse_decode(&mut deserializer);
+            let api_episode_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::error::EngineFailure>((move || {
+                    let output_ok = crate::api::local_playback(api_drama_id, api_episode_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__parse_catalog_with_rule_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2222,6 +2256,20 @@ impl SseDecode for Vec<crate::api::SourceSummary> {
     }
 }
 
+impl SseDecode for crate::api::LocalPlayback {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_url = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_bytes = <u64>::sse_decode(deserializer);
+        return crate::api::LocalPlayback {
+            url: var_url,
+            title: var_title,
+            bytes: var_bytes,
+        };
+    }
+}
+
 impl SseDecode for crate::api::MediaResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2230,12 +2278,16 @@ impl SseDecode for crate::api::MediaResult {
         let mut var_playlist = <Vec<String>>::sse_decode(deserializer);
         let mut var_keyUri = <String>::sse_decode(deserializer);
         let mut var_keyIv = <String>::sse_decode(deserializer);
+        let mut var_cookies = <String>::sse_decode(deserializer);
+        let mut var_origin = <String>::sse_decode(deserializer);
         return crate::api::MediaResult {
             url: var_url,
             referer: var_referer,
             playlist: var_playlist,
             key_uri: var_keyUri,
             key_iv: var_keyIv,
+            cookies: var_cookies,
+            origin: var_origin,
         };
     }
 }
@@ -2245,6 +2297,17 @@ impl SseDecode for Option<bool> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<bool>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::LocalPlayback> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::LocalPlayback>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -2489,26 +2552,27 @@ fn pde_ffi_dispatcher_primary_impl(
         28 => wire__crate__api__plugins__install_plugin_impl(port, ptr, rust_vec_len, data_len),
         29 => wire__crate__api__plugins__installed_plugins_impl(port, ptr, rust_vec_len, data_len),
         30 => wire__crate__api__plugins__list_repo_plugins_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__parse_catalog_with_rule_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__parse_detail_with_rule_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__plugins__parse_repository_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__plugins__parse_repository_index_impl(
+        31 => wire__crate__api__local_playback_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__parse_catalog_with_rule_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__parse_detail_with_rule_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__plugins__parse_repository_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__plugins__parse_repository_index_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__plugins__plugin_load_report_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__reload_sources_impl(port, ptr, rust_vec_len, data_len),
-        37 => {
+        36 => wire__crate__api__plugins__plugin_load_report_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__reload_sources_impl(port, ptr, rust_vec_len, data_len),
+        38 => {
             wire__crate__api__plugins__remember_repository_impl(port, ptr, rust_vec_len, data_len)
         }
-        38 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2888,6 +2952,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::FailedPluginReport>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::LocalPlayback {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.url.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::LocalPlayback {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::LocalPlayback> for crate::api::LocalPlayback {
+    fn into_into_dart(self) -> crate::api::LocalPlayback {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::MediaResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2896,6 +2977,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::MediaResult {
             self.playlist.into_into_dart().into_dart(),
             self.key_uri.into_into_dart().into_dart(),
             self.key_iv.into_into_dart().into_dart(),
+            self.cookies.into_into_dart().into_dart(),
+            self.origin.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3510,6 +3593,15 @@ impl SseEncode for Vec<crate::api::SourceSummary> {
     }
 }
 
+impl SseEncode for crate::api::LocalPlayback {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.url, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <u64>::sse_encode(self.bytes, serializer);
+    }
+}
+
 impl SseEncode for crate::api::MediaResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3518,6 +3610,8 @@ impl SseEncode for crate::api::MediaResult {
         <Vec<String>>::sse_encode(self.playlist, serializer);
         <String>::sse_encode(self.key_uri, serializer);
         <String>::sse_encode(self.key_iv, serializer);
+        <String>::sse_encode(self.cookies, serializer);
+        <String>::sse_encode(self.origin, serializer);
     }
 }
 
@@ -3527,6 +3621,16 @@ impl SseEncode for Option<bool> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <bool>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::LocalPlayback> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::LocalPlayback>::sse_encode(value, serializer);
         }
     }
 }

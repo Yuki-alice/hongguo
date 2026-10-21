@@ -593,7 +593,7 @@ test/ui/features/
 
 ---
 
-## 6.5 Rust 引擎现状（2026-10-21 第二十二轮）
+## 6.5 Rust 引擎现状（2026-10-21 第二十三轮）
 
 引擎侧已从「一个 crate 堆全部」拆成 13 crate 工作区，并把插件体系做成可运行的代码。
 细节见 `docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
@@ -611,10 +611,14 @@ test/ui/features/
 | 取消与进度 | 目录 / 详情 / 搜索 / 分类 / 取流带 `request_id`（目录另带 `session`）；`download_progress_stream` 推送下载进度，替代轮询 |
 | 诊断 | `engine_diagnostics` 返回版本、数据/插件路径、能力矩阵、插件加载报告、最近错误、请求计数与任务计数；Dart 侧入口 `/settings/diagnostics` |
 | D4 接管 | 榜单 / 推荐 / 联想由引擎直出，不再委托 Go；能力矩阵是 `supportsDownloads` / `supportsSourceManagement` 的唯一真相 |
+| 播放计划 | `Media.cookies` / `origin` 透传到 `PlaybackPlan.headers`；`PlaybackPlan` 带 `source` / `sourceId` / `danmakuId` |
+| 弹幕 | 引擎按分集返回，Dart 补 60 秒窗口；`capabilities.danmaku` 已打开 |
+| 下载索引 | `<data>/downloads/index.json` 原子写；启动恢复，`running` 任务重新排队 |
+| 离线播放 | `local_playback(dramaId, episodeId)` 映射已完成任务为本地路径 |
 | 站点结构 | 榜单行数据改由 `mergeLoaderData` 脚本注入（`rankings::merge_loader_content`）；联想外层键为 `suggest_list`（旧键仍兼容） |
 | CI | `rust` / `flutter` / `scripts` / `engine-online` / `windows` 五个 job；`go` job 已删除；`android` / `ios` 仍为 `if: false` |
 | 测试标签 | `test/engine_*.dart` 请求真实站源，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
-| 测试 | `cargo test --workspace` 449 项通过；`flutter test --exclude-tags engine` 305 通过 / 1 跳过；`flutter test --tags engine` 51 通过；引擎动态库由 native-assets 钩子自动构建 |
+| 测试 | `cargo test --workspace` 454 项通过；`flutter test --exclude-tags engine` 305 通过 / 1 跳过；`flutter test --tags engine` 54 通过；引擎动态库由 native-assets 钩子自动构建 |
 
 **Dart 测试的动态库**：native-assets 构建钩子（`hook/build.dart`，调
 `flutter_rust_bridge_hooks`）在 `flutter test` / `flutter build` 启动时自动用

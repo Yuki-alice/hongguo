@@ -184,8 +184,8 @@ void main() {
     expect(capabilities.rankings, isTrue);
     expect(capabilities.recommendations, isTrue);
     expect(capabilities.suggestions, isTrue);
-    // 弹幕依赖播放会话，Core-2 才接入；现在不能谎报可用。
-    expect(capabilities.danmaku, isFalse);
+    // 弹幕已接入：引擎按分集返回，Dart 侧补 60 秒窗口。
+    expect(capabilities.danmaku, isTrue);
     expect(capabilities.lan, isFalse);
   });
 }

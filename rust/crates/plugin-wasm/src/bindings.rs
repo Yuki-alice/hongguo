@@ -183,7 +183,10 @@ pub fn media_from_wit(media: Media) -> guo_source_api::Media {
         },
         key_uri: media.key_uri,
         key_iv: media.key_iv,
+        // WIT v1 没有 cookie / origin 字段，插件只能声明 URL 与头；
+        // 这两项留空表示「不需要」，插件化升级见 PLAN.md Core-3。
         cookies: String::new(),
+        origin: String::new(),
     }
 }
 

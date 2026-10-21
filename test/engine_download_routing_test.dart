@@ -36,8 +36,8 @@ void main() {
     expect(capabilities.rankings, isTrue);
     expect(capabilities.recommendations, isTrue);
     expect(capabilities.suggestions, isTrue);
-    // 弹幕依赖播放会话（plan.session / danmakuId），Core-2 才接入。
-    expect(capabilities.danmaku, isFalse);
+    // 弹幕已接入（引擎按分集返回，Dart 侧补分页窗口）。
+    expect(capabilities.danmaku, isTrue);
     // LAN 与高级网络设置本轮明确不做，入口必须隐藏。
     expect(capabilities.lan, isFalse);
     expect(capabilities.resourceSettings, isFalse);

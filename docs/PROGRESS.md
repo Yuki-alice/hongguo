@@ -25,6 +25,75 @@
 | **P2 站源迁移** | 🔄 16/20（芽果；剩皮果 / 黄豆 / 野果） |
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
+| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划字段、弹幕接入、下载索引落盘、离线播放（见第二十三轮）；下载控制与封面待完成 |
+
+## 第二十三轮：Core-2 起步 —— 播放计划字段 + 下载索引 + 离线播放（2026-10-21）
+
+目标：按修订后的 `docs/PLAN.md` §9 开工，先打通「播放计划 → 下载 → 离线播放」的最小闭环。
+
+### 播放计划补字段
+
+| 字段 | 之前 | 现在 |
+| --- | --- | --- |
+| `Media.cookies` | 字段存在，但剧果之外无人填；Dart 侧**完全丢弃** | 引擎 `MediaResult` 透传，Dart 写入 `PlaybackPlan.headers['Cookie']` |
+| `Media.origin` | 不存在 | 新增字段；剧果填充，Dart 写入 `headers['Origin']` |
+| `PlaybackPlan.source` / `sourceId` | 不存在 | 新增；弹幕、下载、离线播放靠它定位，不再从 URL 反推 |
+| `PlaybackPlan.danmakuId` | 只有 Go 会填 | 引擎 `resolve` 用分集 id 填充 |
+
+> 剧果这类 CDN 签名源的 Cookie 以前到不了播放器，Core-2 验收项「签名 Cookie
+> 能到达播放器」的前提条件现在成立。
+
+### 弹幕接入
+
+- 引擎 `fetchDanmaku` 按分集返回原始条目；Dart 侧补 60 秒分页窗口
+  （`nextMs = min(startMs + 60s, durationMs)`）并过滤越界条目。
+- `DanmakuController.supported` 去掉 `plan.session` 门槛：那是 Go 播放会话的
+  产物，引擎取流不产出，保留会让弹幕永远不可用。
+- `capabilities.danmaku` 打开。
+
+### 下载索引落盘
+
+`Scheduler` 从纯内存改为可选落盘：
+
+| 行为 | 语义 |
+| --- | --- |
+| 写盘 | 每次 `enqueue` / `update` / `delete` 都原子写 `<data>/downloads/index.json`（临时文件 + rename） |
+| 恢复 | `Scheduler::open` 启动时读回；`running` 视为中断，回到 `queued` 并写入原因 |
+| 损坏 | 文件缺失 / 损坏 / 版本不符时静默返回空表，不拦启动 |
+| 纯内存 | `index_path` 为空时行为不变（测试与校验工具用） |
+
+### 离线播放
+
+新增 `local_playback(drama_id, episode_id)`：把已完成任务映射为本地路径。
+Dart 侧 `EngineBackedRepository.localPlayback` 先查引擎索引，未下载完成时
+回退下层旧记录。`downloads()` 也改为优先读引擎索引——引擎有任何任务时
+不再混入下层队列，避免两套队列同时出现。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 454 通过（新增 5 项：索引落盘 / 恢复 / 删除 / 损坏 / 纯内存） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 305 通过 / 1 跳过 / 0 失败 |
+| `flutter test --tags engine` | 54 通过（新增 `engine_playback_plan_test.dart` 3 项） |
+
+### 环境事实
+
+- 红果个别剧集的播放页缺少 `video_player_info`（站点侧），在线用例对
+  `parseChanged` 做跳过处理。
+- 剧果详情接口当前返回 HTTP 404（`api.huangju.net/dramas/...`），Cookie 透传
+  只能离线验证。
+- 猫果取流稳定，作为播放计划字段的在线验证源。
+
+### 仍未完成（Core-2 剩余）
+
+- 下载控制的主路径仍在 Go（`controlDownloadBatch` / `enqueueDownloads` 的
+  队列语义）；引擎侧只有单任务控制。
+- 断点续传已由 `download_hls` 支持，但「暂停后恢复」的调度语义还没接线。
+- 封面缓存、预加载、Go 旧索引只读迁移未开始。
 
 ## 第二十二轮：Core-0 收口 —— D4 能力接管 + 站点结构修复（2026-10-21）
 

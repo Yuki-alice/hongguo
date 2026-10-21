@@ -85,6 +85,11 @@ pub struct Media {
     /// 才能拉到播放列表与分片。为空表示不需要。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub cookies: String,
+    /// 播放请求必须携带的 `Origin`。
+    ///
+    /// 部分 CDN 会校验来源，只给 Referer 不够。为空表示不需要。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub origin: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

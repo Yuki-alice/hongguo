@@ -479,6 +479,8 @@ async fn media_inner(
         playlist: media.playlist.unwrap_or_default(),
         key_uri: media.key_uri,
         key_iv: media.key_iv,
+        cookies: media.cookies,
+        origin: media.origin,
     })
 }
 
@@ -830,6 +832,49 @@ pub fn download_snapshot() -> Result<Vec<DownloadSnapshot>, EngineFailure> {
         .collect())
 }
 
+/// 离线播放：把已完成任务映射为本地播放计划。
+///
+/// `episode_id` 与 `drama_id` 由 Dart 侧传入（下载登记时的标识）。
+/// 找不到已完成任务或文件已被删除时返回 `None`，由调用方回退到在线播放。
+pub fn local_playback(
+    drama_id: String,
+    episode_id: String,
+) -> Result<Option<LocalPlayback>, EngineFailure> {
+    let engine = engine()?;
+    let job = engine
+        .scheduler()
+        .snapshot()
+        .into_iter()
+        .find(|job| {
+            job.drama_id == drama_id
+                && job.episode_id == episode_id
+                && job.state == guo_runtime::JobState::Completed
+        })
+        .ok_or_else(|| {
+            EngineFailure::from(EngineError::new(
+                EngineErrorKind::Unsupported,
+                "该分集尚未下载完成",
+            ))
+        })?;
+    let path = std::path::PathBuf::from(&job.target);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    Ok(Some(LocalPlayback {
+        url: path.display().to_string(),
+        title: job.title,
+        bytes: job.bytes,
+    }))
+}
+
+/// 离线播放计划。
+pub struct LocalPlayback {
+    /// 本地文件路径（不带 `file://` 前缀，播放器自行处理）。
+    pub url: String,
+    pub title: String,
+    pub bytes: u64,
+}
+
 /// 暂停 / 继续 / 重试 / 删除。
 pub fn control_download(command: String, id: String) -> Result<bool, EngineFailure> {
     let engine = engine()?;
@@ -872,6 +917,10 @@ pub struct MediaResult {
     pub key_uri: String,
     /// HLS AES-128 的 IV。
     pub key_iv: String,
+    /// 播放时必须随请求发送的 Cookie（CDN 签名源需要）。
+    pub cookies: String,
+    /// 播放请求必须携带的 `Origin`（部分 CDN 会校验来源）。
+    pub origin: String,
 }
 
 /// 详情结果。

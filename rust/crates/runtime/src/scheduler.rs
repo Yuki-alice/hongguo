@@ -99,14 +99,32 @@ impl Job {
     }
 }
 
-/// 下载调度器：有界并发 + 状态快照。
+/// 下载索引的落盘格式版本。不匹配时丢弃，避免误读历史结构。
+const INDEX_VERSION: u32 = 1;
+
+/// 索引文件上限，防止异常数据把磁盘写满。
+const INDEX_MAX_BYTES: usize = 16 * 1024 * 1024;
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IndexDisk {
+    version: u32,
+    #[serde(default)]
+    jobs: Vec<Job>,
+}
+
+/// 下载调度器：有界并发 + 状态快照 + 索引落盘。
 ///
 /// 并发上限由 `Semaphore` 控制，符合「先定并发预算再选执行模型」的要求；
 /// 状态放在 `Mutex<BTreeMap>` 中，读多写少且临界区短。
+///
+/// `index_path` 为空时纯内存运行（测试与一次性校验工具）；否则每次状态
+/// 变化都原子写盘，进程被杀后由 [`Scheduler::restore`] 读回。
 pub struct Scheduler {
     jobs: Mutex<BTreeMap<String, Job>>,
     gate: Arc<Semaphore>,
     revision: AtomicU64,
+    index_path: Option<PathBuf>,
 }
 
 impl Scheduler {
@@ -116,7 +134,83 @@ impl Scheduler {
             jobs: Mutex::new(BTreeMap::new()),
             gate: Arc::new(Semaphore::new(limit)),
             revision: AtomicU64::new(0),
+            index_path: None,
         }
+    }
+
+    /// 带索引落盘的调度器。启动时自动恢复上次的任务表。
+    pub fn open(concurrency: usize, index_path: impl Into<PathBuf>) -> Self {
+        let scheduler = Self {
+            index_path: Some(index_path.into()),
+            ..Self::new(concurrency)
+        };
+        scheduler.restore();
+        scheduler
+    }
+
+    /// 从索引文件恢复任务表。
+    ///
+    /// 恢复语义：
+    /// - `running` 视为中断，回到 `queued`（重启后重新排队，而不是永远卡住）；
+    /// - `completed` / `failed` / `paused` 原样保留；
+    /// - 文件缺失、损坏或版本不符时静默返回空表（下载记录丢失不应拦住启动）。
+    pub fn restore(&self) {
+        let Some(path) = &self.index_path else {
+            return;
+        };
+        let Ok(info) = std::fs::metadata(path) else {
+            return;
+        };
+        if info.len() as usize > INDEX_MAX_BYTES {
+            return;
+        }
+        let Ok(bytes) = std::fs::read(path) else {
+            return;
+        };
+        let Ok(disk) = serde_json::from_slice::<IndexDisk>(&bytes) else {
+            return;
+        };
+        if disk.version != INDEX_VERSION {
+            return;
+        }
+        let mut jobs = self.jobs.lock().expect("jobs lock");
+        for mut job in disk.jobs {
+            if job.state == JobState::Running {
+                job.state = JobState::Queued;
+                job.error = "上次退出时任务被中断，已重新排队".to_string();
+            }
+            let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
+            job.revision = revision;
+            jobs.insert(job.id.clone(), job);
+        }
+    }
+
+    /// 把当前任务表写盘。没有索引路径时是空操作。
+    fn persist(&self, jobs: &BTreeMap<String, Job>) {
+        let Some(path) = &self.index_path else {
+            return;
+        };
+        let payload = IndexDisk {
+            version: INDEX_VERSION,
+            jobs: jobs.values().cloned().collect(),
+        };
+        let Ok(encoded) = serde_json::to_vec(&payload) else {
+            return;
+        };
+        if encoded.len() > INDEX_MAX_BYTES {
+            eprintln!("下载索引超过上限，已跳过写盘");
+            return;
+        }
+        if let Some(parent) = path.parent() {
+            if std::fs::create_dir_all(parent).is_err() {
+                return;
+            }
+        }
+        let temporary = path.with_extension("json.tmp");
+        if std::fs::write(&temporary, &encoded).is_err() {
+            return;
+        }
+        let _ = std::fs::rename(&temporary, path);
     }
 
     pub fn concurrency(&self) -> usize {
@@ -129,6 +223,7 @@ impl Scheduler {
         let mut jobs = self.jobs.lock().expect("jobs lock");
         jobs.entry(job.id.clone())
             .or_insert(Job { revision, ..job });
+        self.persist(&jobs);
         revision
     }
 
@@ -165,9 +260,11 @@ impl Scheduler {
 
     fn update(&self, id: &str, apply: impl FnOnce(&mut Job)) -> u64 {
         let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
-        if let Some(job) = self.jobs.lock().expect("jobs lock").get_mut(id) {
+        let mut jobs = self.jobs.lock().expect("jobs lock");
+        if let Some(job) = jobs.get_mut(id) {
             apply(job);
             job.revision = revision;
+            self.persist(&jobs);
         }
         revision
     }
@@ -291,7 +388,12 @@ impl Scheduler {
                 // 必须先取出 target 再删任务：remove 之后 target_of 已查不到，
                 // 会退化成对空路径调用 discard，既删不掉文件也可能误伤相对路径。
                 let target = self.target_of(id);
-                let removed = self.jobs.lock().expect("jobs lock").remove(id).is_some();
+                let removed = {
+                    let mut jobs = self.jobs.lock().expect("jobs lock");
+                    let removed = jobs.remove(id).is_some();
+                    self.persist(&jobs);
+                    removed
+                };
                 if let Some(target) = target {
                     discard(&PathBuf::from(target));
                 }
@@ -375,6 +477,77 @@ mod tests {
         assert!((job.progress() - 1.0).abs() < f64::EPSILON);
         job.total = 0;
         assert_eq!(job.progress(), 0.0);
+    }
+
+    fn temp_index(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "guo-dl-index-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|value| value.as_nanos())
+                .unwrap_or(0)
+        ))
+    }
+
+    #[test]
+    fn index_survives_reopen() {
+        let path = temp_index("reopen").join("index.json");
+        {
+            let scheduler = Scheduler::open(2, &path);
+            scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+            scheduler.control("pause", "a");
+        }
+        let reopened = Scheduler::open(2, &path);
+        let job = reopened.get("a").expect("任务应被恢复");
+        assert_eq!(job.state, JobState::Paused);
+    }
+
+    #[test]
+    fn running_jobs_requeue_after_restart() {
+        let path = temp_index("requeue").join("index.json");
+        {
+            let scheduler = Scheduler::open(2, &path);
+            scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+            // 模拟「运行中被杀」：直接改内存状态并落盘。
+            scheduler.update("a", |job| job.state = JobState::Running);
+        }
+        let reopened = Scheduler::open(2, &path);
+        let job = reopened.get("a").expect("任务应被恢复");
+        assert_eq!(job.state, JobState::Queued, "中断的任务必须重新排队");
+        assert!(job.error.contains("中断"));
+    }
+
+    #[test]
+    fn delete_removes_job_from_index() {
+        let path = temp_index("delete").join("index.json");
+        {
+            let scheduler = Scheduler::open(2, &path);
+            scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+            assert!(scheduler.control("delete", "a"));
+        }
+        let reopened = Scheduler::open(2, &path);
+        assert!(reopened.get("a").is_none());
+    }
+
+    #[test]
+    fn corrupt_index_is_ignored() {
+        let path = temp_index("corrupt").join("index.json");
+        std::fs::create_dir_all(path.parent().unwrap()).expect("dir");
+        std::fs::write(&path, b"{not json").expect("write");
+        let scheduler = Scheduler::open(2, &path);
+        assert!(scheduler.snapshot().is_empty());
+        // 损坏后仍可正常登记并覆盖写盘。
+        scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+        assert_eq!(Scheduler::open(2, &path).snapshot().len(), 1);
+    }
+
+    #[test]
+    fn in_memory_scheduler_never_writes() {
+        let scheduler = Scheduler::new(2);
+        scheduler.enqueue(Job::new("a", "/tmp/a", "https://x.test/a.mp4"));
+        // 无索引路径时不应产生任何文件；这里只断言行为不变。
+        assert_eq!(scheduler.snapshot().len(), 1);
     }
 
     #[test]
