@@ -98,6 +98,10 @@ impl Guest for Template {
             segments: Vec::new(),
             key_uri: String::new(),
             key_iv: String::new(),
+            // CDN 签名源才需要：从响应头 `set-cookie` 里取出并回填。
+            // 模板固定返回一组值，让宿主侧的 ABI 穿透可以被断言。
+            cookies: "k=v".to_string(),
+            origin: "https://example.test".to_string(),
         })
     }
 

@@ -26,6 +26,73 @@
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
 | **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
+| **Core-3 Wasm 源运行时** | 🔄 2026-10-21：WIT v2、响应头透传、猫果插件打样（二十七）；其余 6 源与预装待完成 |
+
+## 第二十七轮：Core-3 打样 —— WIT v2 + 猫果插件（2026-10-21）
+
+目标：验证「带签名的代码源能否完全跑在 Wasm 沙箱里」（PLAN.md Core-3 第一步）。
+
+### WIT v2
+
+| 记录 | 新增字段 |
+| --- | --- |
+| `media` | `cookies` / `origin` —— CDN 签名源把播放凭证带回宿主 |
+| `response` | `headers: list<tuple<string, string>>` —— 全量响应头（键小写，多值换行拼接） |
+
+`content-type` / `etag` 两个快捷字段保留，已发布的插件不会因此失效。
+
+### 宿主
+
+- `fetch` 把 `FetchResponse.headers` 全量转成 WIT 头；传输层的白名单已包含
+  `set-cookie`，插件因此能拿到 CDN 下发的 Cookie。
+- `media_from_wit` 透传 `cookies` / `origin`。
+
+### 修掉的两个宿主缺陷
+
+1. **源标识错乱**。`drama_from_wit` 把 WIT 的 `drama.source_id`（站点内 id）
+   当成宿主 `Drama.source`（源名），且 `id` 没加源前缀。所有插件源的
+   `source` 会变成站点 id、`id` 变成裸 id，UI 的源分组与旧数据主键全会失效。
+   改为 `drama_from_wit_for(drama, source)`，由调用方用清单里的源名填充。
+2. **`Unsupported` 被映射成 `Rule`**。插件声明「不支持联想」会在 UI 上显示成
+   「解析失败，请重试」。改为映射到 `SourceError::Unsupported`；
+   `Blocked` 也改成带冷却时间的 `blocked_for`，而不是解析错误。
+
+### 猫果插件打样
+
+新增 `rust/examples/plugins/maoguo`（独立 workspace，`cargo component` 风格）：
+
+| 项 | 说明 |
+| --- | --- |
+| 签名 | 三个签名串（目录 / 详情 / 搜索）与编译版逐字一致，由单元测试锁定 |
+| crypto | MD5 与 Base64 自带（WIT 不暴露 crypto，ADR-12 约定由插件负责） |
+| `qm-params` | JSON → Base64 → 字符映射，与编译版同表 |
+| 传输 | 只走 `host::fetch`，域名白名单由清单约束 |
+| 详情解析 | `play_list` + `sort` 集号，id 形如 `{source_id}:{number}`，与编译版一致 |
+| 产物 | `guo_plugin_maoguo.component.wasm`，168 KB |
+
+导入集合经 `wasm-tools component wit` 确认只剩 `guo:source/types` 与
+`guo:source/host`，没有 `wasi:*`。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 480 通过（新增 9 项：插件 7 + 宿主 ABI 3，含 1 项替换） |
+| `dart analyze lib test integration_test` | 错误 0 |
+| `flutter test --exclude-tags engine` | 308 通过 / 1 跳过 |
+
+插件侧 7 项单测（MD5 向量、Base64、三个签名、字符映射、URL 编码、分页 URL）
++ 宿主侧 6 项集成测试（描述符、目录、详情、取流、空关键词、白名单）。
+
+### Core-3 剩余
+
+- 芽果 / 剧果 / 牛果 / 黄果三源的插件化（猫果已打样）。
+- 官方插件预装：随包资源安装到插件仓库。
+- 插件工具链：打包、校验、签名、仓库索引生成。
+- `cursor` 用于分页 / 推荐（当前 `query.cursor` 存在但未使用）。
+- 首屏 P95 基线（Pulley vs 编译源）。
 
 ## 第二十六轮：Core-2 收口 —— 批量控制、封面缓存、重启列表（2026-10-21）
 

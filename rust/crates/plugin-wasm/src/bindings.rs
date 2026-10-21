@@ -43,6 +43,12 @@ impl Host for HostState {
                     .unwrap_or_default()
                     .to_string(),
                 etag: response.validator(),
+                // 全部头透传：插件需要 Set-Cookie 才能处理 CDN 签名源。
+                headers: response
+                    .headers
+                    .iter()
+                    .map(|(key, value)| (key.to_lowercase(), value.clone()))
+                    .collect(),
             }),
             Err(err) => Err(to_wit_error(&err)),
         }
@@ -125,21 +131,44 @@ where
     crate::sandbox::block_on(future)
 }
 
-/// 插件返回的 `Page` 转成契约层 `Page`。
-pub fn page_from_wit(page: Page) -> guo_source_api::Page {
+/// 插件返回的 `Page` 转成契约层 `Page`，并给每个剧目补上源名。
+pub fn page_from_wit_for(page: Page, source: &str) -> guo_source_api::Page {
     guo_source_api::Page {
-        items: page.items.into_iter().map(drama_from_wit).collect(),
+        items: page
+            .items
+            .into_iter()
+            .map(|item| drama_from_wit_for(item, source))
+            .collect(),
         has_more: page.has_more,
         page: page.page,
         warning: String::new(),
     }
 }
 
-pub fn drama_from_wit(drama: types::Drama) -> guo_source_api::Drama {
+/// WIT → 宿主剧目，用给定源名填充 `source`。
+///
+/// WIT 的 `drama.source_id` 是**站点内 id**，不是源名；源名由调用方补上。
+/// 插件只描述自己的站点知识，不该重复声明「我是哪个源」——那由清单决定。
+///
+/// `id` 缺失源前缀时补上，保证 `Drama::identity` 约定的
+/// `<source>:<source_id>` 对所有源成立（UI 与旧数据都依赖这个格式）。
+pub fn drama_from_wit_for(drama: types::Drama, source: &str) -> guo_source_api::Drama {
+    let mut id = drama.id;
+    let source_id = drama.source_id;
+    if !source.is_empty() && !id.starts_with(&format!("{source}:")) {
+        id = format!(
+            "{source}:{}",
+            if source_id.is_empty() {
+                id.as_str()
+            } else {
+                source_id.as_str()
+            }
+        );
+    }
     guo_source_api::Drama {
-        id: drama.id.clone(),
-        source: drama.source_id.clone(),
-        source_id: drama.id,
+        id,
+        source: source.to_string(),
+        source_id,
         title: drama.title,
         description: drama.description,
         cover: drama.cover,
@@ -183,10 +212,8 @@ pub fn media_from_wit(media: Media) -> guo_source_api::Media {
         },
         key_uri: media.key_uri,
         key_iv: media.key_iv,
-        // WIT v1 没有 cookie / origin 字段，插件只能声明 URL 与头；
-        // 这两项留空表示「不需要」，插件化升级见 PLAN.md Core-3。
-        cookies: String::new(),
-        origin: String::new(),
+        cookies: media.cookies,
+        origin: media.origin,
     }
 }
 
@@ -208,4 +235,120 @@ pub fn descriptor_capabilities(descriptor: &Descriptor) -> Vec<guo_source_api::C
 
 pub fn plugin_error(err: Error) -> SourceError {
     crate::sandbox::from_wit_error(err)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use async_trait::async_trait;
+    use guo_source_api::{FetchRequest, FetchResponse, LogSink, SourceEnv, SourceStore, Transport};
+
+    use super::*;
+    use crate::sandbox::Capabilities;
+
+    /// 返回带 `set-cookie` 的响应，用来验证 v2 的响应头透传。
+    struct CookieTransport {
+        seen: Mutex<Vec<String>>,
+    }
+
+    #[async_trait]
+    impl Transport for CookieTransport {
+        async fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, SourceError> {
+            self.seen.lock().expect("lock").push(request.url.clone());
+            let mut response = FetchResponse::new(200, b"ok".to_vec(), request.url);
+            response.headers.insert(
+                "set-cookie".to_string(),
+                "sid=abc; Path=/; HttpOnly".to_string(),
+            );
+            Ok(response)
+        }
+    }
+
+    struct NoStore;
+    #[async_trait]
+    impl SourceStore for NoStore {
+        async fn get(&self, _: &str) -> Result<Option<String>, SourceError> {
+            Ok(None)
+        }
+        async fn set(&self, _: &str, _: &str) -> Result<(), SourceError> {
+            Ok(())
+        }
+    }
+
+    struct NoLog;
+    impl LogSink for NoLog {
+        fn debug(&self, _: &str) {}
+        fn warn(&self, _: &str) {}
+    }
+
+    fn state() -> HostState {
+        HostState::new(
+            Capabilities::new(SourceEnv {
+                source_id: "test".into(),
+                transport: Arc::new(CookieTransport {
+                    seen: Mutex::new(Vec::new()),
+                }),
+                store: Arc::new(NoStore),
+                scripts: None,
+                log: Arc::new(NoLog),
+            })
+            .allow_network(["cdn.test"]),
+        )
+    }
+
+    #[test]
+    fn response_exposes_set_cookie_headers() {
+        let mut host = state();
+        let response = host
+            .fetch("get".into(), "https://cdn.test/a".into(), Vec::new(), None)
+            .expect("请求应成功");
+        // 快捷字段仍在，保持向后兼容。
+        assert_eq!(response.status, 200);
+        // v2：全部头都在 `headers` 里，键名统一小写。
+        let cookie = response
+            .headers
+            .iter()
+            .find(|(key, _)| key == "set-cookie")
+            .map(|(_, value)| value.clone())
+            .unwrap_or_default();
+        assert!(
+            cookie.contains("sid=abc"),
+            "实际响应头：{:?}",
+            response.headers
+        );
+        assert!(response
+            .headers
+            .iter()
+            .all(|(key, _)| key == &key.to_lowercase()));
+    }
+
+    #[test]
+    fn whitelist_rejection_happens_before_the_request() {
+        let mut host = state();
+        let error = host
+            .fetch("get".into(), "https://evil.test/a".into(), Vec::new(), None)
+            .expect_err("白名单外必须拒绝");
+        assert!(matches!(error, Error::Unsupported(_)), "{error:?}");
+    }
+
+    #[test]
+    fn media_conversion_keeps_cookies_and_origin() {
+        let media = Media {
+            url: "https://cdn.test/v.m3u8".into(),
+            referer: "https://cdn.test/".into(),
+            segments: vec!["https://cdn.test/1.ts".into()],
+            key_uri: "https://cdn.test/k".into(),
+            key_iv: "00ff".into(),
+            cookies: "sid=abc".into(),
+            origin: "https://cdn.test".into(),
+        };
+        let converted = media_from_wit(media);
+        assert_eq!(converted.cookies, "sid=abc");
+        assert_eq!(converted.origin, "https://cdn.test");
+        assert_eq!(
+            converted.playlist.as_deref(),
+            Some(["https://cdn.test/1.ts".to_string()].as_slice())
+        );
+    }
 }

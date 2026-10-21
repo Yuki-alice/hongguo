@@ -109,6 +109,9 @@ async fn detail_and_resolve_round_trip() {
         .expect("resolve");
     assert_eq!(media.url, "https://example.test/1.m3u8");
     assert!(media.playlist.is_none());
+    // WIT v2：Cookie 与 Origin 必须能穿过 ABI 到达宿主。
+    assert_eq!(media.cookies, "k=v");
+    assert_eq!(media.origin, "https://example.test");
 }
 
 #[tokio::test]

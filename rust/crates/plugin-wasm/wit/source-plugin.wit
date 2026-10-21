@@ -62,6 +62,10 @@ interface types {
     segments: list<string>,
     key-uri: string,
     key-iv: string,
+    /// 播放与下载时必须携带的 Cookie（CDN 签名源需要）。
+    cookies: string,
+    /// 播放请求必须携带的 Origin；空表示不需要。
+    origin: string,
   }
 
   record descriptor {
@@ -78,6 +82,11 @@ interface types {
     body: list<u8>,
     content-type: string,
     etag: string,
+    /// 全部响应头（键已小写，多值用换行拼接）。
+    ///
+    /// Set-Cookie 只有在这里才能拿到：`content-type` / `etag` 两个字段
+    /// 是历史快捷方式，保留是为了不破坏已发布的插件。
+    headers: list<tuple<string, string>>,
   }
 
   variant error {

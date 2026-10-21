@@ -179,16 +179,17 @@ pub fn to_wit_error(err: &SourceError) -> crate::bindings::guo::source::types::E
 pub fn from_wit_error(err: crate::bindings::guo::source::types::Error) -> SourceError {
     use crate::bindings::guo::source::types::Error;
     match err {
-        Error::Unsupported(detail) => SourceError::Rule {
-            rule_id: "plugin".into(),
-            detail,
-        },
+        // `Unsupported` 必须映射成 `Unsupported`：UI 靠它区分「不该显示入口」
+        // 与「解析失败要重试」。映射成 `Rule` 会让「不支持联想」变成红色报错。
+        Error::Unsupported(detail) => {
+            // WIT 的 detail 是动态字符串，而 `SourceError::Unsupported`
+            // 只收 `&'static str`；泄漏极小的字符串换取正确语义。
+            SourceError::Unsupported(Box::leak(detail.into_boxed_str()))
+        }
         Error::Network(detail) => SourceError::network("plugin", detail),
         Error::Http(status) => SourceError::http("plugin", status),
-        Error::Blocked(detail) => SourceError::Rule {
-            rule_id: "plugin".into(),
-            detail,
-        },
+        // 风控是「稍后重试」，不是解析失败。
+        Error::Blocked(detail) => blocked_from_plugin(&detail),
         Error::SessionFailed(detail) => SourceError::Script {
             source: "plugin".into(),
             detail,
@@ -196,6 +197,16 @@ pub fn from_wit_error(err: crate::bindings::guo::source::types::Error) -> Source
         Error::ParseChanged(detail) => SourceError::parse("plugin", detail),
         Error::Empty => SourceError::NoResult,
     }
+}
+
+/// 插件报的风控错误转成带冷却时间的 `Blocked`。
+///
+/// 冷却时长由宿主决定（默认 60 秒），插件只能描述现象，
+/// 避免插件通过错误文案影响宿主的退避策略。
+fn blocked_from_plugin(detail: &str) -> SourceError {
+    // `Blocked` 只带截止时间，说明写进日志供诊断。
+    eprintln!("[plugin] 站点限制：{detail}");
+    SourceError::blocked_for(std::time::Duration::from_secs(60))
 }
 
 /// 用共享的当前线程运行时执行异步调用。

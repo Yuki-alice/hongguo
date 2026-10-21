@@ -13,8 +13,8 @@ use guo_source_api::{
 };
 
 use crate::bindings::{
-    category_from_wit, chapter_from_wit, descriptor_capabilities, drama_from_wit, media_from_wit,
-    page_from_wit, plugin_error, types, Plugin,
+    category_from_wit, chapter_from_wit, descriptor_capabilities, drama_from_wit_for,
+    media_from_wit, page_from_wit_for, plugin_error, types, Plugin,
 };
 use crate::sandbox::{add_host_to_linker, engine, host_of, Capabilities, HostState, SandboxLimits};
 
@@ -224,7 +224,7 @@ impl SourcePlugin for ComponentSource {
             value.map_err(plugin_error)
         })
         .await?;
-        Ok(page_from_wit(page))
+        Ok(page_from_wit_for(page, &self.meta.id))
     }
 
     async fn detail(&self, env: &SourceEnv, source_id: &str) -> Result<Detail, SourceError> {
@@ -242,7 +242,7 @@ impl SourcePlugin for ComponentSource {
         })
         .await?;
         Ok(Detail {
-            drama: drama_from_wit(detail.drama),
+            drama: drama_from_wit_for(detail.drama, &self.meta.id),
             chapters: detail.chapters.into_iter().map(chapter_from_wit).collect(),
         })
     }
@@ -266,7 +266,7 @@ impl SourcePlugin for ComponentSource {
             value.map_err(plugin_error)
         })
         .await?;
-        Ok(page_from_wit(result))
+        Ok(page_from_wit_for(result, &self.meta.id))
     }
 
     async fn resolve(

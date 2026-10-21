@@ -593,7 +593,7 @@ test/ui/features/
 
 ---
 
-## 6.5 Rust 引擎现状（2026-10-21 第二十六轮）
+## 6.5 Rust 引擎现状（2026-10-21 第二十七轮）
 
 引擎侧已从「一个 crate 堆全部」拆成 13 crate 工作区，并把插件体系做成可运行的代码。
 细节见 `docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
@@ -620,10 +620,12 @@ test/ui/features/
 | 批量控制 | `control_download_batch` 逐任务执行 + `expectedVersions` 版本门控 |
 | 封面缓存 | `<data>/covers/<哈希>`，`fetch_cover` / `clear_cover_cache` |
 | 重启列表 | `Job` 带剧名 / 集号 / 封面，重启后下载列表不再消失 |
+| WIT v2 | `response.headers`（含 `set-cookie`）、`media.cookies` / `origin` |
+| 插件打样 | `rust/examples/plugins/maoguo`，编译产物 168 KB，导入只剩 `guo:source/*` |
 | 站点结构 | 榜单行数据改由 `mergeLoaderData` 脚本注入（`rankings::merge_loader_content`）；联想外层键为 `suggest_list`（旧键仍兼容） |
 | CI | `rust` / `flutter` / `scripts` / `engine-online` / `windows` 五个 job；`go` job 已删除；`android` / `ios` 仍为 `if: false` |
 | 测试标签 | `test/engine_*.dart` 请求真实站源，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
-| 测试 | `cargo test --workspace` 471 项通过；`flutter test --exclude-tags engine` 308 通过 / 1 跳过；`flutter test --tags engine` 57 通过；引擎动态库由 native-assets 钩子自动构建 |
+| 测试 | `cargo test --workspace` 480 项通过；`flutter test --exclude-tags engine` 308 通过 / 1 跳过；`flutter test --tags engine` 57 通过；引擎动态库由 native-assets 钩子自动构建 |
 
 **Dart 测试的动态库**：native-assets 构建钩子（`hook/build.dart`，调
 `flutter_rust_bridge_hooks`）在 `flutter test` / `flutter build` 启动时自动用
