@@ -26,7 +26,7 @@ wasm-tools component new target/wasm32-unknown-unknown/release/guo_plugin_templa
 ```
 
 组件化后的导入集合只剩 `guo:source/types@1.0.0`，
-`engine/crates/plugin-wasm/tests/component_host.rs` 会断言这一点。
+`rust/crates/plugin-wasm/tests/component_host.rs` 会断言这一点。
 
 ## 打包
 

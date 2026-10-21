@@ -1,8 +1,8 @@
-//! 把 `engine/rules/*.json` 打成官方规则包，并生成 `index.json`。
+//! 把 `rust/rules/*.json` 打成官方规则包，并生成 `index.json`。
 //!
 //! 用法：
 //! ```bash
-//! cargo run -p guo-plugin-host --bin pack_rules -- engine/dist/rules
+//! cargo run -p guo-plugin-host --bin pack_rules -- rust/dist/rules
 //! ```
 //!
 //! 产物：
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("dist/rules"));
 
-    // 默认从 workspace 根的 `rules/` 读：脚本在 `engine/` 下执行时可直接命中。
+    // 默认从 workspace 根的 `rules/` 读：脚本在 `rust/` 下执行时可直接命中。
     let rules_dir = std::env::args()
         .nth(2)
         .map(PathBuf::from)

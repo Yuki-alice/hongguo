@@ -1,6 +1,6 @@
 //! 官方规则仓库的端到端校验。
 //!
-//! 直接读取 `pack_rules` 生成的产物（`engine/dist/rules/`），用**同一套安装器**
+//! 直接读取 `pack_rules` 生成的产物（`rust/dist/rules/`），用**同一套安装器**
 //! 逐个安装，确保「我们生成的包」一定能被「我们自己装」。
 //!
 //! 这条测试防的是：打包脚本改了字段名、忘了更新哈希、清单与索引不一致——
@@ -15,7 +15,7 @@ use guo_plugin_host::{
 };
 
 fn repo_root() -> PathBuf {
-    // CARGO_MANIFEST_DIR 是 crates/plugin-host，仓库产物在 engine/dist/rules。
+    // CARGO_MANIFEST_DIR 是 crates/plugin-host，仓库产物在 rust/dist/rules。
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../dist/rules")
         .canonicalize()
@@ -100,7 +100,7 @@ fn every_indexed_package_installs_and_loads() {
 
 #[test]
 fn packaged_rule_content_matches_shipped_rules() {
-    // 包里的规则必须与 `engine/rules/*.json` 一致：改规则后忘了重新打包会在这里失败。
+    // 包里的规则必须与 `rust/rules/*.json` 一致：改规则后忘了重新打包会在这里失败。
     let root = repo_root();
     let index_text = std::fs::read_to_string(root.join("index.json")).expect("index.json");
     let index = parse_index(&index_text).expect("index");
