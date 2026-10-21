@@ -10,5 +10,17 @@
       "size": 71639,
       "sha256": "475cc75820f56b51a8f4e31309fd1205e6479940e605ac7a5c6c500a2af4c16c",
       "path": "plugins/guo.maoguo/guo.maoguo-1.0.0.zip"
+    },
+    {
+      "id": "guo.yaguo",
+      "name": "yaguo",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 86725,
+      "sha256": "f653fe7ce2bf2747fc20a992fa3c9888f0a02478b2a893eb649fda0935512790",
+      "path": "plugins/guo.yaguo/guo.yaguo-1.0.0.zip"
     }
 ]

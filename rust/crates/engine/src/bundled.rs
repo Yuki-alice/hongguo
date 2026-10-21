@@ -66,10 +66,13 @@ pub fn preinstall(store: &PluginStore, packages: &[BundledPackage], now: u64) ->
                 continue;
             }
         };
-        let Some(entry) = index.entries().next() else {
-            report
-                .failed
-                .push((package.name.clone(), "索引为空".to_string()));
+        // 索引可能含多个包，必须按**本包文件名**挑出对应条目。
+        // 直接取第一条会让第二个包被按第一个包的大小 / 哈希校验而失败。
+        let Some(entry) = select_entry_for(&index, &package.name) else {
+            report.failed.push((
+                package.name.clone(),
+                "索引里没有与该包匹配的条目".to_string(),
+            ));
             continue;
         };
         let plugin_id = entry.id.as_str().to_string();
@@ -108,6 +111,32 @@ pub fn preinstall(store: &PluginStore, packages: &[BundledPackage], now: u64) ->
         }
     }
     report
+}
+
+/// 按包文件名在索引里找条目。
+///
+/// 索引的 `path` 形如 `plugins/<id>/<id>-<ver>.zip`；只要文件名相同就算匹配。
+/// 找不到时退回「索引只有一条」的情形，兼容只发一个包的应用。
+fn select_entry_for<'a>(
+    index: &'a guo_plugin_host::RepositoryIndex,
+    file_name: &str,
+) -> Option<&'a guo_plugin_host::RepoIndexEntry> {
+    let entries: Vec<&guo_plugin_host::RepoIndexEntry> = index.entries().collect();
+    if entries.is_empty() {
+        return None;
+    }
+    entries
+        .iter()
+        .find(|entry| {
+            entry
+                .path
+                .rsplit('/')
+                .next()
+                .map(|tail| tail == file_name)
+                .unwrap_or(false)
+        })
+        .copied()
+        .or_else(|| (entries.len() == 1).then(|| entries[0]))
 }
 
 /// 预装数据的根目录（随包资源解压后的位置）。
@@ -179,8 +208,10 @@ mod tests {
         }
         let archive = buffer.into_inner();
         let sha = guo_plugin_host::sha256_hex(&archive);
+        // 路径与 `pack_rules` / `pack_component` 的产物一致：
+        // `plugins/<id>/<id>-<ver>.zip`，预装按文件名匹配。
         let index = format!(
-            r#"[{{"id":"{id}","name":"插件","version":"{version}","kind":"declarative","api":1,"minHost":"0.3.0","size":{},"sha256":"{sha}","path":"plugins/{id}.zip"}}]"#,
+            r#"[{{"id":"{id}","name":"插件","version":"{version}","kind":"declarative","api":1,"minHost":"0.3.0","size":{},"sha256":"{sha}","path":"plugins/{id}/{id}-{version}.zip"}}]"#,
             archive.len()
         );
         (archive, index)
@@ -261,6 +292,46 @@ mod tests {
             .find(|plugin| plugin.id == "guo.bundled")
             .expect("installed");
         assert_eq!(active.version.to_string(), "2.0.0");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn shared_index_selects_the_matching_package() {
+        // 真实场景：一份索引含多个包，每个包必须按自己的条目校验。
+        // 取第一条会让第二个包被按第一个包的大小 / 哈希判为损坏。
+        let root = temp_root("multi");
+        let store = PluginStore::open(&root);
+        let (a_archive, a_index) = package("guo.a", "1.0.0");
+        let (b_archive, b_index) = package("guo.b", "1.0.0");
+        // 手工拼一份同时含两条的索引。
+        let combined = format!(
+            "[{},{}]",
+            a_index.trim().trim_start_matches('[').trim_end_matches(']'),
+            b_index.trim().trim_start_matches('[').trim_end_matches(']')
+        );
+        let report = preinstall(
+            &store,
+            &[
+                BundledPackage {
+                    name: "guo.a-1.0.0.zip".into(),
+                    index_json: Box::leak(combined.clone().into_boxed_str()),
+                    archive: Box::leak(a_archive.clone().into_boxed_slice()),
+                },
+                BundledPackage {
+                    name: "guo.b-1.0.0.zip".into(),
+                    index_json: Box::leak(combined.into_boxed_str()),
+                    archive: Box::leak(b_archive.into_boxed_slice()),
+                },
+            ],
+            1,
+        );
+        assert_eq!(
+            report.installed,
+            vec!["guo.a", "guo.b"],
+            "{:?}",
+            report.failed
+        );
+        assert!(report.failed.is_empty());
         let _ = std::fs::remove_dir_all(&root);
     }
 

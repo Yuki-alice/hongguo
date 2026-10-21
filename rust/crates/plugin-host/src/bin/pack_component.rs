@@ -22,57 +22,67 @@ use zip::write::SimpleFileOptions;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let output = args.next().map(PathBuf::from).ok_or(
-        "用法：pack_component <输出目录> <组件 wasm>... [--network host,host] [--version x.y.z]",
+        "用法：pack_component <输出目录> --plugin <wasm> --network <host,host> [--plugin ... --network ...] [--version x.y.z]",
     )?;
 
-    let mut wasm_paths = Vec::new();
     let mut version = "1.0.0".to_string();
-    let mut network: Vec<String> = Vec::new();
     let mut extra: Vec<String> = args.collect();
-    let mut index = 0;
-    while index < extra.len() {
-        match extra[index].as_str() {
-            "--version" if index + 1 < extra.len() => {
-                version = extra.remove(index + 1);
-                extra.remove(index);
+    let mut specs: Vec<(PathBuf, Vec<String>)> = Vec::new();
+    // 每个分支都从队首消费「选项 + 值」，因此用空检查而不是下标。
+    while !extra.is_empty() {
+        match extra[0].as_str() {
+            "--version" if extra.len() > 1 => {
+                version = extra.remove(1);
+                extra.remove(0);
             }
-            "--network" if index + 1 < extra.len() => {
-                network = extra
-                    .remove(index + 1)
+            "--plugin" if extra.len() > 1 => {
+                let path = PathBuf::from(extra.remove(1));
+                extra.remove(0);
+                specs.push((path, Vec::new()));
+            }
+            "--network" if extra.len() > 1 => {
+                let hosts: Vec<String> = extra
+                    .remove(1)
                     .split(',')
                     .map(str::trim)
                     .filter(|host| !host.is_empty())
                     .map(str::to_string)
                     .collect();
-                extra.remove(index);
+                extra.remove(0);
+                // 网络权限**逐个插件**声明：共用一个白名单会让每个插件
+                // 都拿到全部主机，违反最小权限。
+                let Some(spec) = specs.last_mut() else {
+                    return Err("--network 必须跟在 --plugin 之后".into());
+                };
+                if spec.1.is_empty() {
+                    spec.1 = hosts;
+                } else {
+                    spec.1.extend(hosts);
+                }
             }
-            _ => {
-                wasm_paths.push(PathBuf::from(&extra[index]));
-                index += 1;
-            }
+            other => return Err(format!("无法识别的参数：{other}").into()),
         }
     }
-    if wasm_paths.is_empty() {
-        return Err("缺少组件 wasm 路径".into());
+    if specs.is_empty() {
+        return Err("至少需要一个 --plugin <wasm>".into());
     }
-    if network.is_empty() {
-        return Err("必须用 --network 声明插件可访问的主机（宿主会强制白名单）".into());
+    for (path, network) in &specs {
+        if network.is_empty() {
+            return Err(format!(
+                "{} 缺少 --network：宿主会拒绝未声明主机的请求",
+                path.display()
+            )
+            .into());
+        }
     }
 
     fs::create_dir_all(&output)?;
     let mut entries = Vec::new();
     let mut files = Vec::new();
 
-    for wasm in &wasm_paths {
+    for (wasm, network) in &specs {
         let bytes = fs::read(wasm)?;
-        let (plugin_id, name, host_from_descriptor) = inspect(wasm, &bytes)?;
-        // 描述符里的主机不可靠（插件可以少声明），以调用方给的为准；
-        // 但两者完全对不上时给出提示，避免打了一个永远联不上网的包。
-        if let Some(host) = &host_from_descriptor {
-            if !network.iter().any(|allowed| allowed == host) {
-                eprintln!("提示：{plugin_id} 描述符提到 {host}，但 --network 未包含它");
-            }
-        }
+        let (plugin_id, name, _) = inspect(wasm, &bytes)?;
 
         let manifest = format!(
             "spec = 1\nid = \"{plugin_id}\"\nname = \"{name}\"\nversion = \"{version}\"\nkind = \"component\"\nentry = \"plugin.wasm\"\napi = {{ level = 1, min_host = \"0.3.0\" }}\ndescription = \"官方代码插件\"\nauthors = [\"official\"]\n\n[permissions]\nnetwork = [{}]\n",
