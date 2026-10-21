@@ -22,5 +22,17 @@
       "size": 86725,
       "sha256": "f653fe7ce2bf2747fc20a992fa3c9888f0a02478b2a893eb649fda0935512790",
       "path": "plugins/guo.yaguo/guo.yaguo-1.0.0.zip"
+    },
+    {
+      "id": "guo.niuguo",
+      "name": "niuguo",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 50741,
+      "sha256": "fcd5f4f47c7c6d5f12af3cac02a90cf76a71086587adde4a9eebcb0f6147d9cf",
+      "path": "plugins/guo.niuguo/guo.niuguo-1.0.0.zip"
     }
 ]

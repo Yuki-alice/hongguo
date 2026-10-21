@@ -26,31 +26,36 @@ void main() {
 
   test('随包插件被预装并能从注册表查到', () async {
     final index = File('assets/bundled_plugins/index.json').readAsStringSync();
-    final archivePath =
-        'assets/bundled_plugins/guo.maoguo-1.0.0.zip';
-    final archive = File(archivePath).readAsBytesSync();
+    final packages = <rust.BundledPlugin>[
+      for (final name in [
+        'guo.maoguo-1.0.0.zip',
+        'guo.yaguo-1.0.0.zip',
+        'guo.niuguo-1.0.0.zip',
+      ])
+        rust.BundledPlugin(
+          name: name,
+          indexJson: index,
+          archive: File('assets/bundled_plugins/$name').readAsBytesSync(),
+        ),
+    ];
 
     final repository = await EngineRepository.create(
       dataDirectory: dataDir.path,
-      bundled: [
-        rust.BundledPlugin(
-          name: 'guo.maoguo-1.0.0.zip',
-          indexJson: index,
-          archive: archive,
-        ),
-      ],
+      bundled: packages,
     );
-    expect(repository.bundledInstalled, contains('guo.maoguo'));
+    for (final id in ['guo.maoguo', 'guo.yaguo', 'guo.niuguo']) {
+      expect(repository.bundledInstalled, contains(id), reason: id);
+    }
 
     final sources = await repository.sources();
-    expect(
-      sources.map((source) => source.id),
-      contains('guo.maoguo'),
-      reason: '预装的代码插件应出现在引擎清单里',
-    );
-    final plugin = sources.firstWhere((source) => source.id == 'guo.maoguo');
-    expect(plugin.name, isNotEmpty);
-    expect(plugin.supports('catalog'), isTrue);
+    final ids = sources.map((source) => source.id).toList();
+    for (final id in ['guo.maoguo', 'guo.yaguo', 'guo.niuguo']) {
+      expect(ids, contains(id), reason: '预装的代码插件应出现在引擎清单里：$id');
+    }
+    final yaguo = sources.firstWhere((source) => source.id == 'guo.yaguo');
+    expect(yaguo.supports('catalog'), isTrue);
+    expect(yaguo.supports('categories'), isTrue);
+    expect(yaguo.supports('resolve'), isTrue);
   });
 
   test('诊断页能看到预装结果', () async {
@@ -59,7 +64,14 @@ void main() {
     // 编译版猫果与插件版 guo.maoguo 同时存在是刻意的：
     // Core-3 迁移完成前不做删除，避免正式包丢源。
     final ids = diagnostics.sources.map((source) => source.id).toList();
-    expect(ids, contains('maoguo'));
-    expect(ids, contains('guo.maoguo'));
+    // 编译版与插件版并存：Core-3 迁移完成前不删除编译源。
+    for (final pair in [
+      ('maoguo', 'guo.maoguo'),
+      ('yaguo', 'guo.yaguo'),
+      ('niuguo', 'guo.niuguo'),
+    ]) {
+      expect(ids, contains(pair.$1), reason: '编译版 ${pair.$1}');
+      expect(ids, contains(pair.$2), reason: '插件版 ${pair.$2}');
+    }
   });
 }

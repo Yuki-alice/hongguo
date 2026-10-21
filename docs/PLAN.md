@@ -216,7 +216,7 @@ Flutter UI
 
 **剩余**
 
-- 剧果 / 牛果 / 黄果三源插件化（牛果需插件自带 AES-128-ECB）
+- 剧果 / 黄果三源插件化
 - 工具链：打包、校验、签名、索引生成
 - `query.cursor` 的翻页 / 推荐语义
 - Pulley 下首屏 P95 相对编译源的基线
@@ -303,7 +303,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第二十九轮）：cargo 496 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-21，第三十轮）：cargo 503 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 
