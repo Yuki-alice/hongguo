@@ -457,6 +457,23 @@ class EngineRepository {
     return EngineDiagnosticsInfo.fromRust(snapshot);
   }
 
+  /// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。
+  ///
+  /// 幂等：重复调用不会产生重复任务。旧索引缺失或损坏时返回
+  /// `found == false`，不抛异常——旧数据不可读不该拦住启动。
+  Future<LegacyMigrationInfo> importLegacyDownloads(String downloadRoot) async {
+    final result = await _guard(
+      () => rust.importLegacyDownloads(downloadRoot: downloadRoot),
+    );
+    return LegacyMigrationInfo(
+      found: result.found,
+      imported: result.imported,
+      skipped: {
+        for (final reason in result.skipped) reason.reason: reason.count,
+      },
+    );
+  }
+
   /// 清空某个站源的会话（令牌 / Cookie）。
   Future<int> clearSourceSession(String source) =>
       _guard(() => rust.clearSourceSession(sourceId: source));
@@ -527,6 +544,28 @@ Future<T> _guard<T>(Future<T> Function() work) async {
   } on EngineException {
     rethrow;
   }
+}
+
+/// 旧下载索引的迁移结果。
+class LegacyMigrationInfo {
+  const LegacyMigrationInfo({
+    required this.found,
+    required this.imported,
+    required this.skipped,
+  });
+
+  /// 是否读到旧索引文件。
+  final bool found;
+
+  /// 成功登记的条目数。
+  final int imported;
+
+  /// 跳过原因 → 条数。
+  final Map<String, int> skipped;
+
+  @override
+  String toString() =>
+      'legacy(found=$found, imported=$imported, skipped=$skipped)';
 }
 
 /// 引擎声明支持的站源摘要。

@@ -11,12 +11,14 @@ mod cancel;
 mod engine;
 mod error;
 mod events;
+mod migrate;
 mod store;
 
 pub use cancel::{CancellationRegistry, RequestTicket};
 pub use engine::{current, initialize, require, BuiltinSources, Engine, EngineConfig};
 pub use error::{timeout_error, EngineError, EngineErrorKind};
 pub use events::{DownloadEvent, EventBus};
+pub use migrate::{import_legacy_index, legacy_index_path, MigrationReport};
 pub use store::{DiskSourceStore, NamespacedStore};
 
 #[cfg(test)]

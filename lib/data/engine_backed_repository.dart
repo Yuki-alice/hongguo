@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:duanju_app/data/core_bridge.dart';
 import 'package:duanju_app/data/engine_failure.dart';
 import 'package:duanju_app/data/repository_capabilities.dart';
@@ -56,8 +58,25 @@ class EngineBackedRepository extends AppRepository {
   @override
   set access(LocalStore? value) => delegate.access = value;
 
+  /// 启动顺序：先初始化下层（旧下载目录写在这里），再让引擎以只读方式
+  /// 导入旧索引。迁移失败只记录、不抛错——旧数据不可读不该拦住启动。
   @override
-  Future<void> initialize() => delegate.initialize();
+  Future<void> initialize() async {
+    await delegate.initialize();
+    try {
+      final info = await delegate.storage();
+      final directory = info['directory'] as String? ?? '';
+      if (directory.isNotEmpty) {
+        _legacyMigration = await engine.importLegacyDownloads(directory);
+      }
+    } on Object catch (error) {
+      debugPrint('旧下载索引导入跳过：$error');
+    }
+  }
+
+  /// 上一次旧索引迁移的结果，供诊断页展示。
+  LegacyMigrationInfo? get legacyMigration => _legacyMigration;
+  LegacyMigrationInfo? _legacyMigration;
 
   @override
   Future<CatalogPage> catalog(

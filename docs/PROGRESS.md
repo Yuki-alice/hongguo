@@ -25,7 +25,56 @@
 | **P2 站源迁移** | 🔄 16/20（芽果；剩皮果 / 黄豆 / 野果） |
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
-| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划字段、弹幕、下载索引、离线播放（第二十三轮）；暂停/续传（第二十四轮）；批量控制与封面待完成 |
+| **Core-2 播放与下载** | 🔄 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制与封面待完成 |
+
+## 第二十五轮：Core-2 旧下载索引只读迁移（2026-10-21）
+
+目标：让用户切到引擎后，**已经下载好的剧还能播**（PLAN.md 完成定义第 6 条）。
+
+### 做法
+
+新增 `guo-engine-core::migrate`，只读旧版 `index.json`：
+
+| 规则 | 说明 |
+| --- | --- |
+| 只读 | 不修改、不删除旧索引与文件；迁移失败用户仍可回退旧版本 |
+| 只迁移已完成 | `state == "completed"` 且未归档、有文件名、文件确实存在 |
+| 目录布局 | 与旧版一致：`<root>/<folder 或 jobId>/<file>` |
+| 幂等 | 任务表按 id 去重，重复导入不产生重复任务 |
+| 损坏不拦启动 | 索引缺失 / 超过 32 MiB / JSON 损坏 → `found: false`，不抛错 |
+
+跳过的原因会分类统计（未完成 / 已归档 / 无媒体文件 / 文件不存在），
+经 FRB `import_legacy_downloads` 返回给 Dart，供诊断页展示。
+
+### 启动接线
+
+`EngineBackedRepository.initialize` 先初始化下层，再用下层报告的下载目录
+调用导入；失败只 `debugPrint`，不阻断启动。结果保留在
+`legacyMigration` 上供诊断。
+
+### 验证
+
+| 用例 | 断言 |
+| --- | --- |
+| `imports_completed_records_with_existing_files` | 已完成 + 文件存在 → 登记为 completed |
+| `skips_unfinished_archived_and_missing_files` | 四类跳过原因都被正确归类 |
+| `missing_index_is_not_an_error` | 无索引不报错 |
+| `corrupt_index_is_not_an_error` | 损坏不报错 |
+| `migration_is_idempotent` | 两次导入仍只有一条任务 |
+| `uses_folder_layout_when_recorded` | `folder` 字段生效 |
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 464 通过（新增 6 项） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 306 通过 / 1 跳过 |
+
+### 仍未完成（Core-2 剩余）
+
+- 批量下载控制（`controlDownloadBatch`）与「校验后清理」仍走 Go。
+- 封面缓存、预加载仍走 Go。
 
 ## 第二十四轮：Core-2 下载控制与暂停续传（2026-10-21）
 

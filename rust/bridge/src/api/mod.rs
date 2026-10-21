@@ -1121,6 +1121,43 @@ pub fn engine_diagnostics() -> Result<EngineDiagnostics, EngineFailure> {
     })
 }
 
+/// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。
+///
+/// `download_root` 是旧版下载目录。迁移幂等：重复调用不会产生重复任务。
+/// 返回导入与跳过的统计，供诊断页展示。
+pub fn import_legacy_downloads(
+    download_root: String,
+) -> Result<LegacyMigrationResult, EngineFailure> {
+    let engine = engine()?;
+    let report = guo_engine_core::import_legacy_index(download_root, engine.scheduler());
+    Ok(LegacyMigrationResult {
+        found: report.found,
+        imported: report.imported as u32,
+        skipped: report
+            .skipped
+            .into_iter()
+            .map(|(reason, count)| SkippedReason {
+                reason,
+                count: count as u32,
+            })
+            .collect(),
+    })
+}
+
+/// 旧索引迁移结果。
+pub struct LegacyMigrationResult {
+    /// 是否读到旧索引文件。
+    pub found: bool,
+    pub imported: u32,
+    pub skipped: Vec<SkippedReason>,
+}
+
+/// 一类被跳过的旧记录。
+pub struct SkippedReason {
+    pub reason: String,
+    pub count: u32,
+}
+
 /// 清空某个站源的会话（令牌 / Cookie）。
 pub fn clear_source_session(source_id: String) -> Result<u32, EngineFailure> {
     let engine = engine()?;

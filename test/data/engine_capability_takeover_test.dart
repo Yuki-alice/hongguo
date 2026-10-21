@@ -179,6 +179,20 @@ void main() {
     expect(engine.calls, isEmpty);
   });
 
+  test('旧下载索引导入结果被原样映射', () async {
+    final engine = _MigrationEngine();
+    final repository = EngineBackedRepository(
+      delegate: _StorageDelegate(),
+      engine: engine,
+    );
+    await repository.initialize();
+    final info = repository.legacyMigration;
+    expect(info, isNotNull);
+    expect(info!.found, isTrue);
+    expect(info.imported, 2);
+    expect(info.skipped['文件不存在'], 1);
+  });
+
   test('能力矩阵如实标注未接入项', () {
     final capabilities = build().capabilities;
     expect(capabilities.rankings, isTrue);
@@ -188,4 +202,23 @@ void main() {
     expect(capabilities.danmaku, isTrue);
     expect(capabilities.lan, isFalse);
   });
+}
+
+/// 只回答迁移调用的假引擎。
+class _MigrationEngine extends _FakeEngine {
+  @override
+  Future<LegacyMigrationInfo> importLegacyDownloads(String downloadRoot) async {
+    calls.add('migrate:$downloadRoot');
+    return const LegacyMigrationInfo(
+      found: true,
+      imported: 2,
+      skipped: {'文件不存在': 1},
+    );
+  }
+}
+
+/// 提供旧下载目录的下层实现。
+class _StorageDelegate extends _ForbiddenDelegate {
+  @override
+  Future<Map<String, dynamic>> storage() async => {'directory': '/legacy'};
 }

@@ -103,6 +103,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  LegacyMigrationResult dco_decode_legacy_migration_result(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -148,6 +151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SeasonItem> dco_decode_list_season_item(dynamic raw);
 
   @protected
+  List<SkippedReason> dco_decode_list_skipped_reason(dynamic raw);
+
+  @protected
   List<SourceCapabilities> dco_decode_list_source_capabilities(dynamic raw);
 
   @protected
@@ -188,6 +194,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SeasonItem dco_decode_season_item(dynamic raw);
+
+  @protected
+  SkippedReason dco_decode_skipped_reason(dynamic raw);
 
   @protected
   SourceCapabilities dco_decode_source_capabilities(dynamic raw);
@@ -302,6 +311,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  LegacyMigrationResult sse_decode_legacy_migration_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -363,6 +377,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SeasonItem> sse_decode_list_season_item(SseDeserializer deserializer);
 
   @protected
+  List<SkippedReason> sse_decode_list_skipped_reason(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SourceCapabilities> sse_decode_list_source_capabilities(
     SseDeserializer deserializer,
   );
@@ -409,6 +428,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SeasonItem sse_decode_season_item(SseDeserializer deserializer);
+
+  @protected
+  SkippedReason sse_decode_skipped_reason(SseDeserializer deserializer);
 
   @protected
   SourceCapabilities sse_decode_source_capabilities(
@@ -554,6 +576,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_legacy_migration_result(
+    LegacyMigrationResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -638,6 +666,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_skipped_reason(
+    List<SkippedReason> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_capabilities(
     List<SourceCapabilities> self,
     SseSerializer serializer,
@@ -696,6 +730,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_season_item(SeasonItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_skipped_reason(SkippedReason self, SseSerializer serializer);
 
   @protected
   void sse_encode_source_capabilities(

@@ -283,6 +283,16 @@ Future<int> controlDownloads({
 Future<EngineDiagnostics> engineDiagnostics() =>
     RustLib.instance.api.crateApiEngineDiagnostics();
 
+/// 只读导入旧版（Go）下载索引，把已完成任务转成引擎任务。
+///
+/// `download_root` 是旧版下载目录。迁移幂等：重复调用不会产生重复任务。
+/// 返回导入与跳过的统计，供诊断页展示。
+Future<LegacyMigrationResult> importLegacyDownloads({
+  required String downloadRoot,
+}) => RustLib.instance.api.crateApiImportLegacyDownloads(
+  downloadRoot: downloadRoot,
+);
+
 /// 清空某个站源的会话（令牌 / Cookie）。
 Future<int> clearSourceSession({required String sourceId}) =>
     RustLib.instance.api.crateApiClearSourceSession(sourceId: sourceId);
@@ -888,6 +898,32 @@ class FailedPluginReport {
           detail == other.detail;
 }
 
+/// 旧索引迁移结果。
+class LegacyMigrationResult {
+  /// 是否读到旧索引文件。
+  final bool found;
+  final int imported;
+  final List<SkippedReason> skipped;
+
+  const LegacyMigrationResult({
+    required this.found,
+    required this.imported,
+    required this.skipped,
+  });
+
+  @override
+  int get hashCode => found.hashCode ^ imported.hashCode ^ skipped.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LegacyMigrationResult &&
+          runtimeType == other.runtimeType &&
+          found == other.found &&
+          imported == other.imported &&
+          skipped == other.skipped;
+}
+
 /// 离线播放计划。
 class LocalPlayback {
   /// 本地文件路径（不带 `file://` 前缀，播放器自行处理）。
@@ -1196,6 +1232,25 @@ class SeasonItem {
           season == other.season &&
           title == other.title &&
           sourceId == other.sourceId;
+}
+
+/// 一类被跳过的旧记录。
+class SkippedReason {
+  final String reason;
+  final int count;
+
+  const SkippedReason({required this.reason, required this.count});
+
+  @override
+  int get hashCode => reason.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SkippedReason &&
+          runtimeType == other.runtimeType &&
+          reason == other.reason &&
+          count == other.count;
 }
 
 /// 单个站源的能力矩阵。

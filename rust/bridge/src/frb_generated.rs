@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1732294252;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 401527158;
 
 // Section: executor
 
@@ -958,6 +958,39 @@ fn wire__crate__api__fetch_suggestions_impl(
                     })()
                     .await,
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__import_legacy_downloads_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "import_legacy_downloads",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_download_root = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::error::EngineFailure>((move || {
+                    let output_ok = crate::api::import_legacy_downloads(api_download_root)?;
+                    std::result::Result::Ok(output_ok)
+                })())
             }
         },
     )
@@ -2062,6 +2095,20 @@ impl SseDecode for i64 {
     }
 }
 
+impl SseDecode for crate::api::LegacyMigrationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_found = <bool>::sse_decode(deserializer);
+        let mut var_imported = <u32>::sse_decode(deserializer);
+        let mut var_skipped = <Vec<crate::api::SkippedReason>>::sse_decode(deserializer);
+        return crate::api::LegacyMigrationResult {
+            found: var_found,
+            imported: var_imported,
+            skipped: var_skipped,
+        };
+    }
+}
+
 impl SseDecode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2227,6 +2274,18 @@ impl SseDecode for Vec<crate::api::SeasonItem> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::SeasonItem>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::SkippedReason> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::SkippedReason>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -2444,6 +2503,18 @@ impl SseDecode for crate::api::SeasonItem {
     }
 }
 
+impl SseDecode for crate::api::SkippedReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_count = <u32>::sse_decode(deserializer);
+        return crate::api::SkippedReason {
+            reason: var_reason,
+            count: var_count,
+        };
+    }
+}
+
 impl SseDecode for crate::api::SourceCapabilities {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2546,33 +2617,34 @@ fn pde_ffi_dispatcher_primary_impl(
         22 => wire__crate__api__fetch_search_impl(port, ptr, rust_vec_len, data_len),
         23 => wire__crate__api__fetch_seasons_impl(port, ptr, rust_vec_len, data_len),
         24 => wire__crate__api__fetch_suggestions_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__init_engine_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__init_engine_with_directory_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__plugins__install_from_repo_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__plugins__install_plugin_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__plugins__installed_plugins_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__plugins__list_repo_plugins_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__local_playback_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__parse_catalog_with_rule_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__parse_detail_with_rule_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__plugins__parse_repository_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__plugins__parse_repository_index_impl(
+        25 => wire__crate__api__import_legacy_downloads_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__init_engine_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__init_engine_with_directory_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__plugins__install_from_repo_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__plugins__install_plugin_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__plugins__installed_plugins_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__plugins__list_repo_plugins_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__local_playback_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__parse_catalog_with_rule_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__parse_detail_with_rule_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__plugins__parse_repository_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__plugins__parse_repository_index_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__plugins__plugin_load_report_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__reload_sources_impl(port, ptr, rust_vec_len, data_len),
-        38 => {
+        37 => wire__crate__api__plugins__plugin_load_report_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__reload_sources_impl(port, ptr, rust_vec_len, data_len),
+        39 => {
             wire__crate__api__plugins__remember_repository_impl(port, ptr, rust_vec_len, data_len)
         }
-        39 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2952,6 +3024,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::FailedPluginReport>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::LegacyMigrationResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.found.into_into_dart().into_dart(),
+            self.imported.into_into_dart().into_dart(),
+            self.skipped.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::LegacyMigrationResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::LegacyMigrationResult>
+    for crate::api::LegacyMigrationResult
+{
+    fn into_into_dart(self) -> crate::api::LegacyMigrationResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::LocalPlayback {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3140,6 +3234,22 @@ impl flutter_rust_bridge::IntoDart for crate::api::SeasonItem {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::SeasonItem {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::SeasonItem> for crate::api::SeasonItem {
     fn into_into_dart(self) -> crate::api::SeasonItem {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::SkippedReason {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.reason.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::SkippedReason {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::SkippedReason> for crate::api::SkippedReason {
+    fn into_into_dart(self) -> crate::api::SkippedReason {
         self
     }
 }
@@ -3433,6 +3543,15 @@ impl SseEncode for i64 {
     }
 }
 
+impl SseEncode for crate::api::LegacyMigrationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.found, serializer);
+        <u32>::sse_encode(self.imported, serializer);
+        <Vec<crate::api::SkippedReason>>::sse_encode(self.skipped, serializer);
+    }
+}
+
 impl SseEncode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3569,6 +3688,16 @@ impl SseEncode for Vec<crate::api::SeasonItem> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::SeasonItem>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::SkippedReason> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::SkippedReason>::sse_encode(item, serializer);
         }
     }
 }
@@ -3713,6 +3842,14 @@ impl SseEncode for crate::api::SeasonItem {
         <u32>::sse_encode(self.season, serializer);
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.source_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::SkippedReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.reason, serializer);
+        <u32>::sse_encode(self.count, serializer);
     }
 }
 
