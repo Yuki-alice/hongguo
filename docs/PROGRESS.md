@@ -11,7 +11,7 @@
 | 声明式规则引擎 | ✅ `guo-rule-engine`：HTML / JSON / 内嵌 JSON 三类取数，加载期校验 |
 | HTTP 传输层 | ✅ `guo-host`：reqwest + 流式截断，live 请求验证 |
 | 代码插件层 | ✅ 猫果签名源；✅ WASM 组件宿主（真实组件端到端） |
-| 站源迁移 | 🔄 12/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果、剧果） |
+| 站源迁移 | 🔄 15/20（红果主源、伍果、花果、饭果、观果、星果、河果、猫果、帝果、发果、牛果、剧果、黄果三源） |
 | 取流（resolve） | ✅ 引擎接管，含 HLS 解析与回退 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 解密 |
 | 目录缓存 | ✅ 版本化落盘 + TTL + 分页游标合并 |
@@ -22,7 +22,84 @@
 | **P1 地基** | ✅ 2026-10-20：9 crate 工作区、插件宿主、红果主源、真实组件链路（见第十三轮） |
 | **插件生态闭环** | ✅ 2026-10-20：仓库客户端 + 官方规则包 + 插件管理 UI（见第十四轮） |
 | **D4 主源能力面** | ✅ 2026-10-20：榜单 / 推荐 / 联想 / 弹幕 / 系列剧（见第十五轮） |
-| **P2 站源迁移** | 🔄 12/20（剧果代码源；剩芽果 / 皮果 / 黄豆 / 野果 / 黄果三源） |
+| **P2 站源迁移** | 🔄 15/20（黄果三源；剩芽果 / 皮果 / 黄豆 / 野果） |
+
+## 第十九轮：黄果三源接线 + CI 补回 Dart 校验（2026-10-21）
+
+本轮不是新增站源，而是把上一轮遗留的**半成品接线**修好，并把 CI 的
+Dart 校验补回来。
+
+### 黄果三源接线
+
+`source-huangguo` 之前只有 `Cargo.toml` 与 `src/`，`bridge` 没依赖它、
+`builtin_registry()` 也没注册——它只是因为 workspace 的 `members = ["crates/*"]`
+被 `cargo check` 顺带编译，站源实际不可用。
+
+修的三处：
+
+| 文件 | 改动 |
+| --- | --- |
+| `bridge/Cargo.toml` | 增加 `guo-source-huangguo` 依赖 |
+| `bridge/src/sources/builtin.rs` | 注册 `LegacySource` / `HuangguoAiSource` / `HuangguoVideoSource` |
+| `crates/source-huangguo/src/lib.rs` | 补 `mod legacy;` 并导出三源 |
+
+### 修掉的三个真实缺陷
+
+1. **`legacy.rs` 是孤儿模块**（719 行）：`lib.rs` 只声明了 `mod ai; mod video;`，
+   整个文件不参与编译，里面的 7 个测试从未运行。补上 `mod legacy;` 后
+   立刻暴露一个失败用例（见下条）。
+2. **协议解析器不认无引号键**：`script_value` 只处理 `"interfaceKey":"..."`，
+   而前端是压缩后的 JS，`{interfaceKey:"..."}` 这种写法更常见。且原实现在
+   循环里用 `?`，遇到第一个不匹配的位置就整体返回 `None` 而不是继续搜索。
+   重写为同时接受带引号/不带引号两种键形态，并保证不匹配时继续扫描。
+3. **能力位与实现不符**：`ai.rs` 与 `legacy.rs` 都声明了 `Capability::Categories`，
+   但都没实现 `categories()`——trait 默认返回空列表。后果是 UI 显示分类筛选
+   入口、点开却是空的。两个源都补上实现（`ai` 用固定分类表，`legacy` 复用
+   已有的 `tabs()`）。
+
+### 验证状态
+
+| 站源 | id | 在线验证 |
+| --- | --- | --- |
+| 黄果旧版 | `cloudfront` | ✅ 官网前端与 API 可达，具备在线验证条件 |
+| 黄果 AI | `huangguoai` | ⬜ 站点与六个镜像全部超时，仅离线对拍 |
+| 黄果视频 | `huangguo-video` | ⬜ 同上 |
+
+### CI：补回 Dart 校验
+
+`checks` job 自 2026-09-30 的 `e2da550`（「临时仅跑 windows」）起一直是 `if: false`，
+`flutter test` 与 `dart analyze` 三周多没有自动守护。本轮拆成三个独立 job：
+
+| job | 内容 |
+| --- | --- |
+| `flutter` | format（`--set-exit-if-changed`）/ analyze / test / test（ALL_SOURCES） |
+| `go` | `go test -race` 两轮 |
+| `scripts` | `scripts/test_*.py` |
+| `engine-online` | 真实站点用例，`continue-on-error` |
+
+两个细节：
+
+- 原 `dart format` 不带 `--set-exit-if-changed`，会就地改写文件并返回 0，
+  格式漂移被静默吞掉；已加。
+- `test/engine_*.dart` 里 9 个文件请求真实站点，不能进必过路径。
+  加了 `engine` tag（`dart_test.yaml` + 文件头 `@Tags(['engine'])`），
+  CI 用 `--exclude-tags engine` 跑离线套件，在线用例单独由非阻断 job 跑。
+
+`flutter` job 必须先跑 `python scripts/prepare_engine.py`：FRB 生成代码把
+`ioDirectory` 写死为 `rust/target/release/`，全新 checkout 里没有该目录。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | ✅ 全绿（黄果 crate 20 项，原 12 项） |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| 引擎站源清单 | ✅ 16 个（原 13，新增黄果三源） |
+| `flutter test --exclude-tags engine` | ✅ 289 通过 / 1 跳过 |
+| `dart analyze` | ✅ 0 error / 0 warning |
+| `dart format --set-exit-if-changed` | ✅ 190 文件无改动 |
+
 
 ## 第十八轮：P2 第四个站源 —— 剧果（2026-10-21）
 

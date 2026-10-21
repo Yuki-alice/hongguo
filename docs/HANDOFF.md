@@ -604,27 +604,23 @@ test/ui/features/
 | 主源 | `guo-source-hongguo` 已注册进 `builtin_registry()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类；发果规则带在线验证用例（`--ignored`） |
 | 插件安装 | `bridge/src/api/plugins.rs` 暴露 `setPluginDirectory` / `parseRepository` / `installPlugin` / `installedPlugins` / `uninstallPlugin` / `setPluginEnabled` / `rollbackPlugin` / `rememberRepository`，Dart 绑定已生成到 `lib/src/rust/api/plugins.dart` |
 | 代码插件 | WIT 契约 `rust/crates/plugin-wasm/wit/source-plugin.wit`；模板 `rust/examples/plugin-template/`（`./build.sh`） |
-| 站源 | 引擎注册 13 个：红果主源；代码源猫果、牛果、剧果；9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / 帝果 / 发果） |
-| 测试 | `cargo test --workspace` 367 项；Dart 引擎测试 9 项需先 `python scripts/prepare_engine.py` |
+| 站源 | 引擎注册 16 个：红果主源；代码源猫果、牛果、剧果、黄果旧版、黄果 AI、黄果视频；9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / 帝果 / 发果） |
+| CI | `rust` / `flutter` / `go` / `scripts` / `engine-online` / `windows` 六个 job 启用；`android` / `ios` 仍为 `if: false` |
+| 测试标签 | `test/engine_*.dart` 中 9 个文件请求真实站点，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
+| 测试 | `cargo test --workspace` 367 项；Dart 引擎测试由 native-assets 钩子自动备库 |
 
-**Dart 测试的前置条件**：跑引擎测试前先准备动态库：
-
-```
-python scripts/prepare_engine.py          # release（推荐）
-python scripts/prepare_engine.py --debug  # 调试
-```
-
-脚本会构建并把产物同时放到 `rust/target/<profile>/` 与
-`rust/bridge/target/<profile>/`。生成代码的 `ioDirectory` 写的是前者，
-codegen 按 `rust_root` 推出的是后者——两侧都有库，所以重新生成绑定后
-**不需要再手工修改生成文件**。`test/engine_support.dart` 的
-`initEngineForTest()` 在库缺失时会直接给出上面这条命令，而不是让
-`RustLib.init()` 抛出 `Failed to load dynamic library`。
+**Dart 测试的动态库**：native-assets 构建钩子（`hook/build.dart`，调
+`flutter_rust_bridge_hooks`）在 `flutter test` / `flutter build` 启动时自动用
+Cargo 构建并注册 `guo_engine` 代码资产，**无需任何手工准备**。工具链与目标
+平台由 `rust/rust-toolchain.toml` 钉住（channel 1.99.1 + 七个交付目标），
+缺失时 rustup 自动安装。原 `scripts/prepare_engine.py` 的双侧同步机制随
+cargokit 一起删除。
 
 **重新生成绑定**（`flutter_rust_bridge_codegen generate`）后：
 若新增了 FRB 不可序列化的 Rust 类型，给对应函数加
 `#[flutter_rust_bridge::frb(ignore)]`（`debug_env`、`plugin_error_hint`
-就是这么处理的）。`ioDirectory` 无需手工修改。
+就是这么处理的）。`ioDirectory` 仅作 `dart run` 等非打包场景的兜底路径，
+无需手工修改。
 
 ---
 

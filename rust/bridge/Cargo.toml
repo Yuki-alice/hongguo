@@ -24,6 +24,7 @@ guo-source-hongguo = { path = "../crates/source-hongguo" }
 guo-source-maoguo = { path = "../crates/source-maoguo" }
 guo-source-niuguo = { path = "../crates/source-niuguo" }
 guo-source-huangju = { path = "../crates/source-huangju" }
+guo-source-huangguo = { path = "../crates/source-huangguo" }
 async-trait.workspace = true
 flutter_rust_bridge = "=2.13.0"
 semver.workspace = true

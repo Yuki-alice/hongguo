@@ -1,3 +1,8 @@
+// 这些用例会请求真实站源，断网或站点改版时失败不算回归。
+// 默认运行会排除本 tag，需要时用 `flutter test --tags engine` 显式打开。
+@Tags(['engine'])
+library;
+
 import 'dart:io';
 import 'engine_support.dart';
 
@@ -28,9 +33,9 @@ void main() {
   });
 
   test('declarative rule parses a catalog page', () async {
-    final rule = await _readFixture('engine/rules/wuguo.json');
+    final rule = await _readFixture('rust/rules/wuguo.json');
     final html = await _readFixture(
-      'engine/bridge/tests/fixtures/wuguo_catalog.html',
+      'rust/bridge/tests/fixtures/wuguo_catalog.html',
     );
     final page = await parseCatalogWithRule(
       ruleJson: rule,
@@ -46,9 +51,9 @@ void main() {
   });
 
   test('declarative rule parses chapters', () async {
-    final rule = await _readFixture('engine/rules/wuguo.json');
+    final rule = await _readFixture('rust/rules/wuguo.json');
     final html = await _readFixture(
-      'engine/bridge/tests/fixtures/wuguo_detail.html',
+      'rust/bridge/tests/fixtures/wuguo_detail.html',
     );
     final chapters = await parseDetailWithRule(
       ruleJson: rule,
@@ -70,7 +75,7 @@ void main() {
   });
 
   test('valid rule returns its id', () async {
-    final rule = await _readFixture('engine/rules/wuguo.json');
+    final rule = await _readFixture('rust/rules/wuguo.json');
     expect(await validateRule(ruleJson: rule), 'wuguo');
   });
 }

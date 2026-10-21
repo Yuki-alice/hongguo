@@ -15,6 +15,7 @@ use guo_plugin_wasm::{ComponentSource, SandboxLimits};
 use guo_runtime::{load_installed, LoadReport, RuleSource};
 use guo_source_api::{SourcePlugin, SourceRegistry};
 use guo_source_hongguo::HongguoSource;
+use guo_source_huangguo::{HuangguoAiSource, HuangguoVideoSource, LegacySource};
 use guo_source_huangju::HuangjuSource;
 use guo_source_maoguo::MaoguoSource;
 use guo_source_niuguo::NiuguoSource;
@@ -46,6 +47,11 @@ pub fn builtin_registry() -> SourceRegistry {
     registry.register(Arc::new(MaoguoSource::new()));
     registry.register(Arc::new(NiuguoSource::new()));
     registry.register(Arc::new(HuangjuSource::new()));
+    // 黄果三源：`cloudfront` 可在线验证，`huangguoai` / `huangguo-video`
+    // 的站点在 2026-10-21 全部超时，只有离线对拍（见 crate 文档）。
+    registry.register(Arc::new(LegacySource::new()));
+    registry.register(Arc::new(HuangguoAiSource::new()));
+    registry.register(Arc::new(HuangguoVideoSource::new()));
     for text in BUILTIN_RULES {
         match RuleSource::from_json(text) {
             Ok(source) => {

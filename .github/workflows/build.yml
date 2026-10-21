@@ -31,19 +31,19 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: engine -> target
+          workspaces: rust -> target
       - name: Format
         run: cargo fmt --all --check
-        working-directory: engine
+        working-directory: rust
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-        working-directory: engine
+        working-directory: rust
       - name: 生成官方规则仓库（端到端测试需要）
         run: cargo run -p guo-plugin-host --bin pack_rules -- dist/rules rules
-        working-directory: engine
+        working-directory: rust
       - name: Test
         run: cargo test --workspace
-        working-directory: engine
+        working-directory: rust
       - name: 依赖方向守卫
         run: |
           # 契约层不得引入运行时依赖（ARCHITECTURE.md §6.3）。
@@ -53,32 +53,87 @@ jobs:
             exit 1
           fi
 
-  checks:
-    if: false
+  flutter:
+    # Dart 侧的静态检查与单元测试。
+    #
+    # 引擎测试（test/engine_*.dart）依赖 `guo_engine` 动态库，由 native-assets
+    # 构建钩子（hook/build.dart）在 `flutter test` 启动时自动编译注入，无需手工
+    # 准备产物；rust-toolchain.toml 钉住工具链与目标平台，缺失时 rustup 自动补齐。
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: native/go.mod
-          cache-dependency-path: native/go.sum
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.4'
           channel: stable
           cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
       - run: flutter pub get --enforce-lockfile
-      - run: dart format lib test integration_test test_driver
-      - run: dart analyze lib test integration_test test_driver
+      - name: Format
+        # --set-exit-if-changed 是必需的：不带它 dart format 会就地改写文件并
+        # 返回 0，格式漂移会被静默吞掉。
+        run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
+      - name: Analyze
+        run: dart analyze lib test integration_test test_driver
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: flutter test --dart-define=DISABLE_REMOTE_IMAGES=true
-      - run: flutter test --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true
+      - name: Test
+        # 排除 `engine` tag：那批用例请求真实站源，断网或站点改版都会失败，
+        # 不属于代码回归。在线用例由 `engine-online` job 单独跑且不阻断。
+        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
+      - name: Test (全部站源)
+        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true
+
+  engine-online:
+    # 真实站点验证。站点不可达、改版或限流都会让这里失败，因此
+    # `continue-on-error`——它提供信号，但不拦合并。
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - run: flutter pub get --enforce-lockfile
+      - name: Test (在线站源)
+        run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
+
+  go:
+    # Go 后端（`native/`）仍是默认运行路径：`ENGINE_ROUTE` 未设置时
+    # `lib/main.dart` 直接用 Go 核心，Rust 引擎挂在开关后面。
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
       - run: go test -race ./...
         working-directory: native
       - run: go test -race -ldflags="-X duanjuapp/native/core.buildAllSources=true" ./...
         working-directory: native
+
+  scripts:
+    # 构建脚本自身的单元测试（scripts/test_*.py）。
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
   android:
     if: false
