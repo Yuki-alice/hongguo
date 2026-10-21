@@ -39,10 +39,9 @@ ios/Runner/GeneratedPluginRegistrant.*
 ios/DuanjuCore/*.xcframework/
 **/xcuserdata/
 
-# Rust engine build artifacts
+# Rust 引擎构建产物（native-assets 钩子经 cargo 构建到 workspace 共享 target/）
 rust/target/
-# 桥接 crate 的同步目录：`scripts/prepare_engine.py` 在这里放一份产物，
-# 让 FRB 按 rust_root 推出的路径也能加载。
+# 桥接 crate 的历史同步目录（cargokit 时期遗留，可随本地清理删除）
 rust/bridge/target/
 rust/Cargo.lock.bak
 # 插件模板是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）

@@ -1,6 +1,5 @@
 rust_input: crate::api
 rust_root: rust/bridge/
 dart_output: lib/src/rust
-# 工作区共享 target/：cargo 产物在 rust/target/，codegen 按 rust_root 推出
-# rust/bridge/target/。运行 `python scripts/prepare_engine.py` 会把产物同步到
-# 两侧，因此重新生成绑定后不需要手工修改 ioDirectory。
+# native-assets 后端：hook/build.dart 在 flutter build / flutter test 时经
+# Cargo 构建该 crate 并注册为代码资产，产物落在 workspace 共享的 rust/target/。

@@ -208,6 +208,12 @@ pub trait SourcePlugin: Send + Sync {
 
 ## 6. Rust 工作区拓扑
 
+> **2026-10-21 更新**：构建后端已从 cargokit（`rust_builder/` 插件包，含本地补丁）迁移到
+> Dart/Flutter 原生资源机制（native-assets）：根目录 `hook/build.dart` 调
+> `flutter_rust_bridge_hooks` 在 `flutter build` / `flutter test` 时自动构建并注册代码资产；
+> `rust_builder/` 已删除，`rust/rust-toolchain.toml` 钉住工具链与目标平台。
+> 本节及 §6.6 中关于 cargokit 的内容转为历史决策记录，保留备查。
+
 ### 6.1 结论：虚工作区，桥接 crate 移到 `rust/bridge/`
 
 选择虚清单（`rust/Cargo.toml` 只含 `[workspace]`）而不是「根包 + 工作区」，理由是后者会让

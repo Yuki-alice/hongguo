@@ -29,8 +29,9 @@ dependencies:
   nsd: 5.0.1
 
   flutter_rust_bridge: 2.13.0
-  rust_lib_guo_engine:
-    path: rust_builder
+  # native-assets 构建钩子：hook/build.dart 在 flutter build / flutter test 时
+  # 自动用 Cargo 构建并打包 Rust 动态库，取代原 rust_builder（cargokit）插件包。
+  flutter_rust_bridge_hooks: 2.13.0
 
   # 状态管理：Notifier / AsyncNotifier + 依赖注入，替代手写 setState。
   flutter_riverpod: 3.4.3

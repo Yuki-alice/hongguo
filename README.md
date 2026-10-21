@@ -81,17 +81,14 @@ python scripts/build_ios.py
 构建脚本会先跑 `build_native.py`（Go 核心），再 `flutter build`，最后 `package_release.py`。
 产物在 `dist/`，不进版本管理。
 
-**Windows 构建找不到 DLL** 时，检查 `rust_builder/{windows,linux}/CMakeLists.txt` 里的
-`apply_cargokit(... guo_engine "")`——crate 名必须与 `rust/bridge/Cargo.toml` 的
-`package.name` 一致。
+Rust 动态库由 native-assets 构建钩子（`hook/build.dart`）在 `flutter build` /
+`flutter test` 时自动经 Cargo 构建并打包，无需手工准备产物；工具链与目标平台由
+`rust/rust-toolchain.toml` 钉住，首次运行 rustup 会自动安装缺失部分。
 
 ## 测试
 
 ```sh
-# 准备引擎动态库（FRB 生成代码把 ioDirectory 写死为 rust/target/release/）
-python scripts/prepare_engine.py
-
-# Dart：默认排除在线站源用例
+# Dart：默认排除在线站源用例（引擎动态库由 native-assets 钩子自动构建）
 flutter test
 flutter test --tags engine          # 只跑需要真实站点的用例
 

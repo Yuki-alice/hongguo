@@ -10,5 +10,5 @@
 # CI 用最后一条：默认行为保持不变，在线用例单独作为一个非阻断 job。
 tags:
   engine:
-    # 引擎动态库由 `python scripts/prepare_engine.py` 提供，
-    # 与是否在线无关。
+    # 引擎动态库由 native-assets 构建钩子（hook/build.dart）在测试启动时
+    # 自动编译提供，与是否在线无关。
