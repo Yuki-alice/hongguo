@@ -218,9 +218,15 @@ Flutter UI
 
 - 剧果插件：CDN 签名 Cookie 经 WIT v2 到达宿主（`Media.cookies` / `origin`）
 
+**已完成（第三十二轮）**
+
+- 宿主提取原语 `html_select` / `json_path`（ADR-12 补账）
+- 黄果视频插件（宿主提取原语 + 精确选择器定位）
+- 黄果 AI 插件（镜像回退 + 递归 JSON 挖掘）
+
 **剩余**
 
-- 黄果三源插件化
+- 黄果旧版插件化（AES 参数加密 + SHA-256 密钥协商，最复杂的一个）
 - 工具链：打包、校验、签名、索引生成
 - `query.cursor` 的翻页 / 推荐语义
 - Pulley 下首屏 P95 相对编译源的基线
@@ -307,7 +313,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第三十一轮）：cargo 509 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-22，第三十二轮）：cargo 522 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 

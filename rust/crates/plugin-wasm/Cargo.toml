@@ -7,7 +7,10 @@ rust-version.workspace = true
 
 [dependencies]
 guo-source-api = { path = "../source-api" }
+guo-rule-engine = { path = "../rule-engine" }
 async-trait.workspace = true
+serde_json.workspace = true
+scraper.workspace = true
 tokio = { workspace = true, features = ["rt", "time"] }
 wasmtime = { version = "=49.0.2", default-features = false, features = [
     "component-model",

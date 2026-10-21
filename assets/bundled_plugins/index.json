@@ -46,5 +46,29 @@
       "size": 72032,
       "sha256": "0e6a20b82bd8d2d21e8928291c7fdb2207bdc9e7d9493a4b2c78dca2aa69e7c8",
       "path": "plugins/guo.huangju/guo.huangju-1.0.0.zip"
+    },
+    {
+      "id": "guo.huangguo-video",
+      "name": "huangguo-video",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 34537,
+      "sha256": "3c065445694cafd871186a1ce8b2b1489483315af67ca01471312ed898b44846",
+      "path": "plugins/guo.huangguo-video/guo.huangguo-video-1.0.0.zip"
+    },
+    {
+      "id": "guo.huangguo-ai",
+      "name": "huangguo-ai",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 66679,
+      "sha256": "258a5802dde4c1dcb06d84236c4819b510effca925448c0812daba8caa950e42",
+      "path": "plugins/guo.huangguo-ai/guo.huangguo-ai-1.0.0.zip"
     }
 ]

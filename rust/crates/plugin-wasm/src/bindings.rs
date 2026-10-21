@@ -108,20 +108,59 @@ impl Host for HostState {
             .unwrap_or(0)
     }
 
-    fn html_select(
-        &mut self,
-        _html: String,
-        _selector: String,
-        _attr: Option<String>,
-    ) -> Vec<String> {
-        // ADR-12 的提取原语已在 `guo-rule-engine` 实现；
-        // 插件侧接上它需要把 scraper 拉进本 crate，P1 之后再按实际插件需求开。
-        Vec::new()
+    /// ADR-12 的提取原语：解析留在宿主的原生代码里，插件只拿结果。
+    ///
+    /// 语义：按 CSS 选择器返回**全部**匹配（插件因此不需要逐块调用）。
+    /// `attr` 为 `None` / `Some("")` 时返回节点内的首个非空文本；
+    /// `attr` 命中 `href` / `src` 一类时读属性。选择器无效返回空表——
+    /// 插件的查询构造错误属于它自己的缺陷，宿主不应替它报错。
+    fn html_select(&mut self, html: String, selector: String, attr: Option<String>) -> Vec<String> {
+        html_select_all(&html, &selector, attr.as_deref())
     }
 
-    fn json_path(&mut self, _json: String, _path: String) -> Vec<String> {
-        Vec::new()
+    /// JSONPath 子集：`$.a.b[*].c`，数组用 `[*]` 展开或数字下标。
+    fn json_path(&mut self, json: String, path: String) -> Vec<String> {
+        let Ok(root) = serde_json::from_str::<serde_json::Value>(&json) else {
+            return Vec::new();
+        };
+        guo_rule_engine::select(&root, &path)
+            .into_iter()
+            .map(|value| match value {
+                serde_json::Value::String(text) => text.clone(),
+                other => other.to_string(),
+            })
+            .collect()
     }
+}
+
+/// `html_select` 的实现体，独立成函数便于单元测试。
+fn html_select_all(html: &str, selector: &str, attr: Option<&str>) -> Vec<String> {
+    let document = scraper::Html::parse_document(html);
+    let Ok(parsed) = scraper::Selector::parse(selector.trim()) else {
+        return Vec::new();
+    };
+    let read_attr = attr
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string);
+    document
+        .select(&parsed)
+        .map(|element| match &read_attr {
+            Some(name) => element
+                .value()
+                .attr(name)
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+            None => element
+                .text()
+                .map(str::trim)
+                .find(|text| !text.is_empty())
+                .unwrap_or_default()
+                .to_string(),
+        })
+        .filter(|value| !value.is_empty())
+        .collect()
 }
 
 fn run_blocking_async<F, T>(future: F) -> Result<T, SourceError>
@@ -330,6 +369,37 @@ mod tests {
             .fetch("get".into(), "https://evil.test/a".into(), Vec::new(), None)
             .expect_err("白名单外必须拒绝");
         assert!(matches!(error, Error::Unsupported(_)), "{error:?}");
+    }
+
+    #[test]
+    fn html_select_returns_all_matches_and_text() {
+        let html = r#"<ul>
+            <li class="item"><a href="/a">甲</a></li>
+            <li class="item"><a href="/b">乙</a></li>
+            <li class="skip">丙</li>
+        </ul>"#;
+        // 文本模式：每个匹配取首个非空文本。
+        let texts = html_select_all(html, "li.item", None);
+        assert_eq!(texts, vec!["甲".to_string(), "乙".to_string()]);
+        // 属性模式：读 href。
+        let hrefs = html_select_all(html, "li.item a", Some("href"));
+        assert_eq!(hrefs, vec!["/a".to_string(), "/b".to_string()]);
+        // 无效选择器返回空而不是 panic。
+        assert!(html_select_all(html, "###", None).is_empty());
+        // 无匹配也返回空。
+        assert!(html_select_all(html, "li.none", None).is_empty());
+    }
+
+    #[test]
+    fn json_path_selects_nested_fields() {
+        let json = r#"{"data":{"list":[{"id":1,"t":"甲"},{"id":2,"t":"乙"}]}}"#;
+        let mut host = state();
+        let values = host.json_path(json.to_string(), "$.data.list[*].t".to_string());
+        assert_eq!(values, vec!["甲".to_string(), "乙".to_string()]);
+        // 非法 JSON 返回空而不是 panic。
+        assert!(host
+            .json_path("{not".to_string(), "a".to_string())
+            .is_empty());
     }
 
     #[test]
