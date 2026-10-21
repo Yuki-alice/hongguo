@@ -214,9 +214,13 @@ Flutter UI
 - 打包器改为逐插件网络白名单（最小权限）
 - 启停 / 回滚不丢会话与下载任务的验收用例
 
+**已完成（第三十一轮）**
+
+- 剧果插件：CDN 签名 Cookie 经 WIT v2 到达宿主（`Media.cookies` / `origin`）
+
 **剩余**
 
-- 剧果 / 黄果三源插件化
+- 黄果三源插件化
 - 工具链：打包、校验、签名、索引生成
 - `query.cursor` 的翻页 / 推荐语义
 - Pulley 下首屏 P95 相对编译源的基线
@@ -303,7 +307,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-21，第三十轮）：cargo 503 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-21，第三十一轮）：cargo 509 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 

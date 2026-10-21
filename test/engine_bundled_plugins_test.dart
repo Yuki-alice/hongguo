@@ -31,6 +31,7 @@ void main() {
         'guo.maoguo-1.0.0.zip',
         'guo.yaguo-1.0.0.zip',
         'guo.niuguo-1.0.0.zip',
+        'guo.huangju-1.0.0.zip',
       ])
         rust.BundledPlugin(
           name: name,
@@ -43,13 +44,23 @@ void main() {
       dataDirectory: dataDir.path,
       bundled: packages,
     );
-    for (final id in ['guo.maoguo', 'guo.yaguo', 'guo.niuguo']) {
+    for (final id in [
+      'guo.maoguo',
+      'guo.yaguo',
+      'guo.niuguo',
+      'guo.huangju',
+    ]) {
       expect(repository.bundledInstalled, contains(id), reason: id);
     }
 
     final sources = await repository.sources();
     final ids = sources.map((source) => source.id).toList();
-    for (final id in ['guo.maoguo', 'guo.yaguo', 'guo.niuguo']) {
+    for (final id in [
+      'guo.maoguo',
+      'guo.yaguo',
+      'guo.niuguo',
+      'guo.huangju',
+    ]) {
       expect(ids, contains(id), reason: '预装的代码插件应出现在引擎清单里：$id');
     }
     final yaguo = sources.firstWhere((source) => source.id == 'guo.yaguo');
@@ -69,6 +80,7 @@ void main() {
       ('maoguo', 'guo.maoguo'),
       ('yaguo', 'guo.yaguo'),
       ('niuguo', 'guo.niuguo'),
+      ('huangju', 'guo.huangju'),
     ]) {
       expect(ids, contains(pair.$1), reason: '编译版 ${pair.$1}');
       expect(ids, contains(pair.$2), reason: '插件版 ${pair.$2}');

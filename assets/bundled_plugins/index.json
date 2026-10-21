@@ -34,5 +34,17 @@
       "size": 50741,
       "sha256": "fcd5f4f47c7c6d5f12af3cac02a90cf76a71086587adde4a9eebcb0f6147d9cf",
       "path": "plugins/guo.niuguo/guo.niuguo-1.0.0.zip"
+    },
+    {
+      "id": "guo.huangju",
+      "name": "huangju",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 72032,
+      "sha256": "0e6a20b82bd8d2d21e8928291c7fdb2207bdc9e7d9493a4b2c78dca2aa69e7c8",
+      "path": "plugins/guo.huangju/guo.huangju-1.0.0.zip"
     }
 ]

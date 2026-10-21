@@ -593,7 +593,7 @@ test/ui/features/
 
 ---
 
-## 6.5 Rust 引擎现状（2026-10-21 第三十轮）
+## 6.5 Rust 引擎现状（2026-10-21 第三十一轮）
 
 引擎侧已从「一个 crate 堆全部」拆成 13 crate 工作区，并把插件体系做成可运行的代码。
 细节见 `docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
@@ -624,13 +624,14 @@ test/ui/features/
 | 插件打样 | `rust/examples/plugins/maoguo`，编译产物 168 KB，导入只剩 `guo:source/*` |
 | 插件预装 | `assets/bundled_plugins/`，首次启动装进插件仓库；只装不覆盖 |
 | 打包器 | `pack_component`：组件 → 官方索引，**逐插件** `--network` 白名单 |
-| 插件迁移进度 | 猫果、芽果、牛果已插件化并随包预装；剧果 / 黄果待迁 |
+| 插件迁移进度 | 猫果、芽果、牛果、剧果已插件化并随包预装；只剩黄果三源 |
+| CDN 凭证 | 剧果的 CloudFront 签名 Cookie 经 `Media.cookies` 到达宿主，播放器与下载器都要带 |
 | 插件内 crypto | 牛果自带 AES-128-ECB + Base64 + PKCS#7，宿主不提供密码学（ADR-12） |
 | 启停语义 | 停用只移除源，会话与下载任务保留（`plugin_toggle.rs` 验收） |
 | 站点结构 | 榜单行数据改由 `mergeLoaderData` 脚本注入（`rankings::merge_loader_content`）；联想外层键为 `suggest_list`（旧键仍兼容） |
 | CI | `rust` / `flutter` / `scripts` / `engine-online` / `windows` 五个 job；`go` job 已删除；`android` / `ios` 仍为 `if: false` |
 | 测试标签 | `test/engine_*.dart` 请求真实站源，打 `engine` tag，CI 用 `--exclude-tags engine` 跑离线套件 |
-| 测试 | `cargo test --workspace` 503 项通过；`flutter test --exclude-tags engine` 308 通过 / 1 跳过；`flutter test --tags engine` 59 通过；引擎动态库由 native-assets 钩子自动构建 |
+| 测试 | `cargo test --workspace` 509 项通过；`flutter test --exclude-tags engine` 308 通过 / 1 跳过；`flutter test --tags engine` 59 通过；引擎动态库由 native-assets 钩子自动构建 |
 
 **Dart 测试的动态库**：native-assets 构建钩子（`hook/build.dart`，调
 `flutter_rust_bridge_hooks`）在 `flutter test` / `flutter build` 启动时自动用

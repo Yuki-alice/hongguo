@@ -26,7 +26,58 @@
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
 | **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
-| **Core-3 Wasm 源运行时** | 🔄 2026-10-21：WIT v2、猫果（二十七）；预装 + 打包器（二十八）；芽果 + 启停验收（二十九）；牛果加密源（三十）；剩剧果 / 黄果三源 |
+| **Core-3 Wasm 源运行时** | 🔄 2026-10-21：WIT v2、猫果（二十七）；预装（二十八）；芽果 + 启停（二十九）；牛果加密（三十）；剧果 CDN 凭证（三十一）；剩黄果三源 |
+
+## 第三十一轮：Core-3 剧果插件（CDN 凭证透传）（2026-10-21）
+
+目标：迁移第一个**需要 CDN 签名 Cookie** 的代码源，兑现 Core-2 留下的
+「签名 Cookie 能到达播放器」的前置条件。
+
+### 剧果插件
+
+`rust/examples/plugins/huangju`，190 KB 组件：
+
+| 项 | 说明 |
+| --- | --- |
+| 访客令牌 | `POST /auth/guest` 用 UUID v4 设备号换令牌 |
+| 设备号 | 首次用宿主 `random` 生成并存盘，之后固定（换号会让令牌一起失效） |
+| 令牌复用 | 存宿主存储，跨实例、跨重启复用；401 时清掉重取 |
+| 取流凭证 | 响应头 `Set-Cookie` 里的 CloudFront 签名对，填进 `Media.cookies` |
+| Origin | 同时带上 `Origin`，部分 CDN 会校验来源 |
+
+**关键验收**：`resolve_returns_cdn_signed_cookies` —— `CloudFront-Policy` /
+`CloudFront-Signature` 穿过 WIT v2 到达宿主，且 `Path` / `HttpOnly` 这些
+Cookie 属性没有被混进值里。这是 WIT v2 存在的理由。
+
+### 插件迁移进度
+
+| 源 | 状态 | 验证重点 |
+| --- | --- | --- |
+| 猫果 | ✅ | 请求签名（MD5 + 字符映射） |
+| 芽果 | ✅ | 登录态跨实例复用 |
+| 牛果 | ✅ | AES-128-ECB 响应解密（插件自带 crypto） |
+| 剧果 | ✅ | CDN 签名 Cookie 透传 |
+| 黄果三源 | ⏳ | 结构简单，无加密、无登录 |
+
+四个插件共 533 KB，全部随包预装，`assets/bundled_plugins/` 里可以逐个解开
+检查清单与网络白名单。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 509 通过（新增 6 项剧果插件宿主测试 + 6 项插件内单测） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 308 通过 / 1 跳过 |
+| `flutter test --tags engine` | 59 通过（预装端到端覆盖四个插件） |
+
+### Core-3 剩余
+
+- 黄果三源的插件化（旧版 / AI / 视频）。
+- `query.cursor` 的翻页 / 推荐语义。
+- Pulley 下首屏 P95 相对编译源的基线。
 
 ## 第三十轮：Core-3 牛果插件（加密响应）（2026-10-21）
 

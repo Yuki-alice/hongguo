@@ -1,0 +1,17 @@
+[package]
+name = "guo-plugin-huangju"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# 插件只依赖 ABI 生成器与 JSON；**不**依赖宿主 crate，
+# 这样插件包与宿主版本可以各自演进。
+wit-bindgen = "0.44"
+serde_json = "1"
+
+# 独立 workspace：插件以 wasm 目标编译，不参与宿主的三端构建。
+[workspace]
