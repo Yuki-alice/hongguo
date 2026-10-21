@@ -596,14 +596,14 @@ test/ui/features/
 ## 6.5 Rust 引擎现状（2026-10-21 第十八轮）
 
 引擎侧已从「一个 crate 堆全部」拆成 9 crate 工作区，并把插件体系做成可运行的代码。
-细节见 `engine/docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
+细节见 `docs/PROGRESS.md` 第十三轮，这里只列对 Flutter 侧有影响的事实。
 
 | 事项 | 现状 |
 | --- | --- |
-| 工作区 | `engine/Cargo.toml` 虚清单；`bridge/` 只做 FRB 边界，实现在 `engine/crates/*` |
+| 工作区 | `rust/Cargo.toml` 虚清单；`bridge/` 只做 FRB 边界，实现在 `rust/crates/*` |
 | 主源 | `guo-source-hongguo` 已注册进 `builtin_registry()`，能力位覆盖目录 / 详情 / 搜索 / 取流 / 分类；发果规则带在线验证用例（`--ignored`） |
 | 插件安装 | `bridge/src/api/plugins.rs` 暴露 `setPluginDirectory` / `parseRepository` / `installPlugin` / `installedPlugins` / `uninstallPlugin` / `setPluginEnabled` / `rollbackPlugin` / `rememberRepository`，Dart 绑定已生成到 `lib/src/rust/api/plugins.dart` |
-| 代码插件 | WIT 契约 `engine/crates/plugin-wasm/wit/source-plugin.wit`；模板 `engine/examples/plugin-template/`（`./build.sh`） |
+| 代码插件 | WIT 契约 `rust/crates/plugin-wasm/wit/source-plugin.wit`；模板 `rust/examples/plugin-template/`（`./build.sh`） |
 | 站源 | 引擎注册 13 个：红果主源；代码源猫果、牛果、剧果；9 条声明式规则（伍果 / 花果 / 饭果 / 观果 / 星果 / 河果 / 网果 / 帝果 / 发果） |
 | 测试 | `cargo test --workspace` 367 项；Dart 引擎测试 9 项需先 `python scripts/prepare_engine.py` |
 
@@ -614,8 +614,8 @@ python scripts/prepare_engine.py          # release（推荐）
 python scripts/prepare_engine.py --debug  # 调试
 ```
 
-脚本会构建并把产物同时放到 `engine/target/<profile>/` 与
-`engine/bridge/target/<profile>/`。生成代码的 `ioDirectory` 写的是前者，
+脚本会构建并把产物同时放到 `rust/target/<profile>/` 与
+`rust/bridge/target/<profile>/`。生成代码的 `ioDirectory` 写的是前者，
 codegen 按 `rust_root` 推出的是后者——两侧都有库，所以重新生成绑定后
 **不需要再手工修改生成文件**。`test/engine_support.dart` 的
 `initEngineForTest()` 在库缺失时会直接给出上面这条命令，而不是让
@@ -663,13 +663,13 @@ codegen 按 `rust_root` 推出的是后者——两侧都有库，所以重新�
 | `lib/l10n/app_zh.arb` | 中文文案模板 |
 | `lib/l10n/generated/` | `flutter gen-l10n` 生成的本地化类 |
 | `lib/ui/theme/md3_tokens.dart` | MD3 设计令牌（`Md3Spacing` 等） |
-| `engine/bridge/src/api/` | FRB 入口：站源取数、下载、缓存、插件管理 |
-| `engine/crates/source-api/` | 站源契约：模型、错误、trait（零 IO） |
-| `engine/crates/plugin-host/` | 插件包格式、仓库协议、安装器 |
-| `engine/crates/plugin-wasm/` | WASM 组件宿主与能力注入 |
-| `engine/crates/source-hongguo/` | 红果主源（签名、`_ROUTER_DATA` 解析） |
-| `engine/docs/ARCHITECTURE.md` | 引擎架构与阶段划分（唯一权威设计文档） |
-| `engine/docs/PROGRESS.md` | 每轮落地内容与验证数据 |
+| `rust/bridge/src/api/` | FRB 入口：站源取数、下载、缓存、插件管理 |
+| `rust/crates/source-api/` | 站源契约：模型、错误、trait（零 IO） |
+| `rust/crates/plugin-host/` | 插件包格式、仓库协议、安装器 |
+| `rust/crates/plugin-wasm/` | WASM 组件宿主与能力注入 |
+| `rust/crates/source-hongguo/` | 红果主源（签名、`_ROUTER_DATA` 解析） |
+| `docs/ARCHITECTURE.md` | 引擎架构与阶段划分（唯一权威设计文档） |
+| `docs/PROGRESS.md` | 每轮落地内容与验证数据 |
 | `lib/src/rust/` | FRB 生成的 Dart 绑定（勿手改，含 `ioDirectory`） |
 | `test/router_harness.dart` | 路由测试脚手架 |
 | `test/ui/features/detail/controllers/detail_controller_test.dart` | 详情控制器单元测试 |
@@ -688,7 +688,7 @@ codegen 按 `rust_root` 推出的是后者——两侧都有库，所以重新�
 | `test/domain/lan_sync_models_test.dart` | LAN 同步版本与冲突测试 |
 | `test/video_enhancement_policy_test.dart` | 画质增强策略测试 |
 | `test/data/media/media_merge_test.dart` | 合并分集连续性校验测试 |
-| `engine/` | Rust 引擎（cargo workspace，`guo_engine` crate） |
+| `rust/` | Rust 引擎（cargo workspace，`guo_engine` crate） |
 
 ---
 

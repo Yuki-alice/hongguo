@@ -1,7 +1,7 @@
 """构建引擎动态库，并放到 flutter_rust_bridge 生成代码会查找的位置。
 
-工作区拆分后 cargo 的产物在 `engine/target/`，而 FRB 按 `rust_root` 推出
-`engine/bridge/target/`。两边不一致时，生成代码里写的 `ioDirectory` 与
+工作区拆分后 cargo 的产物在 `rust/target/`，而 FRB 按 `rust_root` 推出
+`rust/bridge/target/`。两边不一致时，生成代码里写的 `ioDirectory` 与
 真实产物必有一处对不上：手工改生成文件会在下次 codegen 后被冲掉。
 
 本脚本只做一件事——构建后把产物同步到两侧目录，使
@@ -21,7 +21,7 @@ from pathlib import Path
 
 
 root = Path(__file__).resolve().parents[1]
-engine = root / 'engine'
+engine = root / 'rust'
 crate = 'guo_engine'
 
 

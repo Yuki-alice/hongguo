@@ -9,7 +9,7 @@ set(PROJECT_NAME "rust_lib_guo_engine")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 include("../cargokit/cmake/cargokit.cmake")
-apply_cargokit(${PROJECT_NAME} ../../engine/bridge guo_engine "")
+apply_cargokit(${PROJECT_NAME} ../../rust/bridge guo_engine "")
 target_link_libraries(${BINARY_NAME} PRIVATE "${${PROJECT_NAME}_cargokit_lib}")
 
 # List of absolute paths to libraries that should be bundled with the plugin.

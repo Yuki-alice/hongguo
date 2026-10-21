@@ -47,7 +47,7 @@
 | 代码源 | 1 个 | 猫果（七猫签名接口，572 行） |
 | Go 依赖 | `tls-client` + `utls` | 仅黄果视频 / 皮果需要浏览器 TLS 指纹 |
 | 构建 | cargokit 已被本地打补丁 | Android / macOS 通过，iOS 受既有 Go 核心缺失阻塞 |
-| 仓库状态 | `engine/`、`rust_builder/`、`reference/` 均未被 Git 跟踪 | 当前 `pubspec 0.2.56+62`，README 仍写 `0.2.55+61` |
+| 仓库状态 | `rust/`、`rust_builder/`、`reference/` 均未被 Git 跟踪 | 当前 `pubspec 0.2.56+62`，README 仍写 `0.2.55+61` |
 
 ### 1.2 硬约束
 
@@ -56,7 +56,7 @@
 - **iOS 不允许动态原生库**：插件只能是数据或 WASM；不能走 dylib / JIT。
 - **不请求站源图片**做开发验证（既有约定），海报只处理地址。
 - **不新建零散 docs**：本文与 `AUDIT.md` 是引擎目录下的设计资料，用户可见说明仍在根 `README.md`。
-- **同步脚本白名单**：`scripts/sync_source.py` 的 `SOURCE_DIRECTORIES` 已包含 `engine`，
+- **同步脚本白名单**：`scripts/sync_source.py` 的 `SOURCE_DIRECTORIES` 已包含 `rust`，
   新增 crate 目录无需改脚本；但新增**根级**目录必须同步维护。
 - **cargokit 只认 `package.name` 与 `manifestDir/src`、`Cargo.toml`、`Cargo.lock`、`build.rs`**。
   工作区化会带来三个真实风险，见 §6.6。
@@ -114,7 +114,7 @@
 | ADR-7 | 主源与插件实现**同一个 trait**，主源可额外声明内部能力 | 防止主源走第二套路径导致插件侧缺能力时无人发现 | 主源独立接口：两套调度长期分叉 |
 | ADR-8 | Dart 与引擎之间**不再用字符串错误**，改为结构化 `EngineError` | 现有 21 个 FRB 函数全部 `Result<_, String>`，UI 无法区分可重试 | 保持 String：无法做退避与提示分级 |
 | ADR-9 | 请求可取消（`request_id` + `sequence`），进度用 Stream | 对齐 Go 的 `beginRead` 语义；避免切页后旧结果覆盖 | 不可取消：切换站源时浪费流量并产生竞态 |
-| ADR-10 | 虚工作区 + 桥接 crate 移到 `engine/bridge/`，包名仍是 `guo_engine` | cargokit 只扫描 `manifestDir` 下的 `src`、`Cargo.toml`、`Cargo.lock`，且按 `package.name` 找产物 | 见 §6.6 的三个具体故障 |
+| ADR-10 | 虚工作区 + 桥接 crate 移到 `rust/bridge/`，包名仍是 `guo_engine` | cargokit 只扫描 `manifestDir` 下的 `src`、`Cargo.toml`、`Cargo.lock`，且按 `package.name` 找产物 | 见 §6.6 的三个具体故障 |
 | ADR-11 | 代码插件统一目标为 **Pulley 字节码**（`pulley64`），且**关闭 wasmtime `async` 特性** | iOS 禁止 JIT；Pulley 是 wasmtime 的便携解释器，特性覆盖与 Cranelift 等价、约 10× 慢；关闭 async 可避免 `wasmtime-fiber` 的协程栈（正是 iOS 编译失败源头） | per-OS 双运行时：两条路径、两份测试；开 async：把 fiber 重新引进来 |
 | ADR-12 | 宿主向插件提供 `html_select` / `json_path` 提取原语，插件不内嵌解析器 | 重解析留在 Rust 原生侧，抵消 Pulley 约 10× 的解释开销；插件体积与 ABI 也保持稳定 | 让插件自带 HTML/JSON 解析：插件包膨胀、Pulley 下明显变慢 |
 | ADR-13 | 规则方言只有 **CSS + `@attr`** 与 **JSONPath** 两种 | 覆盖全部 20 个已知站源；两套方言都成熟、可校验、可在加载期静态检查 | 引入 XPath：依赖 2018 年后停更的 `sxd-xpath`，且无法覆盖 Kazumi 的 WebView 规则 |
@@ -130,11 +130,11 @@
 │         library, lan, settings}                                      │
 │  domain/ ── 用例：CatalogService / PlaybackService / DownloadService │
 │  data/ ── EngineRepository (FRB) · LocalStore · Prefs                 │
-│  engine/ ── 生成绑定 + 模型映射 + EngineError                         │
+│  src/rust/ ── 生成绑定 + 模型映射 + EngineError                         │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 │ flutter_rust_bridge 2.13
 ┌───────────────────────────────▼──────────────────────────────────────┐
-│ guo_engine  (engine/bridge, cdylib/staticlib)                        │
+│ guo_engine  (rust/bridge, cdylib/staticlib)                        │
 │  - 初始化、配置、目录根、日志                                          │
 │  - 类型化 API + EngineError + 取消 / 进度流                            │
 └───────────────────────────────┬──────────────────────────────────────┘
@@ -208,9 +208,9 @@ pub trait SourcePlugin: Send + Sync {
 
 ## 6. Rust 工作区拓扑
 
-### 6.1 结论：虚工作区，桥接 crate 移到 `engine/bridge/`
+### 6.1 结论：虚工作区，桥接 crate 移到 `rust/bridge/`
 
-选择虚清单（`engine/Cargo.toml` 只含 `[workspace]`）而不是「根包 + 工作区」，理由是后者会让
+选择虚清单（`rust/Cargo.toml` 只含 `[workspace]`）而不是「根包 + 工作区」，理由是后者会让
 桥接代码与成员 crate 混在一层，且根包模式下 `cargo build` 只构建根包，所有脚本都得加 `-p` / `--workspace`。
 虚清单下 `cargo build` 默认构建全部成员，命令语义更稳定。
 
@@ -218,8 +218,8 @@ pub trait SourcePlugin: Send + Sync {
 
 | 工具 | 现状 | 改后 | 风险 |
 | --- | --- | --- | --- |
-| cargokit（Android/Windows CMake/podspec） | `manifestDir = ../../engine`，`cargokit { package = "guo_engine" }` | `manifestDir = ../../engine/bridge` | `CrateHash` 只读 `manifestDir/Cargo.lock`，工作区锁在 `engine/Cargo.lock`，哈希会漏掉锁文件变化（仅影响预编译缓存，本项目未启用）；需在构建脚本里显式纳入 |
-| FRB codegen | `rust_root: engine/`，`rust_input: crate::api` | `rust_root: engine/bridge/` | 生成路径 `dart_output: lib/src/rust` 不变 |
+| cargokit（Android/Windows CMake/podspec） | `manifestDir = ../../engine`，`cargokit { package = "guo_engine" }` | `manifestDir = ../../rust/bridge` | `CrateHash` 只读 `manifestDir/Cargo.lock`，工作区锁在 `rust/Cargo.lock`，哈希会漏掉锁文件变化（仅影响预编译缓存，本项目未启用）；需在构建脚本里显式纳入 |
+| FRB codegen | `rust_root: rust/`，`rust_input: crate::api` | `rust_root: rust/bridge/` | 生成路径 `dart_output: lib/src/rust` 不变 |
 | FRB 运行时加载 | `stem: guo_engine` | 不变（**包名必须保持 `guo_engine`**） | 改名会同时破坏 podspec、CMake、Gradle 与 Dart 的 `DynamicLibrary.open` |
 
 拆分触发条件（对应 `rust-workspace` 技能的五个判据）：
@@ -241,7 +241,7 @@ pub trait SourcePlugin: Send + Sync {
 > `rust-toolchain.toml` 与 `deny.toml` 尚未添加（工具链靠开发者环境，依赖治理待 P2 补）。
 
 ```text
-engine/
+rust/
 ├── Cargo.toml                  # 虚清单：[workspace] only
 ├── Cargo.lock                  # 工作区共享
 ├── rust-toolchain.toml         # 锁定 1.97.x（与 POC 一致）
@@ -257,7 +257,7 @@ engine/
 │   └── tests/                  # 仅桥接层的集成测试
 ├── crates/
 │   ├── source-api/             # 契约：trait、模型、能力、错误（无 IO 依赖）
-│   ├── rule-engine/            # 声明式 DSL：schema、模板、CSS/JSON/inline 执行
+│   ├── rule-rust/            # 声明式 DSL：schema、模板、CSS/JSON/inline 执行
 │   ├── plugin-host/            # 包格式、清单、签名、安装/卸载、仓库客户端
 │   ├── plugin-wasm/            # wasmtime + WIT 组件宿主与能力注入
 │   ├── host/                   # transport/限流/冷却/代理/Cookie/脚本/存储
@@ -270,7 +270,7 @@ engine/
 根清单：
 
 ```toml
-# engine/Cargo.toml
+# rust/Cargo.toml
 [workspace]
 resolver = "3"
 members = ["bridge", "crates/*"]
@@ -295,7 +295,7 @@ sha2 = "0.11"
 桥接清单：
 
 ```toml
-# engine/bridge/Cargo.toml
+# rust/bridge/Cargo.toml
 [package]
 name = "guo_engine"               # 不可改：cargokit 与 Dart 加载都依赖它
 version = "0.3.0"
@@ -355,12 +355,12 @@ crate 名统一 `guo-` 前缀（kebab-case 目录、下划线包名由 Cargo 自
 1. **构建哈希不覆盖 `crates/`，也读不到工作区锁文件**：
    `CrateHash.getFiles()` 只遍历 `manifestDir/src`，再追加 `manifestDir/Cargo.toml`、
    `manifestDir/Cargo.lock`、`build.rs`、`cargokit.yaml`。
-   桥接 crate 移到 `engine/bridge/` 后，`engine/Cargo.lock` **不在** `manifestDir` 下，
-   因此依赖版本变化不会进入哈希；`engine/crates/*` 的源码变化同样不会。
+   桥接 crate 移到 `rust/bridge/` 后，`rust/Cargo.lock` **不在** `manifestDir` 下，
+   因此依赖版本变化不会进入哈希；`rust/crates/*` 的源码变化同样不会。
    影响面：`_getPrecompiledArtifacts` 的缓存目录（本项目未启用 precompiled 下载，风险低）；
    真正的问题是**增量构建时 Gradle / CMake 的产物判定**可能沿用旧的 `.so` / `.a`。
    → 对策：桥接 crate 保持极薄（只含 FRB API 与生成代码），逻辑全部在 `crates/`；
-   构建脚本在每次构建前 `touch engine/bridge/src/lib.rs`，或直接用
+   构建脚本在每次构建前 `touch rust/bridge/src/lib.rs`，或直接用
    `cargo build -p guo_engine` 的 fingerprint 判定；CI 做一次「改 crates 后重建，产物 mtime 必须变化」的检查。
 2. **产物名取 `package.name`**：`ArtifactProvider.getArtifactNames` 用
    `lib$libraryName.a` / `lib$libraryName.so` / `$libraryName.dll`，`build_pod.dart` 用
@@ -369,7 +369,7 @@ crate 名统一 `guo-` 前缀（kebab-case 目录、下划线包名由 Cargo 自
    → 对策：桥接包**继续叫 `guo_engine`**，目录可以变、名字不变；podspec / CMake / Gradle
    的 `libname` 参数与 `output_files` 保持 `libguo_engine.*`。
 3. **工作区成员会被 `cargo build` 一并构建，但 cargokit 只取一个产物**：
-   虚清单下 `cargo build --manifest-path engine/bridge/Cargo.toml -p guo_engine` 只构建桥接包及其依赖，
+   虚清单下 `cargo build --manifest-path rust/bridge/Cargo.toml -p guo_engine` 只构建桥接包及其依赖，
    行为正确；但若脚本误用 `cargo build --workspace`，移动端交叉编译会连带构建
    `plugin-wasm`（wasmtime 体积大、iOS 编译慢）。
    → 对策：所有平台脚本显式使用 `-p guo_engine` 与固定 target；CI 校验产物里不含 wasmtime 符号。
@@ -1012,7 +1012,7 @@ Dart 映射为 `EngineFailure`（现 `AppFailure` 的超集），UI 直接按 `c
 
 ```text
 lib/
-├── engine/            # 生成绑定 + EngineRepository + 模型映射 + EngineFailure
+├── rust/            # 生成绑定 + EngineRepository + 模型映射 + EngineFailure
 ├── data/              # LocalStore、Prefs、下载索引只读视图
 ├── domain/            # CatalogService、PlaybackService、DownloadService、LibraryService、LanService
 ├── features/          # sources、catalog、detail、player、downloads、library、settings
@@ -1034,7 +1034,7 @@ lib/
 ### 12.1 目标目录
 
 ```text
-<app support>/guoengine/
+<app support>/guorust/
 ├── engine.json              # 版本、安装 id、配置快照
 ├── catalogs-v2.json         # 目录 + 游标 + 分类
 ├── downloads/
@@ -1073,9 +1073,9 @@ lib/
 | 任务 | 产出 |
 | --- | --- |
 | 补 CI：`cargo fmt --check`、`cargo clippy --all-targets -D warnings`、`cargo test --workspace` | `.github/workflows/build.yml` 新增 `rust` job |
-| 统一版本：`pubspec 0.2.56+62` / README / `engine/Cargo.toml` 对齐 | 根 README 版本段落 |
+| 统一版本：`pubspec 0.2.56+62` / README / `rust/Cargo.toml` 对齐 | 根 README 版本段落 |
 | 修复审计中的 P1 级缺陷（见 `AUDIT.md`） | 引擎侧提交 |
-| 把 `engine/`、`rust_builder/`、`reference/` 纳入版本管理（`reference/` 保持只读引用或移出同步范围） | `.gitignore` / 仓库 |
+| 把 `rust/`、`rust_builder/`、`reference/` 纳入版本管理（`reference/` 保持只读引用或移出同步范围） | `.gitignore` / 仓库 |
 | 确立 workspace 并验证 cargokit 构建 | Android + macOS 各一次产物 |
 | **wasmtime + Pulley 三端编译探针**（仅编译 + 一个空组件实例化，不做业务） | 体积 / 冷启动基线数据写入 `PROGRESS.md` |
 
@@ -1149,7 +1149,7 @@ macOS 启动无回退日志；探针给出三端体积与冷启动数字，作�
 | Go 构建脚本 | `scripts/build_native.py`、`scripts/build_ios.py --core-only` 分支 | 以及 `.github/workflows` 的 `setup-go`、`go test` 步骤 |
 | 编译期版本开关 | `ALL_SOURCES` 的 Dart `dart-define`、Go linker flag、`SourceSite.values` 分支 | 站源启停改为「安装/卸载插件」 |
 | FFI 桥接 | `lib/core_bridge.dart` 的 `DynamicLibrary` 加载、`Isolate.run` 调用路径 | 只保留 `EngineRepository` |
-| 同步脚本必选校验 | `scripts/sync_source.py` 的 `REQUIRED_FILES`（`native/go.mod`、`native/go.sum`、`native/bridge/main.go`、`scripts/build_native.py`） | 改为校验 `engine/bridge/Cargo.toml` 等 |
+| 同步脚本必选校验 | `scripts/sync_source.py` 的 `REQUIRED_FILES`（`native/go.mod`、`native/go.sum`、`native/bridge/main.go`、`scripts/build_native.py`） | 改为校验 `rust/bridge/Cargo.toml` 等 |
 | 只读参考快照 | `reference/guoapp` | 可整体移出仓库（另存归档），不进源码压缩包 |
 | 文档 | 根 README「开发与构建」「站源」「安装包与平台状态」三节 | 改为 Flutter + Rust 单链 |
 
@@ -1223,7 +1223,7 @@ D5 连带的三条设计后果：
 D6 说明：文中 `guo.*`、`guo-engine`、`guoapp-rules` 等名称都是**占位**。
 命名未定时先保持内部一致，避免现在改动波及几十处；定名后一次性替换
 （涉及 crate 名、WIT 包名 `guo:source`、插件 id 前缀、仓库名与 `pubspec` 依赖路径）。
-注意 `engine/bridge` 的 crate 名 `guo_engine` **不能随命名一起改**——
+注意 `rust/bridge` 的 crate 名 `guo_engine` **不能随命名一起改**——
 cargokit 与 Dart 的 `DynamicLibrary.open` 都按它找产物，改名需要同步改 podspec / CMake / Gradle
 与 `rust_lib_*` 插件名，属于独立的一次构建验证任务。
 

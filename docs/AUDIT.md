@@ -1,7 +1,7 @@
 # 迁移现状审计（对照目标架构）
 
 日期：2026-10-19
-基线：工作区快照 `pubspec 0.2.56+62`（未提交），`engine/` 8,831 行 / 156 项测试通过。
+基线：工作区快照 `pubspec 0.2.56+62`（未提交），`rust/` 8,831 行 / 156 项测试通过。
 目标架构见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
 本文件只记录**已核实**的事实与缺陷，按严重度排序，供实施排期使用。每条给出证据位置；
@@ -24,7 +24,7 @@ CI 中没有任何 Rust 步骤（`checks` / `android` / `ios` 三个 job 均为 
 | 条目 | 状态 |
 | --- | --- |
 | 1.1 CI 不验证 Rust | ✅ 已修：`.github/workflows/build.yml` 新增 `rust` job（fmt / clippy / test / 依赖方向守卫） |
-| 1.1 `engine/` 未进 Git | ✅ 已修：`engine/`、`rust_builder/` 已纳入版本管理 |
+| 1.1 `rust/` 未进 Git | ✅ 已修：`rust/`、`rust_builder/` 已纳入版本管理 |
 | 1.2 Go 参考测试失败 | ✅ 已修：`go test ./...` 全绿（33 s）。最后一项 `TestRankingCacheAndStaleRecovery` 是夹具缺陷——第 1 页请求不带 `?page=`，夹具却按 0 处理，于是把 `pageNum: 0` 写进数据；未修改的 `reference/` 仍可复现同一失败，证明是测试侧问题而非实现回归 |
 | 2.x 单一 crate / 全局单例 | ✅ 已拆：9 crate 工作区，`bridge` 只留 FRB 边界 |
 | 3.1 全量缓冲 | ✅ 已修：`max_bytes` + `chunk()` 流式截断；HLS 探测只读 1 KiB 前缀 |
@@ -44,12 +44,12 @@ CI 中没有任何 Rust 步骤（`checks` / `android` / `ios` 三个 job 均为 
 - `.github/workflows/build.yml`：`checks`（第 22 行）、`android`（第 49 行）、`ios`（第 148 行）
   均带 `if: false`；唯一启用的 `windows` job（第 102 行）只跑 Go + Flutter 构建。
   文件内**不存在** `cargo`、`rustup`、`clippy`、`cargo test` 任何字样。
-- 后果：`engine/` 与 `rust_builder/` 至今未进 Git（`git ls-tree HEAD` 无 `engine`），
+- 后果：`rust/` 与 `rust_builder/` 至今未进 Git（`git ls-tree HEAD` 无 `engine`），
   一旦误删无法恢复；Rust 回归只能靠本机手动执行。
 
 **修复**：新增 `rust` job（checkout → rustup 1.97 → `cargo fmt --check` →
 `cargo clippy --workspace --all-targets -D warnings` → `cargo test --workspace --offline`），
-并把 `engine/`、`rust_builder/` 纳入版本管理。
+并把 `rust/`、`rust_builder/` 纳入版本管理。
 
 ### 1.2 参考 Go 测试当前失败（迁移对照失去基准）
 
@@ -90,7 +90,7 @@ panic: close of closed channel                                    ← 测试自�
 
 D5 定案后这条不再有「保留一个版本周期」的缓冲：**删除 Go 与修改必选清单必须在同一次收尾内完成**，
 否则仓库会进入「删了源码、同步失败」的半坏状态。实施建议：先在 `REQUIRED_FILES` 里
-加入 Rust 侧的等价必选文件（`engine/bridge/Cargo.toml`、`engine/Cargo.toml`、
+加入 Rust 侧的等价必选文件（`rust/bridge/Cargo.toml`、`rust/Cargo.toml`、
 `rust_builder/pubspec.yaml`、`flutter_rust_bridge.yaml`），确认同步通过后，再移除 Go 的四项。
 
 ### 1.4 版本号不一致（README 已在本轮修正）
@@ -99,7 +99,7 @@ D5 定案后这条不再有「保留一个版本周期」的缓冲：**删除 Go
 | --- | --- | --- |
 | `pubspec.yaml:4` | `0.2.56+62` | 基线 |
 | `README.md` 第 3 段 | `0.2.56+62` | ✅ 本轮已对齐 |
-| `engine/Cargo.toml` | `0.1.0` | ⬜ 未对齐（P0） |
+| `rust/Cargo.toml` | `0.1.0` | ⬜ 未对齐（P0） |
 
 ---
 
@@ -107,26 +107,26 @@ D5 定案后这条不再有「保留一个版本周期」的缓冲：**删除 Go
 
 ### 2.1 规则「源」与应用没有分离
 
-- 规则通过 `include_str!` 编进二进制：`engine/bridge/src/sources/mod.rs` 的 `BUILTIN_RULES` 与
+- 规则通过 `include_str!` 编进二进制：`rust/bridge/src/sources/mod.rs` 的 `BUILTIN_RULES` 与
   `sources/rule_source.rs`。
 - 新增/修改一个源必须重新发版；用户无法安装、更新、卸载。
 - 与目标（仓库 + 包 + 按需安装）完全不同。
 
 ### 2.2 没有插件概念，只有「编译期源 + 硬编码代码源」
 
-- `SourceRegistry`（`engine/bridge/src/source.rs`）只在进程内注册 `Arc<dyn SourcePlugin>`；
+- `SourceRegistry`（`rust/bridge/src/source.rs`）只在进程内注册 `Arc<dyn SourcePlugin>`；
   无清单、无版本、无权限、无安装路径。
-- 猫果（`engine/bridge/src/sources/maoguo.rs`，572 行）是唯一的「代码插件」，但它直接调用
+- 猫果（`rust/bridge/src/sources/maoguo.rs`，572 行）是唯一的「代码插件」，但它直接调用
   `crate::crypto`、写死字符映射表与密钥，无法分发给第三方。
 
 ### 2.3 单一 crate 承担全部职责
 
-`engine/bridge/src` 的模块清单：`api`、`cache`、`crypto`、`download`、`env`、`error`、`media`、`model`、
+`rust/bridge/src` 的模块清单：`api`、`cache`、`crypto`、`download`、`env`、`error`、`media`、`model`、
 `rule`、`scheduler`、`script`、`source`、`sources`、`transport`，外加 1,869 行生成代码。
 - `source-api`、`rule-engine`、`host`、`runtime`、`plugin` 全部混在一起；
 - `source-api` 这类本应零 IO 的契约层无法被独立复用或做依赖越界检查；
 - cargokit 的哈希只覆盖 `manifestDir/src`，任何拆分都必须先确认构建缓存行为（见架构文档 §6.6）。
-  已在 P0 处理：桥接 crate 下移到 `engine/bridge` 并把 `manifestDir` 指向它，实测 macOS / Android 构建均通过。
+  已在 P0 处理：桥接 crate 下移到 `rust/bridge` 并把 `manifestDir` 指向它，实测 macOS / Android 构建均通过。
 
 ### 2.4 全局单例 + 不可配置
 
@@ -138,7 +138,7 @@ D5 定案后这条不再有「保留一个版本周期」的缓冲：**删除 Go
 
 ### 2.5 错误模型退化为字符串
 
-`engine/bridge/src/api.rs` 的 21 个公开函数**全部**是 `Result<T, String>` 或 `bool`；
+`rust/bridge/src/api.rs` 的 21 个公开函数**全部**是 `Result<T, String>` 或 `bool`；
 `SourceError`（`error.rs`）虽然类型化，但在 FRB 边界被 `err.to_string()` 抹平，
 Dart 端只能显示中文文本，无法判断是否可重试、是否需要冷却、是否结构变化。
 
@@ -221,7 +221,7 @@ Dart 的 `EngineBackedRepository` 共 44 个 `@override`，其中 49 处 `delega
 
 ### 3.1 非 HLS 媒体也被整段下载
 
-`engine/bridge/src/sources/rule_source.rs` 的 `finish_media`（第 234 行起）对**任何**地址先执行
+`rust/bridge/src/sources/rule_source.rs` 的 `finish_media`（第 234 行起）对**任何**地址先执行
 `env.text(...)`（第 243–245 行）再判断是否 HLS。`resolve()` 在地址像媒体时也会走这里（第 196–199 行）。
 后果：MP4 直链在取流阶段被完整读入并做 UTF-8 解码，既浪费流量与内存，也可能因解码失败报错。
 
@@ -229,7 +229,7 @@ Dart 的 `EngineBackedRepository` 共 44 个 `@override`，其中 49 处 `delega
 
 ### 3.2 下载删除会误删其它任务
 
-`engine/bridge/src/scheduler.rs` 的 `"delete"` 分支先 `jobs.remove(id)`，随后
+`rust/bridge/src/scheduler.rs` 的 `"delete"` 分支先 `jobs.remove(id)`，随后
 `self.target_of(id)` 已取不到目标，得到空路径 `""`，`discard(PathBuf::from(""))`
 实际清理的是 `.part` / `.json` 相对路径，**目标文件不会被删**；
 若当前工作目录恰好有同名文件，存在误删风险。
@@ -246,7 +246,7 @@ Dart 的 `EngineBackedRepository` 共 44 个 `@override`，其中 49 处 `delega
 
 ### 3.4 `panic = "abort"` 与 FRB 的 catch_unwind 冲突
 
-`engine/Cargo.toml` 的 `[profile.release] panic = "abort"`；
+`rust/Cargo.toml` 的 `[profile.release] panic = "abort"`；
 `flutter_rust_bridge` 依赖 `catch_unwind` 把 Rust panic 转成 Dart 异常。
 在 abort 模式下任何 `expect`（如 `cache.rs` 的 `Mutex` 中毒分支）都会直接终止进程，
 且生成的绑定无法兜底。**需改为 `unwind` 并补 `panic::set_hook` 上报。**
@@ -258,7 +258,7 @@ FRB 导出了 `initEngine()`，但 `EngineRepository.create()` 只调用 `RustLi
 
 ### 3.6 规则解析每次重新编译选择器
 
-`engine/bridge/src/rule/executor.rs` 的 `select_and_read`（第 275 行起）对**每条记录、每个字段**
+`rust/bridge/src/rule/executor.rs` 的 `select_and_read`（第 275 行起）对**每条记录、每个字段**
 都执行 `Selector::parse`。200 条 × 8 字段 = 1600 次解析/页，属于可避免的开销；
 `RuleDocument` 也没有选择器缓存。
 
@@ -306,15 +306,15 @@ FRB 导出了 `initEngine()`，但 `EngineRepository.create()` 只调用 `RustLi
 
 | 资产 | 位置 | 迁移价值 |
 | --- | --- | --- |
-| 声明式 DSL 雏形（HTML/JSON/inline 三类） | `engine/bridge/src/rule/*` | 直接演进为 `spec 2` |
+| 声明式 DSL 雏形（HTML/JSON/inline 三类） | `rust/bridge/src/rule/*` | 直接演进为 `spec 2` |
 | 模板渲染（`{page}/{id}/{md5:…}` 等） | `rule/rules.rs` | 保留并扩展 token |
-| HLS 解析与 AES-128 解密 | `engine/bridge/src/media.rs` | 直接复用；已用 NIST 向量验证 |
-| 断点续传骨架 | `engine/bridge/src/download.rs` | 需修 §3.1–3.3 后复用 |
-| 目录缓存合并语义 | `engine/bridge/src/cache.rs` | 与 Go 对齐，可直接复用 |
+| HLS 解析与 AES-128 解密 | `rust/bridge/src/media.rs` | 直接复用；已用 NIST 向量验证 |
+| 断点续传骨架 | `rust/bridge/src/download.rs` | 需修 §3.1–3.3 后复用 |
+| 目录缓存合并语义 | `rust/bridge/src/cache.rs` | 与 Go 对齐，可直接复用 |
 | FRB + cargokit 构建链 | `rust_builder/` | 已打 5 个补丁，必须保留 |
-| 163 项 Rust 测试 | `engine/bridge`、`engine/crates` | 作为迁移基线 |
-| Go 帧测试夹具（HTML/JSON） | `engine/bridge/tests/fixtures`、`native/core/*_test.go` | 迁移对拍输入 |
-| POC 结论（rquickjs / FRB 四端 / TLS） | `engine/docs/poc-*.md` | 约束依据 |
+| 163 项 Rust 测试 | `rust/bridge`、`rust/crates` | 作为迁移基线 |
+| Go 帧测试夹具（HTML/JSON） | `rust/bridge/tests/fixtures`、`native/core/*_test.go` | 迁移对拍输入 |
+| POC 结论（rquickjs / FRB 四端 / TLS） | `docs/poc-*.md` | 约束依据 |
 
 ---
 
@@ -322,13 +322,13 @@ FRB 导出了 `initEngine()`，但 `EngineRepository.create()` 只调用 `RustLi
 
 | 命令 | 结果 |
 | --- | --- |
-| `cd engine && cargo test --offline` | ✅ 156 项通过 |
-| `cd engine && cargo clippy --offline --all-targets -- -D warnings` | ✅ 零告警（增量缓存，0.7s） |
+| `cd rust && cargo test --offline` | ✅ 156 项通过 |
+| `cd rust && cargo clippy --offline --all-targets -- -D warnings` | ✅ 零告警（增量缓存，0.7s） |
 | `cd native && go test ./...` | ❌ 6 项失败 + 1 次 panic（见 §1.2） |
 | `cd reference/guoapp/native && go test ./...` | ❌ 同上（两目录内容一致） |
 | `rustup target list --installed` | aarch64-apple-{darwin,ios,ios-sim} / aarch64-linux-android / armv7 / i686 / x86_64-{apple-ios,linux-android,pc-windows-msvc,unknown-linux-gnu} |
 | 工具链 | rustc 1.97.1、cargo 1.97.1、Dart 3.13.5、Go 1.26.6、FRB codegen 2.13.0 |
-| `engine/target` 体积 | 7.1 GB（未纳入同步，但会持续增长） |
+| `rust/target` 体积 | 7.1 GB（未纳入同步，但会持续增长） |
 
 ---
 
@@ -351,4 +351,4 @@ FRB 导出了 `initEngine()`，但 `EngineRepository.create()` 只调用 `RustLi
 
 ---
 
-*本审计基于工作区当前文件；`engine/target` 与 `reference/` 不计入同步产物。*
+*本审计基于工作区当前文件；`rust/target` 与 `reference/` 不计入同步产物。*

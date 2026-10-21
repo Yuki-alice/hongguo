@@ -51,6 +51,6 @@ android {
 
 apply from: "../cargokit/gradle/plugin.gradle"
 cargokit {
-    manifestDir = "../../engine/bridge"
+    manifestDir = "../../rust/bridge"
     libname = "rust_lib_guo_engine"
 }

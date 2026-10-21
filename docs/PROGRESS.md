@@ -56,10 +56,10 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `engine/crates/source-huangju/` | 目录 / 详情 / 搜索 / 取流 + 访客令牌复用 |
-| `engine/bridge/tests/huangju_fixtures.rs` | 6 项：令牌先行、令牌复用、401 重登、slug 详情、签名 Cookie、能力位 |
-| `engine/bridge/tests/huangju_live.rs` | 2 项在线验证（`#[ignore]`） |
-| `engine/bridge/tests/fixtures/huangju_{list,detail,play}.json` | 2026-10-21 真实响应 |
+| `rust/crates/source-huangju/` | 目录 / 详情 / 搜索 / 取流 + 访客令牌复用 |
+| `rust/bridge/tests/huangju_fixtures.rs` | 6 项：令牌先行、令牌复用、401 重登、slug 详情、签名 Cookie、能力位 |
+| `rust/bridge/tests/huangju_live.rs` | 2 项在线验证（`#[ignore]`） |
+| `rust/bridge/tests/fixtures/huangju_{list,detail,play}.json` | 2026-10-21 真实响应 |
 
 ### 验证
 
@@ -101,10 +101,10 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `engine/crates/source-niuguo/` | 新 crate：目录 / 详情 / 搜索 / 取流 + 解密与去填充 |
-| `engine/bridge/tests/niuguo_fixtures.rs` | 5 项：真实密文解密、详情分集、解析服务回退顺序、空 ID 报错、能力位 |
-| `engine/bridge/tests/niuguo_live.rs` | 2 项在线验证（`#[ignore]`） |
-| `engine/bridge/tests/fixtures/niuguo_{list,detail}.b64` | 2026-10-21 的真实加密响应 |
+| `rust/crates/source-niuguo/` | 新 crate：目录 / 详情 / 搜索 / 取流 + 解密与去填充 |
+| `rust/bridge/tests/niuguo_fixtures.rs` | 5 项：真实密文解密、详情分集、解析服务回退顺序、空 ID 报错、能力位 |
+| `rust/bridge/tests/niuguo_live.rs` | 2 项在线验证（`#[ignore]`） |
+| `rust/bridge/tests/fixtures/niuguo_{list,detail}.b64` | 2026-10-21 的真实加密响应 |
 
 设计要点：
 
@@ -169,10 +169,10 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `engine/rules/faguo.json` | 目录 / 详情 / 搜索 / 取流规则，11 个分类 |
-| `engine/bridge/tests/faguo_fixtures.rs` | 7 项离线对拍：元数据、目录卡片、分类地址、分集、搜索编码、取流、详情模板 |
-| `engine/bridge/tests/faguo_live.rs` | 2 项在线验证（`#[ignore]`）：真实目录 ≥10 条；详情 → 分集 → 取到 `.m3u8` |
-| `engine/bridge/tests/fixtures/faguo_{catalog,detail,play}.html` | 真实响应裁剪：3 张卡片、完整分集、`player_aaaa` |
+| `rust/rules/faguo.json` | 目录 / 详情 / 搜索 / 取流规则，11 个分类 |
+| `rust/bridge/tests/faguo_fixtures.rs` | 7 项离线对拍：元数据、目录卡片、分类地址、分集、搜索编码、取流、详情模板 |
+| `rust/bridge/tests/faguo_live.rs` | 2 项在线验证（`#[ignore]`）：真实目录 ≥10 条；详情 → 分集 → 取到 `.m3u8` |
+| `rust/bridge/tests/fixtures/faguo_{catalog,detail,play}.html` | 真实响应裁剪：3 张卡片、完整分集、`player_aaaa` |
 
 `builtin_registry_loads_every_shipped_rule` 的清单补上了此前漏掉的
 `wangguo` / `diguo`，再加 `faguo`。
@@ -309,7 +309,7 @@ rules/diguo.json  →  index.php/vod/type/id/{category}/page/1.html
 
 1. 索引声明的 `size` 与实际字节一致；
 2. 每个包都能安装、默认启用、出现在已安装列表；
-3. **包内规则与 `engine/rules/*.json` 逐字节相同**（防止改了规则没重新打包）。
+3. **包内规则与 `rust/rules/*.json` 逐字节相同**（防止改了规则没重新打包）。
 
 ### 插件管理 UI
 
@@ -446,7 +446,7 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
 内置 id 不会被引擎覆盖名称——那是产品文案，不该被技术标识替换。
 `test/plugin_repository_test.dart` 覆盖了追加、去重、内置保护与清空五条路径。
 
-`main.dart` 启动时新增两件事：`setPluginDirectory('${support.path}/engine/plugins')`
+`main.dart` 启动时新增两件事：`setPluginDirectory('${support.path}/rust/plugins')`
 与 `syncSourceCatalog()`。插件目录与缓存同级但不叫 cache：它随应用数据清理，
 不该被「清理缓存」按钮删掉。
 
@@ -487,8 +487,8 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
 2. **`wasm32-unknown-unknown` 产物是 core module**，不是 component；
    直接喂给 `Component::from_binary` 会报 "attempted to parse a wasm module with a component parser"。
 3. **`wasm32-wasip2` 产物带 wasi 导入**，必须拒绝——否则插件能绕开宿主的网络白名单。
-4. **Dart 侧 `ioDirectory`**：codegen 按 `rust_root` 推出 `engine/bridge/target/release/`，
-   但工作区共享 `engine/target/`。已由 `scripts/prepare_engine.py` 把产物同步到两侧，
+4. **Dart 侧 `ioDirectory`**：codegen 按 `rust_root` 推出 `rust/bridge/target/release/`，
+   但工作区共享 `rust/target/`。已由 `scripts/prepare_engine.py` 把产物同步到两侧，
    重新生成后不再需要手工修改生成文件。
 5. **Android 插件缓存**：`shared_preferences_android` 的 Kotlin 类未编译时，
    报错表现为 `:app:compileDebugJavaWithJavac` 找不到 `SharedPreferencesPlugin`，
@@ -549,12 +549,12 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
 
 ### 工作区迁移的两个坑
 
-1. **`include_str!` 路径**：`rules/` 留在 `engine/` 根，桥接 crate 下移一层后，
+1. **`include_str!` 路径**：`rules/` 留在 `rust/` 根，桥接 crate 下移一层后，
    `src/sources/mod.rs`、`src/api.rs`、集成测试、examples 的四处相对路径全部要跟着改；
-   Dart 测试 `test/engine_bridge_test.dart` 引用的 `engine/tests/fixtures/` 也变成
-   `engine/bridge/tests/fixtures/`。
+   Dart 测试 `test/engine_bridge_test.dart` 引用的 `rust/tests/fixtures/` 也变成
+   `rust/bridge/tests/fixtures/`。
 2. **podspec 缓存**：改完 `manifestDir` 后必须先 `pod install`，否则 Xcode 仍用旧参数
-   （报错 `BuildTool arguments: [build-pod, ../../engine, ...]`），看起来像路径改错了。
+   （报错 `BuildTool arguments: [build-pod, ../../rust, ...]`），看起来像路径改错了。
 
 ### 体积探针结论
 
@@ -579,7 +579,7 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
 ## 已落地代码（截至第十三轮）
 
 ```
-engine/
+rust/
   Cargo.toml                    虚清单：member = bridge + crates/*
   bridge/src/
     lib.rs                      薄索引：定向重导出，`mod env` 供 FRB 生成物使用
@@ -593,7 +593,7 @@ engine/
     plugin.rs                   SourcePlugin trait + SourceRegistry + 能力位
     md5.rs                      纯 Rust MD5（签名与模板共用）
   crates/media/src/lib.rs       m3u8 解析、AES-128 分片解密
-  crates/rule-engine/src/
+  crates/rule-rust/src/
     rules.rs render(内嵌)       规则 schema、模板渲染、加载期校验
     executor.rs                 CSS 提取 + 按 kind 分发
     jsonpath.rs json_executor.rs 接口 JSON 路径与内嵌 JSON 取数
@@ -747,9 +747,9 @@ Rust 原生 MD5 与 JS 脚本层 MD5 必须一致，否则签名会被服务端�
 
 ### Flutter 接入（FRB 2.13.0）
 
-- `flutter_rust_bridge.yaml` 指向 `engine/`；
+- `flutter_rust_bridge.yaml` 指向 `rust/`；
 - `rust_builder/` 插件从模板复制并改名为 `rust_lib_guo_engine`，
-  各平台 `cargokit` 路径改到 `engine`；
+  各平台 `cargokit` 路径改到 `rust`；
 - 生成 `lib/src/rust/{api,frb_generated}.dart`。
 
 Dart 侧可调用：
@@ -766,7 +766,7 @@ fetchCatalogWithRule(...)             // 真实网络抓取
 验证方式与结果：
 
 ```sh
-FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR="$(pwd)/engine/target/release/" \
+FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR="$(pwd)/rust/target/release/" \
   flutter test test/engine_bridge_test.dart
 # 00:00 +6: All tests passed!
 ```

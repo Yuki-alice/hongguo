@@ -40,16 +40,16 @@ ios/DuanjuCore/*.xcframework/
 **/xcuserdata/
 
 # Rust engine build artifacts
-engine/target/
+rust/target/
 # 桥接 crate 的同步目录：`scripts/prepare_engine.py` 在这里放一份产物，
 # 让 FRB 按 rust_root 推出的路径也能加载。
-engine/bridge/target/
-engine/Cargo.lock.bak
+rust/bridge/target/
+rust/Cargo.lock.bak
 # 插件模板是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）
-engine/examples/plugin-template/target/
+rust/examples/plugin-template/target/
 # 官方规则仓库的构建产物：由 pack_rules 从 rules/*.json 重新生成，
 # 不进版本管理（否则改规则时容易忘记重新打包）
-engine/dist/
+rust/dist/
 
 # Rust 引擎构建产物
 # cargokit 构建工具的本地产物
@@ -65,3 +65,6 @@ macos/Flutter/ephemeral/
 
 # 工具缓存，非项目源码
 .dsh/
+
+# 工具缓存与工作区记忆，非项目源码
+.workbuddy/

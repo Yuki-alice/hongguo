@@ -1,6 +1,6 @@
 rust_input: crate::api
-rust_root: engine/bridge/
+rust_root: rust/bridge/
 dart_output: lib/src/rust
-# 工作区共享 target/：cargo 产物在 engine/target/，codegen 按 rust_root 推出
-# engine/bridge/target/。运行 `python scripts/prepare_engine.py` 会把产物同步到
+# 工作区共享 target/：cargo 产物在 rust/target/，codegen 按 rust_root 推出
+# rust/bridge/target/。运行 `python scripts/prepare_engine.py` 会把产物同步到
 # 两侧，因此重新生成绑定后不需要手工修改 ioDirectory。
