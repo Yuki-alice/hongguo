@@ -1,8 +1,8 @@
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
-import 'package:duanju_app/ui/core/search_input.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/core/search_input.dart';
 
 /// 发现页顶部的搜索区：搜索框 + 最近搜索 chips。
 ///

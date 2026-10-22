@@ -1,4 +1,4 @@
-# 真果鉴 Rust 引擎与插件系统架构（2026-10-19 设计）
+# 星 Rust 引擎与插件系统架构（2026-10-19 设计）
 
 本文是重写目标架构的**唯一设计基线**。它回答四件事：Rust 引擎怎么分层、规则源怎么与应用分离、
 社区插件生态（仓库 / 包格式 / 版本 / 信任）怎么设计、从当前快照迁移要分几步。
@@ -532,7 +532,7 @@ storage = []
 # repo.toml —— 仓库根
 spec = 1
 id = "official"
-name = "真果鉴官方规则仓库"
+name = "星官方规则仓库"
 description = "官方维护的短剧站源规则"
 homepage = "https://github.com/<org>/<repo>"
 index = "index.json"                 # 相对路径或绝对 URL

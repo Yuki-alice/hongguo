@@ -1,16 +1,16 @@
 import 'dart:async';
 
-import 'package:duanju_app/ui/features/downloads/views/batch_download_screen.dart';
-import 'package:duanju_app/ui/features/detail/views/detail_screen.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/ui/features/home/views/home_screen.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/features/home/widgets/saved_library.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/routing/route_args.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/ui/features/downloads/views/batch_download_screen.dart';
+import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/ui/features/home/views/home_screen.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/features/home/widgets/saved_library.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

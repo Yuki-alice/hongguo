@@ -4,11 +4,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/download_collections.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/download_collections.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 /// 下载合集页的取数、筛选、多选与批量操作状态机。
 ///

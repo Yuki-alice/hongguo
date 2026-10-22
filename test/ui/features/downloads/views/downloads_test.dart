@@ -1,12 +1,12 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/ui/features/detail/views/detail_screen.dart';
-import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
-import 'package:duanju_app/ui/features/home/views/home_screen.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/data/playback/playback_loader.dart';
-import 'package:duanju_app/ui/features/player/views/player_screen.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
+import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
+import 'package:hoshi/ui/features/home/views/home_screen.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/data/playback/playback_loader.dart';
+import 'package:hoshi/ui/features/player/views/player_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -14,8 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/routing/route_args.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/routing/route_args.dart';
 
 import '../../../../support/fixtures.dart';
 import '../../../../support/player_fixtures.dart';

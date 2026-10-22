@@ -1,6 +1,6 @@
-import 'package:duanju_app/ui/features/player/widgets/player_controls.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/features/player/widgets/player_interactions.dart';
+import 'package:hoshi/ui/features/player/widgets/player_controls.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/features/player/widgets/player_interactions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';

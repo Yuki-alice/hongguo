@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/data/plugin_repository.dart';
-import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/data/plugin_repository.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
 
 /// 应用级依赖的 Provider 根。
 ///

@@ -6,11 +6,11 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 
-import 'package:duanju_app/data/background_downloads.dart';
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/data/media/media_pipeline.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/background_downloads.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/data/media/media_pipeline.dart';
+import 'package:hoshi/domain/models.dart';
 
 part 'media_merge_queue.dart';
 part 'media_merge.dart';
@@ -100,7 +100,7 @@ String embyShowNfo(Drama drama, {bool localPoster = false}) {
       : '';
   return '<?xml version="1.0" encoding="utf-8"?>\n<tvshow>'
       '<title>${xmlText(drama.title)}</title><plot>${xmlText(drama.description)}</plot>'
-      '<uniqueid type="zhenguojian" default="true">${xmlText(drama.id)}</uniqueid>'
+      '<uniqueid type="hoshi" default="true">${xmlText(drama.id)}</uniqueid>'
       '${cover.isEmpty ? '' : '<thumb aspect="poster">${xmlText(cover)}</thumb>'}'
       '<season>1</season><episode>${drama.episodes}</episode></tvshow>\n';
 }
@@ -110,7 +110,7 @@ String embyEpisodeNfo(DownloadJob job) =>
     '<episodedetails><title>${xmlText(job.episode.title)}</title>'
     '<showtitle>${xmlText(job.drama.title)}</showtitle><season>1</season><episode>${job.episode.number}</episode>'
     '<plot>${xmlText(job.drama.description)}</plot>'
-    '<uniqueid type="zhenguojian" default="true">${xmlText(job.id)}</uniqueid></episodedetails>\n';
+    '<uniqueid type="hoshi" default="true">${xmlText(job.id)}</uniqueid></episodedetails>\n';
 
 String _safeName(String name) {
   var result = name

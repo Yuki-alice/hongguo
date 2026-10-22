@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/episode_browser.dart';
-import 'package:duanju_app/domain/playback_preferences.dart';
-import 'package:duanju_app/data/video_enhancement/video_enhancement.dart';
-import 'package:duanju_app/ui/features/player/widgets/video_enhancement_settings.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/episode_browser.dart';
+import 'package:hoshi/domain/playback_preferences.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
+import 'package:hoshi/ui/features/player/widgets/video_enhancement_settings.dart';
 
 enum PlayerMenuSection { episodes, speed, quality, settings }
 

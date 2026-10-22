@@ -1,8 +1,8 @@
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/core/search_input.dart';
-import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:hoshi/ui/core/search_input.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:flutter/services.dart';
 
 /// 遥控区域之间的方向越界出口：没有接管者时保持默认焦点遍历行为。

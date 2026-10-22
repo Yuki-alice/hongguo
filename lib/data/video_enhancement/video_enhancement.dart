@@ -8,11 +8,11 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
-import 'package:duanju_app/data/video_enhancement/video_enhancement_assets.dart';
-import 'package:duanju_app/data/video_enhancement/video_enhancement_mpv.dart';
-import 'package:duanju_app/data/video_enhancement/video_enhancement_policy.dart';
-import 'package:duanju_app/domain/video_enhancement_preferences.dart';
-import 'package:duanju_app/data/video_enhancement/video_output_size.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement_assets.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement_mpv.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement_policy.dart';
+import 'package:hoshi/domain/video_enhancement_preferences.dart';
+import 'package:hoshi/data/video_enhancement/video_output_size.dart';
 
 class VideoEnhancementController extends ChangeNotifier {
   VideoEnhancementController({
@@ -50,8 +50,8 @@ class VideoEnhancementController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 2), (_) => _startMonitor());
   }
 
-  static const _device = MethodChannel('duanju/device');
-  static const _filterLabel = 'duanju_vsr';
+  static const _device = MethodChannel('hoshi/device');
+  static const _filterLabel = 'hoshi_vsr';
   final Player player;
   late final bool supported;
   final bool _animationHint;
@@ -515,7 +515,7 @@ class VideoEnhancementController extends ChangeNotifier {
         _recentEnhancementErrors.contains(value) ||
         active > 0 &&
             RegExp(
-              r'd3d11vpp|duanju_vsr|glsl.shaders|shader.*compil|compil.*shader',
+              r'd3d11vpp|hoshi_vsr|glsl.shaders|shader.*compil|compil.*shader',
               caseSensitive: false,
             ).hasMatch(value);
     if (!owned) return false;

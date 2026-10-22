@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/data/repository_capabilities.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/data/repository_capabilities.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 
 /// 引擎诊断页。
 ///

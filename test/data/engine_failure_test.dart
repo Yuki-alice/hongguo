@@ -1,7 +1,7 @@
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/data/repository_capabilities.dart';
-import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/data/repository_capabilities.dart';
+import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 import 'package:flutter_test/flutter_test.dart';
 
 /// `EngineException` 的分级映射：UI 按 `kind` / `retryable` 决定重试、

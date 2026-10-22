@@ -1,18 +1,18 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/data/repository_capabilities.dart';
-import 'package:duanju_app/domain/danmaku_models.dart';
-import 'package:duanju_app/domain/download_collections.dart';
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/ranking_models.dart';
-import 'package:duanju_app/domain/resource_settings.dart';
-import 'package:duanju_app/domain/source_status.dart';
-import 'package:duanju_app/src/rust/api.dart' as rust;
-import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/data/repository_capabilities.dart';
+import 'package:hoshi/domain/danmaku_models.dart';
+import 'package:hoshi/domain/download_collections.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/ranking_models.dart';
+import 'package:hoshi/domain/resource_settings.dart';
+import 'package:hoshi/domain/source_status.dart';
+import 'package:hoshi/src/rust/api.dart' as rust;
+import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 
 /// 生产仓库：目录 / 详情 / 搜索 / 分类 / 取流由 Rust 引擎承担。
 ///

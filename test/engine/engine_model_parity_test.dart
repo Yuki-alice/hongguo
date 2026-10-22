@@ -2,8 +2,8 @@ library;
 
 import '../support/engine_setup.dart';
 
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/src/rust/api.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/src/rust/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 结构对拍：Rust 引擎产出的数据必须能被现有 Dart 模型无损解析。

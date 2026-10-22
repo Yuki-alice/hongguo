@@ -12,7 +12,6 @@ val dartDefines = providers.gradleProperty("dart-defines").orNull.orEmpty()
         val decoded = String(Base64.getDecoder().decode(it), Charsets.UTF_8)
         decoded.substringBefore("=") to decoded.substringAfter("=", "")
     }
-val allSources = dartDefines["ALL_SOURCES"] == "true"
 
 val releaseKey = rootProject.file("key.properties")
 val releaseProperties = Properties()
@@ -21,7 +20,7 @@ if (releaseKey.exists()) {
 }
 
 android {
-    namespace = "com.duanju.duanju_app"
+    namespace = "com.hoshi.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -31,13 +30,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.duanju.duanju_app"
+        applicationId = "com.hoshi.app"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["appLabel"] = if (allSources) "真果鉴" else "红果鉴"
-        manifestPlaceholders["appBanner"] = if (allSources) "@drawable/tv_banner_all_sources" else "@drawable/tv_banner"
+        manifestPlaceholders["appLabel"] = "星"
+        manifestPlaceholders["appBanner"] = "@drawable/tv_banner"
     }
 
     signingConfigs {

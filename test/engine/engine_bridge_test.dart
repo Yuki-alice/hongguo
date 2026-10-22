@@ -4,7 +4,7 @@ import 'dart:io';
 import '../support/engine_setup.dart';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:duanju_app/src/rust/api.dart';
+import 'package:hoshi/src/rust/api.dart';
 
 /// 验证 Rust 引擎已接入且可被 Dart 真实调用。
 ///

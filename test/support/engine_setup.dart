@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:duanju_app/src/rust/api.dart';
-import 'package:duanju_app/src/rust/frb_generated.dart';
+import 'package:hoshi/src/rust/api.dart';
+import 'package:hoshi/src/rust/frb_generated.dart';
 
 /// 引擎测试的启动前置：完成 FRB 初始化，并初始化进程级引擎单例。
 ///

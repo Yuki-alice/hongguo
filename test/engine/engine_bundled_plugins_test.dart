@@ -4,8 +4,8 @@ library;
 
 import 'dart:io';
 
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/src/rust/api.dart' as rust;
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/src/rust/api.dart' as rust;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Core-3 验收：随包官方插件在首次启动时装进插件仓库，并且能被引擎加载。

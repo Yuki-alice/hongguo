@@ -13,7 +13,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 bundle = root / 'build' / 'windows' / 'x64' / 'runner' / 'Release'
-executable = bundle / 'zhenguojian.exe'
+executable = bundle / 'hoshi.exe'
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
         raise SystemExit('此检查需要 Windows。')
     if not executable.is_file():
         raise SystemExit(f'未找到 {executable}，请先执行 flutter build windows --release。')
-    with tempfile.TemporaryDirectory(prefix='zhenguojian-smoke-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='hoshi-smoke-') as temporary:
         directory = Path(temporary)
         media = directory / 'fixture.mp4'
         subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi',

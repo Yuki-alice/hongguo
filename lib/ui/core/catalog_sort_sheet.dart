@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/l10n_labels.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/l10n_labels.dart';
 
 Future<CatalogView?> chooseCatalogView(
   BuildContext context,

@@ -1,6 +1,6 @@
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/features/player/views/player_screen.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/features/player/views/player_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

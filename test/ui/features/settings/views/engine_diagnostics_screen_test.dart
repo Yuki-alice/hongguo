@@ -1,8 +1,8 @@
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/data/repository_capabilities.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/features/settings/views/engine_diagnostics_screen.dart';
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/data/repository_capabilities.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/features/settings/views/engine_diagnostics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

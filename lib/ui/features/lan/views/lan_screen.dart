@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:duanju_app/data/lan/lan_controller.dart';
-import 'package:duanju_app/ui/features/lan/controllers/lan_sync_controller.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/data/lan/lan_controller.dart';
+import 'package:hoshi/ui/features/lan/controllers/lan_sync_controller.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 
 IconData lanDeviceIcon(String kind) => switch (kind) {
   'tv' => Icons.tv_rounded,

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 
 class CatalogUpdates extends ChangeNotifier {
   final _items = <String, Drama>{};

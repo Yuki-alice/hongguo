@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:duanju_app/domain/download_collections.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/download_collections.dart';
+import 'package:hoshi/domain/models.dart';
 
 import 'fixtures.dart';
 

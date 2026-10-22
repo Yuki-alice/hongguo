@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 /// 播放会话的加载、错误与线路状态。
 ///

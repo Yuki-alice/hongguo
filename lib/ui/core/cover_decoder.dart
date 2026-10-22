@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/media/media_pipeline.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/media/media_pipeline.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 class CoverDecoder {
   CoverDecoder({MediaExecutor Function()? createExecutor})

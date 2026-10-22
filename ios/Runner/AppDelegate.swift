@@ -14,7 +14,7 @@ import CFNetwork
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DeviceSettings") {
-      let channel = FlutterMethodChannel(name: "duanju/device", binaryMessenger: registrar.messenger())
+      let channel = FlutterMethodChannel(name: "hoshi/device", binaryMessenger: registrar.messenger())
       channel.setMethodCallHandler { call, result in
         guard call.method == "systemProxy" else {
           result(FlutterMethodNotImplemented)

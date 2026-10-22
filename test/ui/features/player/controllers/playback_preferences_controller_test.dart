@@ -1,6 +1,6 @@
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/playback_preferences.dart';
-import 'package:duanju_app/ui/features/player/controllers/playback_preferences_controller.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/playback_preferences.dart';
+import 'package:hoshi/ui/features/player/controllers/playback_preferences_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

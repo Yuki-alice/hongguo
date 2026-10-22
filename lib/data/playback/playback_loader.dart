@@ -1,5 +1,5 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/models.dart';
 
 class PlaybackLoader {
   PlaybackLoader(this.repository);

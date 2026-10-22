@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/domain/source_status.dart';
-import 'package:duanju_app/ui/features/sources/views/sources_screen.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/domain/source_status.dart';
+import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

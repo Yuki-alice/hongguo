@@ -1,5 +1,5 @@
 name: 'Flutter + Rust 构建环境'
-description: 'checkout、Flutter SDK、Rust 工具链（版本由 rust-toolchain.toml 钉住）与 cargo 缓存。供所有需要构建/测试 Flutter 应用的 job 复用。'
+description: 'Flutter SDK、Rust 工具链（版本由 rust-toolchain.toml 钉住）与 cargo 缓存。注意：调用方必须先 actions/checkout —— 本地 action 需要工作区已有仓库内容才能解析。'
 
 inputs:
   flutter-version:
@@ -10,7 +10,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v4
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ inputs.flutter-version }}

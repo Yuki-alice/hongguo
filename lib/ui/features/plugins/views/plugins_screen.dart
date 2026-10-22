@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/data/plugin_repository.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/features/plugins/controllers/plugins_controller.dart';
+import 'package:hoshi/data/plugin_repository.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
 
 /// 插件仓库管理页。
 ///

@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'package:duanju_app/ui/core/widgets.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 class PlayerInteractions extends ChangeNotifier {
   PlayerInteractions({

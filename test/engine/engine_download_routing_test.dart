@@ -1,6 +1,6 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/engine_backed_repository.dart';
-import 'package:duanju_app/data/engine_repository.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/engine_backed_repository.dart';
+import 'package:hoshi/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 引擎接管判定的纯逻辑测试：不再有路由开关，只区分「引擎是否就绪」。

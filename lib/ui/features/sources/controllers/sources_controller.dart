@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/source_status.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/source_status.dart';
 
 /// 站源管理页的轮询、任务与健康检查状态。
 class SourcesController extends ChangeNotifier {

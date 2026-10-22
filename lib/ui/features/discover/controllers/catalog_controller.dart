@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/catalog_browser.dart';
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/catalog_browser.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 /// 发现页的浏览状态与取数逻辑。
 ///

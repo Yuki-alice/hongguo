@@ -229,7 +229,7 @@ mod tests {
     const REPO: &str = r#"
 spec = 1
 id = "official"
-name = "真果鉴官方规则仓库"
+name = "星官方规则仓库"
 description = "官方维护的短剧站源规则"
 index = "index.json"
 issued_at = "2026-10-19T00:00:00Z"

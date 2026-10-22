@@ -5,7 +5,7 @@ library;
 
 import '../support/engine_setup.dart';
 
-import 'package:duanju_app/src/rust/api.dart';
+import 'package:hoshi/src/rust/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 验证 Dart 可以真实驱动 Rust 引擎完成站源调度。

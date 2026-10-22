@@ -1,8 +1,8 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/ranking_models.dart';
-import 'package:duanju_app/ui/features/rankings/controllers/rankings_controller.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/ranking_models.dart';
+import 'package:hoshi/ui/features/rankings/controllers/rankings_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

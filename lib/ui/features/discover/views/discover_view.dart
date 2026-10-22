@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/core/app_bottom_navigation.dart';
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/ui/core/catalog_filters.dart';
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/ui/core/drama_actions.dart';
-import 'package:duanju_app/ui/features/downloads/views/downloads_screen.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/l10n_labels.dart';
-import 'package:duanju_app/ui/features/discover/views/recommendations_screen.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/features/home/widgets/saved_library.dart';
-import 'package:duanju_app/ui/core/vip_icon.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
-import 'package:duanju_app/ui/features/discover/controllers/catalog_controller.dart';
-import 'package:duanju_app/ui/features/discover/widgets/catalog_search_header.dart';
-import 'package:duanju_app/ui/features/discover/widgets/catalog_selection_bar.dart';
+import 'package:hoshi/ui/core/app_bottom_navigation.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/ui/core/catalog_filters.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/ui/core/drama_actions.dart';
+import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/l10n_labels.dart';
+import 'package:hoshi/ui/features/discover/views/recommendations_screen.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/features/home/widgets/saved_library.dart';
+import 'package:hoshi/ui/core/vip_icon.dart';
+import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
+import 'package:hoshi/ui/features/discover/widgets/catalog_search_header.dart';
+import 'package:hoshi/ui/features/discover/widgets/catalog_selection_bar.dart';
 
 /// 发现页骨架：应用栏 + 导航 + 内容区。
 ///

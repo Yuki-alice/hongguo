@@ -1,4 +1,4 @@
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 
 class RankingBoard {
   const RankingBoard({

@@ -6,22 +6,22 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/ui/features/downloads/widgets/download_picker.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
-import 'package:duanju_app/ui/features/detail/controllers/detail_controller.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/routing/route_args.dart';
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
-import 'package:duanju_app/ui/features/sources/views/sources_screen.dart';
-import 'package:duanju_app/ui/core/episode_browser.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/domain/hongguo_series.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/features/detail/controllers/detail_controller.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
+import 'package:hoshi/ui/core/episode_browser.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/domain/hongguo_series.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({

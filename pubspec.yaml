@@ -1,5 +1,5 @@
-name: duanju_app
-description: 独立运行的多端短剧应用
+name: hoshi
+description: 独立运行的多端视频应用（短剧 / 动漫 / 电影 / 剧集），Rust 引擎 + 插件化站源
 publish_to: none
 version: 0.2.62+68
 

@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'package:duanju_app/data/lan/lan_controller.dart';
-import 'package:duanju_app/ui/features/player/widgets/player_interactions.dart';
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
-import 'package:duanju_app/data/video_enhancement/video_enhancement.dart';
+import 'package:hoshi/data/lan/lan_controller.dart';
+import 'package:hoshi/ui/features/player/widgets/player_interactions.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
 
 class PlayerControls extends StatefulWidget {
   const PlayerControls({

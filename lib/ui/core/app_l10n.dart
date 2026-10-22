@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 
 /// 数据层/控制器使用的同步本地化入口。
 ///

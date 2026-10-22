@@ -28,7 +28,7 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   device_channel_ =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          flutter_controller_->engine()->messenger(), "duanju/device",
+          flutter_controller_->engine()->messenger(), "hoshi/device",
           &flutter::StandardMethodCodec::GetInstance());
   device_channel_->SetMethodCallHandler(
       [](const flutter::MethodCall<flutter::EncodableValue>& call,

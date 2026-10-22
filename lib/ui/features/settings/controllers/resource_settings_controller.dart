@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/resource_settings.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/resource_settings.dart';
 
 /// 网络与资源设置的表单与保存状态。
 class ResourceSettingsController extends ChangeNotifier {

@@ -20,6 +20,9 @@ env:
   FLUTTER_VERSION: '3.47.7'
   # 引擎动态库由 native-assets 钩子（hook/build.dart）构建，供 cargo 使用的
   # 工具链由 rust/rust-toolchain.toml 钉住，无需在这里 setup-go。
+  #
+  # 单版本构建：应用名固定为「星」，不再区分红果鉴 / 真果鉴。
+  # ALL_SOURCES 只决定**编译进哪些站源**：iOS 全源，其余平台只带内置站源。
 
 jobs:
   # ───────────────────────────── 静态检查与单测 ─────────────────────────────
@@ -63,14 +66,14 @@ jobs:
           fi
 
   flutter:
-    # Dart 侧的静态检查与单元测试。
+    # Dart 侧静态检查 + 全量单测（含离线引擎用例）+ 在线用例（非阻断）。
     #
-    # 引擎测试（test/engine_*.dart）依赖 `guo_engine` 动态库，由 native-assets
-    # 构建钩子（hook/build.dart）在 `flutter test` 启动时自动编译注入，无需手工
-    # 准备产物；rust-toolchain.toml 钉住工具链与目标平台，缺失时 rustup 自动补齐。
+    # 引擎动态库由 native-assets 构建钩子（hook/build.dart）在 `flutter test`
+    # 启动时自动编译注入，无需手工准备产物。
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -89,9 +92,8 @@ jobs:
           fi
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Test
-        # 排除 `engine` tag：那批用例请求真实站源，断网或站点改版都会失败，
-        # 不属于代码回归。在线用例由 `engine-online` job 单独跑且不阻断。
-        # --coverage 收集行覆盖，产物可后续接 codecov（需仓库 secret）。
+        # `engine` tag 只标记 2 个真实在线用例；其余引擎用例是离线夹具驱动。
+        # --coverage 收集行覆盖，产物可接 codecov。
         run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --coverage
       - name: 覆盖率产物
         uses: actions/upload-artifact@v4
@@ -99,40 +101,23 @@ jobs:
           name: coverage-lcov
           path: coverage/lcov.info
           if-no-files-found: ignore
-      - name: Test (全部站源)
+      - name: Test (全源变体)
+        # 站源门控是编译期开关，全源变体单独跑一轮离线套件。
         run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true
-
-  engine-online:
-    # 真实站点验证。站点不可达、改版或限流都会让这里失败，因此
-    # `continue-on-error`——它提供信号，但不拦合并。
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    continue-on-error: true
-    steps:
-      - uses: ./.github/actions/setup
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-      - run: flutter pub get --enforce-lockfile
       - name: Test (在线站源)
+        # 站点不可达、改版或限流都会失败——提供信号，但不拦合并。
+        continue-on-error: true
         run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
 
   # ───────────────────────────── 四端构建 ─────────────────────────────
   # 全部直连 flutter build CLI——引擎动态库由 native-assets 钩子交叉编译，
-  # 与纯 Flutter 项目的 CI 形态一致。矩阵的两个版本：红果鉴（默认）与
-  # 真果鉴（ALL_SOURCES=true）。
+  # 与纯 Flutter 项目的 CI 形态一致。单版本，每端一个 job。
   windows:
-    name: windows (${{ matrix.edition }})
+    name: windows
     runs-on: windows-2022
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - edition: hongguojian
-            all_sources: 'false'
-          - edition: zhenguojian
-            all_sources: 'true'
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -148,32 +133,25 @@ jobs:
           }
       - run: flutter pub get --enforce-lockfile
       - name: Build
-        run: flutter build windows --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+        run: flutter build windows --release --no-pub --dart-define=ALL_SOURCES=false
       - run: choco install ffmpeg --no-progress -y
       - name: Smoke
-        # 直接运行构建产物，验收随包原生核心与媒体链路；失败只作信号，不拦产物上传。
+        # 直接运行构建产物，验收随包原生核心与媒体链路；失败只作信号。
         run: python scripts/smoke_windows.py
         continue-on-error: true
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.edition }}-windows
+          name: hoshi-windows
           path: build/windows/x64/runner/Release
           if-no-files-found: error
           retention-days: 14
 
   macos:
-    name: macos (${{ matrix.edition }})
+    name: macos
     runs-on: macos-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - edition: hongguojian
-            all_sources: 'false'
-          - edition: zhenguojian
-            all_sources: 'true'
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -183,27 +161,20 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app
       - run: flutter pub get --enforce-lockfile
       - name: Build
-        run: flutter build macos --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+        run: flutter build macos --release --no-pub --dart-define=ALL_SOURCES=false
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.edition }}-macos
-          path: build/macos/Build/Products/Release/duanju_app.app
+          name: hoshi-macos
+          path: build/macos/Build/Products/Release/hoshi.app
           if-no-files-found: error
           retention-days: 14
 
   android:
-    name: android (${{ matrix.edition }})
+    name: android
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - edition: hongguojian
-            all_sources: 'false'
-          - edition: zhenguojian
-            all_sources: 'true'
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -238,31 +209,24 @@ jobs:
             echo "keyPassword=$ANDROID_KEY_PASSWORD"
           } > android/key.properties
       - name: Build
-        run: flutter build apk --release --split-per-abi --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+        run: flutter build apk --release --split-per-abi --no-pub --dart-define=ALL_SOURCES=false
       - name: Remove signing files
         if: always()
         run: rm -f android/key.properties
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.edition }}-android
+          name: hoshi-android
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
           retention-days: 14
 
   ios:
-    name: ios (${{ matrix.edition }})
-    # iOS 仅产未签名包（.ipa 走单独的 convert-ios-ipa 工作流）。
+    name: ios
+    # iOS 是唯一全源编译的端；仅产未签名包（.ipa 走 convert-ios-ipa 工作流）。
     runs-on: macos-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - edition: hongguojian
-            all_sources: 'false'
-          - edition: zhenguojian
-            all_sources: 'true'
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -272,16 +236,16 @@ jobs:
           pod --version
       - run: flutter pub get --enforce-lockfile
       - name: Build
-        run: flutter build ios --release --no-codesign --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=ALL_SOURCES=true
       - name: Package unsigned app
         run: |
           mkdir -p build/ios-artifacts
           ditto -c -k --sequesterRsrc --keepParent \
             build/ios/iphoneos/Runner.app \
-            "build/ios-artifacts/${{ matrix.edition }}-ios-unsigned-app.zip"
+            build/ios-artifacts/hoshi-ios-unsigned-app.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.edition }}-ios-unsigned
+          name: hoshi-ios-unsigned
           path: build/ios-artifacts/*.zip
           if-no-files-found: error
           retention-days: 14

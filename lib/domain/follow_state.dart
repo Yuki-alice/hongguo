@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 
 enum FollowStatus {
   planned('想看'),

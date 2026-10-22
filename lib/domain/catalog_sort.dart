@@ -1,4 +1,4 @@
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 
 enum CatalogSort {
   source('默认顺序'),

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/data/playback/playback_loader.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/data/playback/playback_loader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fixtures.dart';

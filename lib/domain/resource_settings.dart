@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 
 class ResourceSettings {
   const ResourceSettings({
@@ -69,7 +69,7 @@ class SystemProxyMonitor with WidgetsBindingObserver {
     _reading = true;
     try {
       final result = await const MethodChannel(
-        'duanju/device',
+        'hoshi/device',
       ).invokeMapMethod<String, dynamic>('systemProxy');
       if (result != null) await update(result);
     } catch (_) {

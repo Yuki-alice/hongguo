@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:duanju_app/data/plugin_repository.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/features/plugins/controllers/plugins_controller.dart';
+import 'package:hoshi/data/plugin_repository.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
 
 /// 记录调用的假插件仓库。
 class FakePluginRepository extends PluginRepository {

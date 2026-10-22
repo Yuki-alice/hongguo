@@ -3,8 +3,8 @@ library;
 
 // 真实站源，断网或站点改版时失败不算回归。
 
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/data/engine_repository.dart';
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/engine_setup.dart';

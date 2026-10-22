@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 
 String _statusLabel(FollowStatus status, AppLocalizations l10n) =>
     switch (status) {

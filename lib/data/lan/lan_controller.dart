@@ -7,14 +7,14 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:nsd/nsd.dart' as nsd;
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/lan_models.dart';
-import 'package:duanju_app/domain/lan_sync_models.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/lan_models.dart';
+import 'package:hoshi/domain/lan_sync_models.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
 
-export 'package:duanju_app/domain/lan_models.dart';
-export 'package:duanju_app/domain/lan_sync_models.dart';
+export 'package:hoshi/domain/lan_models.dart';
+export 'package:hoshi/domain/lan_sync_models.dart';
 
 part 'lan_sync.dart';
 part 'lan_playback.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:duanju_app/data/plugin_repository.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/plugin_repository.dart';
+import 'package:hoshi/domain/models.dart';
 
 void main() {
   group('PluginEntry', () {

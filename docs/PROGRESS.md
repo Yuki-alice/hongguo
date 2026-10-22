@@ -1387,7 +1387,7 @@ SHA-256 实现在 `guo-source-api`（手写，`crates/source-api/src/sha256.rs`�
 | `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
 | Dart 引擎测试 | ✅ 15 项（`engine_bridge_test` + `engine_model_parity_test` + `plugin_repository_test`） |
 | Dart 全量测试 | 262 通过 / 41 失败（基线 253 / 42，**净增 9 项通过、0 回归**） |
-| `flutter build macos --debug` | ✅ `duanju_app.app` 内含新 `rust_lib_guo_engine.framework` |
+| `flutter build macos --debug` | ✅ `hoshi.app` 内含新 `rust_lib_guo_engine.framework` |
 | `flutter build apk --debug` | ✅ `libguo_engine.so`：arm64 16,300,888 B / v7a 6,906,360 B / x86_64 18,940,520 B |
 | 代码插件真实链路 | ✅ 模板组件加载 → `describe` / `catalog` / `detail` / `resolve` 全通 |
 | Go 参考测试 | ✅ `go test ./...` 全绿（33 s）；最后一项为夹具缺陷，已修 |
@@ -1773,7 +1773,7 @@ Dart 直接驱动 Rust 引擎访问真实站点，11 项断言全部通过：
 | 平台 | 结果 | 证据 |
 | --- | --- | --- |
 | Android | ✅ | APK 内含 3 个 ABI 的 `libguo_engine.so`（arm64 12MB / armv7 6.9MB / x86_64 13.8MB） |
-| macOS | ✅ | `duanju_app.app` 启动运行无崩溃，二进制含 1,880 个 FRB 符号 |
+| macOS | ✅ | `hoshi.app` 启动运行无崩溃，二进制含 1,880 个 FRB 符号 |
 | iOS | ⚠️ | Rust 静态库已生成（arm64 + x86_64），链接失败源于**既有 Go 核心缺失**，与 Rust 无关 |
 
 iOS 失败的真实原因：`ios/Podfile` 依赖 `DuanjuCore.xcframework`，

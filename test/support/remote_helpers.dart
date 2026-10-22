@@ -1,5 +1,5 @@
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

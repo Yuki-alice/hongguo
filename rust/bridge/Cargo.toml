@@ -1,6 +1,6 @@
 [package]
 name = "guo_engine"
-description = "真果鉴本地引擎（Flutter 桥接层）"
+description = "星本地引擎（Flutter 桥接层）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,4 +1,4 @@
-//! 真果鉴本地引擎（Flutter 桥接层）。
+//! 星本地引擎（Flutter 桥接层）。
 //!
 //! 对外只暴露两类入口：
 //! - [`api`]：`flutter_rust_bridge` 生成的 Dart 绑定调用点；

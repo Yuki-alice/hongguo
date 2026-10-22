@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/plugin_repository.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/plugin_repository.dart';
+import 'package:hoshi/domain/models.dart';
 
 /// 插件管理页的状态与动作。
 ///

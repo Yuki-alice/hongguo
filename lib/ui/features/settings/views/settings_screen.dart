@@ -7,17 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/app_theme.dart';
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
-import 'package:duanju_app/ui/features/lan/views/lan_screen.dart';
-import 'package:duanju_app/ui/features/settings/controllers/settings_controller.dart';
-import 'package:duanju_app/ui/features/settings/controllers/storage_controller.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/app_theme.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
+import 'package:hoshi/ui/features/settings/controllers/settings_controller.dart';
+import 'package:hoshi/ui/features/settings/controllers/storage_controller.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
 
 String storageSize(int bytes, AppLocalizations l10n) {
   if (bytes < 0) return l10n.storageUnavailable;

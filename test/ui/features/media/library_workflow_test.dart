@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:duanju_app/data/batch_downloads.dart';
-import 'package:duanju_app/data/catalog_browser.dart';
-import 'package:duanju_app/data/library_updater.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/source_status.dart';
+import 'package:hoshi/data/batch_downloads.dart';
+import 'package:hoshi/data/catalog_browser.dart';
+import 'package:hoshi/data/library_updater.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/source_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

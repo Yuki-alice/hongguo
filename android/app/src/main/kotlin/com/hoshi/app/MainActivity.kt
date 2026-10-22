@@ -1,4 +1,4 @@
-package com.duanju.duanju_app
+package com.hoshi.app
 
 import io.flutter.embedding.android.FlutterActivity
 import android.app.UiModeManager
@@ -93,8 +93,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        televisionMode = if (savedInstanceState?.containsKey("duanju.televisionMode") == true) {
-            savedInstanceState.getBoolean("duanju.televisionMode")
+        televisionMode = if (savedInstanceState?.containsKey("hoshi.televisionMode") == true) {
+            savedInstanceState.getBoolean("hoshi.televisionMode")
         } else isTelevisionDevice()
         super.onCreate(savedInstanceState)
         if (televisionMode) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -110,13 +110,13 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean("duanju.televisionMode", televisionMode)
+        outState.putBoolean("hoshi.televisionMode", televisionMode)
         super.onSaveInstanceState(outState)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "duanju/device")
+        deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hoshi/device")
             .also { channel ->
                 channel.setMethodCallHandler { call, result ->
                     when (call.method) {

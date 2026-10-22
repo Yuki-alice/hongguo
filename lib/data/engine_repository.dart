@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/engine_failure.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/ranking_models.dart';
-import 'package:duanju_app/src/rust/api.dart' as rust;
-import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
-import 'package:duanju_app/src/rust/frb_generated.dart';
+import 'package:hoshi/data/engine_failure.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/ranking_models.dart';
+import 'package:hoshi/src/rust/api.dart' as rust;
+import 'package:hoshi/src/rust/api/error.dart' as rust_error;
+import 'package:hoshi/src/rust/frb_generated.dart';
 
 /// Rust 引擎访问层。
 ///

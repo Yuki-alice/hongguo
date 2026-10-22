@@ -155,7 +155,7 @@
   `media` / `player` / `profiles` / `rankings` / `settings` / `sources`
 - `lib/` 根目录只保留领域与基础设施（`models`、`core_bridge`、
   `local_store`、`engine_*`、`media_*`、`lan_*`、播放内核等）
-- `lib/` 内 `import` / `export` 统一改为 `package:duanju_app/...`，
+- `lib/` 内 `import` / `export` 统一改为 `package:hoshi/...`，
   后续移动文件只需改目标路径，不再调整 `../../` 层级
 - `lib/src/rust/` 生成代码与其相对导入保持原样，不改动
 - `part` 关系保持不变（`local_store` / `media_library` / `lan_controller`）
@@ -282,7 +282,7 @@ lib/
 
 - `lib/` 根目录 Dart 文件从 **65 个降到 3 个**：
   `main.dart`、`app_build.dart`、`package_smoke.dart`。
-- 所有 import 已同步为新的 `package:duanju_app/...` 路径。
+- 所有 import 已同步为新的 `package:hoshi/...` 路径。
 - 页面专用组件同步归位：`episode_browser` / `drama_actions` / `catalog_filters`
   在 `ui/core`；`saved_library`、`download_picker`、`video_enhancement_settings`
   在对应 feature 的 `widgets/`；弹幕控制器与覆盖层在 `ui/features/player/danmaku/`。
@@ -733,5 +733,5 @@ cargokit 一起删除。
    `@immutable` 载体，并同时提供深链兜底。
 5. 新增页面放到 `lib/ui/features/<feature>/views/`，控制器放
    `controllers/`，页面专用控件放 `widgets/`；`lib/` 根目录不再新增页面文件。
-6. `lib/` 内统一使用 `package:duanju_app/...` 导入；`lib/src/rust/` 与
+6. `lib/` 内统一使用 `package:hoshi/...` 导入；`lib/src/rust/` 与
    `part` 文件除外。

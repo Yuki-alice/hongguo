@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/data/media/media_library.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/features/media/controllers/local_media_controller.dart';
-import 'package:duanju_app/ui/features/settings/views/settings_screen.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/routing/route_args.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/data/media/media_library.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/features/media/controllers/local_media_controller.dart';
+import 'package:hoshi/ui/features/settings/views/settings_screen.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/routing/route_args.dart';
 
 class LocalMediaScreen extends StatefulWidget {
   const LocalMediaScreen({

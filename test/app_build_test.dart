@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/app_build.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +20,7 @@ void main() {
       'source': SourceSite.legacyHuangdou,
     });
     final store = LocalStore(await SharedPreferences.getInstance());
-    expect(appSlug, allSourcesEnabled ? 'zhenguojian' : 'hongguojian');
+    expect(appSlug, 'hoshi');
     // 不写死条数：源清单随站源迁移增长，硬编码会在每次新增源时假失败。
     // 这里只断言两个版本的相对关系——单源版仅红果，全源版明显更多。
     expect(store.sources.length, allSourcesEnabled ? greaterThan(1) : 1);

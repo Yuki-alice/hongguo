@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:duanju_app/ui/features/player/danmaku/danmaku_controller.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/features/player/danmaku/danmaku_overlay.dart';
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/features/player/widgets/player_menu.dart';
-import 'package:duanju_app/ui/features/player/views/player_screen.dart';
-import 'package:duanju_app/domain/playback_preferences.dart';
-import 'package:duanju_app/ui/features/player/widgets/television_controls.dart';
+import 'package:hoshi/ui/features/player/danmaku/danmaku_controller.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/features/player/danmaku/danmaku_overlay.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/features/player/widgets/player_menu.dart';
+import 'package:hoshi/ui/features/player/views/player_screen.dart';
+import 'package:hoshi/domain/playback_preferences.dart';
+import 'package:hoshi/ui/features/player/widgets/television_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';

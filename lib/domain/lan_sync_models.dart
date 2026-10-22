@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/domain/models.dart';
 
 String lanID() {
   final random = Random.secure();

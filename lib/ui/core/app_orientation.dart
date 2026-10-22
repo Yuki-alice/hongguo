@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import 'package:duanju_app/ui/core/app_layout.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
 
 class AppOrientationController {
   AppOrientationController({required bool television})

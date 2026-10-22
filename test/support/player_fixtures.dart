@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/models.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'fixtures.dart';

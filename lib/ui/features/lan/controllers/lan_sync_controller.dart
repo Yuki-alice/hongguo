@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/lan/lan_controller.dart';
+import 'package:hoshi/data/lan/lan_controller.dart';
 
 /// 局域网同步页的动作状态：忙碌标记、取消标记与错误文案。
 ///

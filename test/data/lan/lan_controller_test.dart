@@ -1,5 +1,5 @@
-import 'package:duanju_app/data/lan/lan_controller.dart';
-import 'package:duanju_app/data/local_store.dart';
+import 'package:hoshi/data/lan/lan_controller.dart';
+import 'package:hoshi/data/local_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

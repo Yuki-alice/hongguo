@@ -1,4 +1,4 @@
-import 'package:duanju_app/domain/lan_sync_models.dart';
+import 'package:hoshi/domain/lan_sync_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

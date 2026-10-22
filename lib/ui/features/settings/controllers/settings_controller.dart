@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/data/background_downloads.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/app_build.dart';
+import 'package:hoshi/data/background_downloads.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 /// 设置页的备份、恢复与自动导出状态。
 class SettingsController extends ChangeNotifier {

@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 应用主题。
 ///

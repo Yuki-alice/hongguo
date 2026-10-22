@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:media_kit/media_kit.dart';
 
-import 'package:duanju_app/domain/video_enhancement_preferences.dart';
-import 'package:duanju_app/data/video_enhancement/video_output_size.dart';
+import 'package:hoshi/domain/video_enhancement_preferences.dart';
+import 'package:hoshi/data/video_enhancement/video_output_size.dart';
 
 enum VideoEnhancementBackend {
   original(0, '原画'),

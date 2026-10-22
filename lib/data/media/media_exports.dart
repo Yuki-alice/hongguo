@@ -16,7 +16,7 @@ String embySpecialNfo(LocalMediaItem item, int number) =>
     '<showtitle>${xmlText(item.drama.title)}</showtitle><season>0</season><episode>$number</episode>'
     '<displayseason>1</displayseason><displayepisode>${item.episodes.last + 1}</displayepisode>'
     '<plot>${xmlText('合并第 ${item.episodes.first}–${item.episodes.last} 集，共 ${item.episodes.length} 集。\n${item.drama.description}')}</plot>'
-    '<uniqueid type="zhenguojian" default="true">${xmlText(item.special ? item.id : 'special-${item.id}')}</uniqueid></episodedetails>\n';
+    '<uniqueid type="hoshi" default="true">${xmlText(item.special ? item.id : 'special-${item.id}')}</uniqueid></episodedetails>\n';
 
 extension MediaExportOperations on MediaLibrary {
   Future<String> _showDirectory(Drama drama) async {

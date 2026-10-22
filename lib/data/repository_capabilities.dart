@@ -1,4 +1,4 @@
-import 'package:duanju_app/data/engine_failure.dart';
+import 'package:hoshi/data/engine_failure.dart';
 
 /// 仓库的能力矩阵。
 ///

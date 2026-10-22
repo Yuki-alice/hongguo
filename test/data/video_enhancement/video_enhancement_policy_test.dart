@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:duanju_app/data/video_enhancement/video_enhancement_policy.dart';
-import 'package:duanju_app/domain/video_enhancement_preferences.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement_policy.dart';
+import 'package:hoshi/domain/video_enhancement_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 

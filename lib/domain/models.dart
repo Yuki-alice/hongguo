@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:duanju_app/app_build.dart';
+import 'package:hoshi/app_build.dart';
 
 class SourceSite {
   const SourceSite(this.id, this.name, this.description);

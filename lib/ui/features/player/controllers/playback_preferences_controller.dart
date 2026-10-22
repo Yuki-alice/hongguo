@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/playback_preferences.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/playback_preferences.dart';
 
 /// 播放器运行期偏好：速度、自动连播、弹幕与预加载开关。
 ///

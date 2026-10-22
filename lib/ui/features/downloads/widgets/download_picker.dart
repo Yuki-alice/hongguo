@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/download_preferences.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/episode_browser.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/download_preferences.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/episode_browser.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
 
 class DownloadSelection {
   const DownloadSelection(this.episodes, this.quality);

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/data/video_enhancement/video_enhancement.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/domain/video_enhancement_preferences.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/domain/video_enhancement_preferences.dart';
 
 String _modeLabel(VideoEnhancementMode mode, AppLocalizations l10n) =>
     switch (mode) {

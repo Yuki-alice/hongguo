@@ -1,4 +1,4 @@
-import 'package:duanju_app/src/rust/api/error.dart' as rust_error;
+import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 
 /// 失败类别。与 Rust 侧 `EngineFailure.kind` 的字符串一一对应。
 ///

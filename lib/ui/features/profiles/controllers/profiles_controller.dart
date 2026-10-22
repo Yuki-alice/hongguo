@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
-import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
+import 'package:hoshi/app_build.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
 
 /// 用户管理页的数据操作状态。
 ///

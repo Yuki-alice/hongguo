@@ -27,16 +27,15 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts
       - name: Collect packages
-        # 产物布局：<edition>-android/*.apk、<edition>-windows/（Release 目录）、
-        # <edition>-macos/（.app）、<edition>-ios-unsigned/*.zip。
+        # 产物布局：hoshi-android/*.apk、hoshi-windows/（Release 目录）、
+        # hoshi-macos/（.app）、hoshi-ios-unsigned/*.zip。
         run: |
           find artifacts -type f -name '*.apk' -exec mv {} . \;
           find artifacts -type f -name '*.ipa' -exec mv {} . \;
           for zip in artifacts/*-ios-unsigned/*.zip; do [ -e "$zip" ] && mv "$zip" .; done
-          for dir in artifacts/*-windows; do
+          for dir in artifacts/hoshi-windows; do
             [ -d "$dir" ] || continue
-            edition=$(basename "$dir" -windows)
-            (cd "$dir" && zip -qr "../${edition}-windows-x64.zip" .)
+            (cd "$dir" && zip -qr "../hoshi-windows-x64.zip" .)
           done
           ls -la *.apk *.zip *.ipa 2>/dev/null || true
       - name: Publish to GitHub Release
@@ -46,7 +45,7 @@ jobs:
         run: |
           FILES=$(ls *.apk *.zip *.ipa 2>/dev/null || true)
           gh release create "$TAG" -R heijiji0527/guoapp \
-            --title "真果鉴/红果鉴 $TAG 预览版（debug 签名）" \
+            --title "星 $TAG 预览版（debug 签名）" \
             --notes "Android 预览 APK（arm64-v8a 主流手机 / armeabi-v7a 旧设备 / x86_64 模拟器）、Windows x64 便携压缩包、iOS 未签名 IPA。未配置正式签名，安装时可能提示未知来源。" || true
           if [ -n "$FILES" ]; then
             gh release upload "$TAG" -R heijiji0527/guoapp $FILES --clobber

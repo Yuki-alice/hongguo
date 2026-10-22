@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/danmaku_models.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/danmaku_models.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 class DanmakuController extends ChangeNotifier {
   DanmakuController(this.repository, {DateTime Function()? now})

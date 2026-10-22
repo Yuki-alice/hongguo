@@ -6,10 +6,10 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/data/media/media_library.dart';
-import 'package:duanju_app/app_build.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/data/media/media_library.dart';
+import 'package:hoshi/app_build.dart';
 
 @pragma('vm:entry-point')
 void downloadServiceEntry() {
@@ -21,7 +21,7 @@ class BackgroundDownloads {
     if (!Platform.isAndroid) return;
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'zhenguojian_downloads',
+        channelId: 'hoshi_downloads',
         channelName: '$appName下载',
         channelDescription: '后台下载和媒体处理进度',
         onlyAlertOnce: true,

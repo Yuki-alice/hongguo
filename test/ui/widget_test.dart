@@ -1,9 +1,9 @@
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/main.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/app_build.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/main.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/app_build.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

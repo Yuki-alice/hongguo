@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/core/app_l10n.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/core/app_l10n.dart';
 
 /// 用户编辑器的保存 / 删除状态。
 class ProfileEditorController extends ChangeNotifier {

@@ -5,23 +5,23 @@ import 'package:flutter/services.dart';
 
 import 'package:go_router/go_router.dart';
 
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/ui/core/catalog_sort_sheet.dart';
-import 'package:duanju_app/ui/core/drama_actions.dart';
-import 'package:duanju_app/ui/features/lan/views/lan_screen.dart';
-import 'package:duanju_app/data/library_updater.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/data/batch_downloads.dart';
-import 'package:duanju_app/ui/features/player/views/playback_launch_screen.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/features/discover/controllers/catalog_controller.dart';
-import 'package:duanju_app/ui/features/discover/views/discover_view.dart';
-import 'package:duanju_app/ui/routing/app_router.dart';
-import 'package:duanju_app/ui/routing/route_args.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/ui/core/catalog_sort_sheet.dart';
+import 'package:hoshi/ui/core/drama_actions.dart';
+import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
+import 'package:hoshi/data/library_updater.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/data/batch_downloads.dart';
+import 'package:hoshi/ui/features/player/views/playback_launch_screen.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
+import 'package:hoshi/ui/features/discover/views/discover_view.dart';
+import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 
 /// 应用主页面。
 ///

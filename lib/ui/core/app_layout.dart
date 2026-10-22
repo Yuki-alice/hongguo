@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
-export 'package:duanju_app/app_build.dart';
+export 'package:hoshi/app_build.dart';
 
 const appVersion = '0.2.51';
 
@@ -49,7 +49,7 @@ class AppDevice {
   const AppDevice({this.television = false, this.version = appVersion});
   final bool television;
   final String version;
-  static const channel = MethodChannel('duanju/device');
+  static const channel = MethodChannel('hoshi/device');
 
   static Future<AppDevice> detect({
     AppDevice fallback = const AppDevice(),

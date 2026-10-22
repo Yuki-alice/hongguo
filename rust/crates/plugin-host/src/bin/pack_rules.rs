@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let index = format!("[\n{}\n]\n", entries.join(",\n"));
     fs::write(output.join("index.json"), index)?;
 
-    let repo = "spec = 1\nid = \"official\"\nname = \"真果鉴官方规则仓库\"\ndescription = \"官方维护的短剧站源规则\"\nindex = \"index.json\"\n";
+    let repo = "spec = 1\nid = \"official\"\nname = \"星官方规则仓库\"\ndescription = \"官方维护的短剧站源规则\"\nindex = \"index.json\"\n";
     fs::write(output.join("repo.toml"), repo)?;
 
     println!("\n产物：{}", output.display());

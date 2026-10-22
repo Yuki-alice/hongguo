@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:duanju_app/domain/lan_sync_models.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/lan_sync_models.dart';
+import 'package:hoshi/domain/models.dart';
 
 class LanPeer {
   const LanPeer({

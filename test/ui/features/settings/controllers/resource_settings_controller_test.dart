@@ -1,7 +1,7 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/resource_settings.dart';
-import 'package:duanju_app/ui/features/settings/controllers/resource_settings_controller.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/resource_settings.dart';
+import 'package:hoshi/ui/features/settings/controllers/resource_settings_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

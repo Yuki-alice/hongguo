@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-import 'package:duanju_app/src/rust/api.dart' as rust;
+import 'package:hoshi/src/rust/api.dart' as rust;
 
 /// 读取随包分发的官方插件，交给引擎在初始化时预装。
 ///

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/main.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/main.dart';
+import 'package:hoshi/domain/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

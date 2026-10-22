@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/core/app_layout.dart';
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/ui/core/drama_actions.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
-import 'package:duanju_app/ui/core/remote_widgets.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/ui/core/drama_actions.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 
 class SavedLibrary extends StatefulWidget {
   const SavedLibrary({

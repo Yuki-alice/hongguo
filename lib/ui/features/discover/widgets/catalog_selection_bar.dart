@@ -1,7 +1,7 @@
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 多选下载时的底部操作条（Material 3 bottom app bar 变体）。
 ///

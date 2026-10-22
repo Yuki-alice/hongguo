@@ -1,6 +1,6 @@
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 
 String catalogSortLabel(CatalogSort sort, AppLocalizations l10n) =>
     switch (sort) {

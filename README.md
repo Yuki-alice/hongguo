@@ -1,6 +1,6 @@
-# 真果鉴 / 红果鉴
+# 星（hoshi）
 
-独立运行的多端短剧应用：Flutter 前端 + Rust 本地引擎，端侧完成请求、解析、播放、下载与合并，
+独立运行的多端视频应用（短剧 / 动漫 / 电影 / 剧集，站源由插件扩展）：Flutter 前端 + Rust 本地引擎，端侧完成请求、解析、播放、下载与合并，
 不依赖自建服务端。
 
 ## 一套后端：Rust 引擎
@@ -21,7 +21,7 @@
 ```
 lib/
   main.dart            启动装配
-  app_build.dart       构建变体（ALL_SOURCES 开关）
+  app_build.dart       站源门控（ALL_SOURCES）与应用名
   data/                仓库、本地存储、媒体 / LAN / 播放 / 画质增强
   domain/              剧集、榜单、LAN、偏好等纯模型
   ui/
@@ -40,7 +40,7 @@ rust/
   rust-toolchain.toml  钉住工具链版本与交付目标（crate 目录内还有一份镜像）
 docs/                  架构、审计、进度、POC、交接记录
 native/                Go 历史后端（只读参考，不在构建链内）
-scripts/               iOS 品牌切换（Xcode 构建阶段调用）与 Windows 冒烟
+scripts/               Windows 构建冒烟（唯一的 CLI 之外工具）
 hook/build.dart        native-assets 构建钩子：flutter build/test 时自动编译引擎
 ```
 
@@ -54,31 +54,25 @@ Android 另需 NDK 与 JDK 17。**不需要 Go**——引擎动态库由 native-
 （`hook/build.dart`）在 `flutter build` / `flutter test` 时自动经 Cargo 构建并打包，
 和纯 Flutter 项目一样直接使用 Flutter CLI：
 
-```sh
-# Windows / macOS（默认红果鉴；ALL_SOURCES=true 构建真果鉴）
-flutter build windows --release --dart-define=ALL_SOURCES=false
-flutter build macos   --release --dart-define=ALL_SOURCES=true
+**单版本**：应用名固定为「星」。`ALL_SOURCES` 只决定**编译进哪些站源**——
+iOS 全源，Android / Windows / macOS 只带内置站源。
 
-# Android（split-per-abi 三架构；--abi 可收窄）
+```sh
+# Windows / macOS / Android（内置站源）
+flutter build windows --release --dart-define=ALL_SOURCES=false
+flutter build macos   --release --dart-define=ALL_SOURCES=false
 flutter build apk --release --split-per-abi --dart-define=ALL_SOURCES=false
 
-# iOS（需 macOS + Xcode；未签名 ipa 走 .github/workflows/convert-ios-ipa.yml）
-flutter build ios --release --no-codesign --dart-define=ALL_SOURCES=false
+# iOS（全源；未签名 ipa 走 .github/workflows/convert-ios-ipa.yml）
+flutter build ios --release --no-codesign --dart-define=ALL_SOURCES=true
 ```
 
 日常开发直接用 `flutter run` / `flutter test`，钩子会自动处理引擎。
-
-发布相关的少量项目逻辑留在脚本里（CLI 之外的事）：`scripts/configure_ios_branding.py`
-在 Xcode 构建阶段切换 iOS 显示名（红果鉴 / 真果鉴），`scripts/smoke_windows.py`
-直接运行 `flutter build windows` 产物做启动验收。产物在 `build/` 对应平台目录，
-CI 直接从那里上传；本地出发布包用一条命令即可：
+产物在 `build/` 对应平台目录，CI 直接从那里上传。唯一的辅助脚本是发布包验收：
 
 ```sh
 python scripts/smoke_windows.py     # Windows：ffmpeg 合成媒体 + 无头启动 exe 验收
 ```
-
-国内网络环境可用 `PUB_HOSTED_URL=https://pub.flutter-io.cn dart run ...` 或
-`flutter build --dart-define=... ` 前自设镜像环境变量加速依赖拉取。
 
 ## 测试
 
@@ -122,20 +116,17 @@ CI 每次都是全新工作区，不受影响。
 
 ## CI
 
-`.github/workflows/build.yml` 当前启用（共 7 个 job；环境准备收敛到
-`.github/actions/setup` 复用组件：checkout + Flutter + rustup + cargo 缓存）：
+`.github/workflows/build.yml` 共 6 个 job（单版本，无矩阵）：
 
 | job | 内容 |
 | --- | --- |
 | `rust` | fmt / clippy / `cargo test --workspace` / 依赖方向守卫 |
-| `flutter` | format / analyze（error+warning 零容忍）/ `flutter test --coverage` ×2 变体 |
-| `engine-online` | 真实站点用例，`continue-on-error` |
-| `windows` / `macos` | `flutter build` CLI + Windows 冒烟，双版本矩阵，产物从 `build/` 上传 |
-| `android` | `flutter build apk --split-per-abi`，签名走官方 gradle 机制（secrets 缺省回退 debug） |
-| `ios` | `flutter build ios --no-codesign` + ditto 打包未签名 zip |
+| `flutter` | format / analyze（error+warning 零容忍）/ 离线单测 ×2 变体 / `--coverage`；在线用例同 job 内 `continue-on-error` |
+| `windows` / `macos` / `android` | `flutter build` CLI（`ALL_SOURCES=false`），产物从 `build/` 上传；Android 签名走官方 gradle 机制 |
+| `ios` | `flutter build ios --no-codesign --dart-define=ALL_SOURCES=true` + ditto 打包未签名 zip |
 
-`convert-ios-ipa.yml` 把 iOS 产物转未签名 ipa；`publish-release.yml` 收集各端产物发 Release
-（Windows Release 目录在发布前打成 zip）。
+环境准备（Flutter + rustup + cargo 缓存）收敛在 `.github/actions/setup`。
+`convert-ios-ipa.yml` 把 iOS 产物转未签名 ipa；`publish-release.yml` 收集各端产物发 Release。
 
 ## 环境变量
 
@@ -152,3 +143,4 @@ CI 每次都是全新工作区，不受影响。
 - `docs/AUDIT.md` — 对照目标架构的现状审计
 - `docs/PROGRESS.md` — 每轮落地内容与验证数据
 - `docs/HANDOFF.md` — Flutter 技术栈迁移的过程交接记录
+- `docs/PLUGIN-BOUNDARY.md` — 应用仓库与插件仓库的边界、插件包契约与迁移清单

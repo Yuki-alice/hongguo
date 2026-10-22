@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/core/widgets.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:duanju_app/l10n/generated/app_localizations.dart';
+import 'package:hoshi/l10n/generated/app_localizations.dart';
 
 import '../../support/fixtures.dart';
 

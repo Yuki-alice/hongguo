@@ -1,4 +1,4 @@
-import 'package:duanju_app/domain/video_enhancement_preferences.dart';
+import 'package:hoshi/domain/video_enhancement_preferences.dart';
 
 const playbackSpeeds = [.5, .75, 1.0, 1.25, 1.5, 2.0, 3.0];
 

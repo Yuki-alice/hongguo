@@ -1,5 +1,5 @@
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/ui/features/player/controllers/playback_session_controller.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/features/player/controllers/playback_session_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

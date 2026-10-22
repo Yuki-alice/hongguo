@@ -4,8 +4,8 @@ import '../support/engine_setup.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/domain/ranking_models.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/domain/ranking_models.dart';
 
 /// 用真实 Rust 引擎验证 D4 的四项差异化能力在 Dart 侧的契约。
 ///

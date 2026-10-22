@@ -1,6 +1,6 @@
-import 'package:duanju_app/domain/catalog_sort.dart';
-import 'package:duanju_app/domain/follow_state.dart';
-import 'package:duanju_app/domain/models.dart';
+import 'package:hoshi/domain/catalog_sort.dart';
+import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/domain/models.dart';
 
 const _hongguoSeriesLimit = 200;
 

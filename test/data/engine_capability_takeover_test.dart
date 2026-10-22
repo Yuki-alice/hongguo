@@ -1,9 +1,9 @@
-import 'package:duanju_app/data/core_bridge.dart';
-import 'package:duanju_app/data/engine_backed_repository.dart';
-import 'package:duanju_app/data/repository_capabilities.dart';
-import 'package:duanju_app/data/engine_repository.dart';
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/domain/ranking_models.dart';
+import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/engine_backed_repository.dart';
+import 'package:hoshi/data/repository_capabilities.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/domain/ranking_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 引擎接管榜单 / 推荐 / 联想之后的仓库行为。

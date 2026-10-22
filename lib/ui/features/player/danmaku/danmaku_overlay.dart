@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'package:duanju_app/ui/features/player/danmaku/danmaku_controller.dart';
-import 'package:duanju_app/domain/danmaku_models.dart';
+import 'package:hoshi/ui/features/player/danmaku/danmaku_controller.dart';
+import 'package:hoshi/domain/danmaku_models.dart';
 
 class DanmakuFlight {
   const DanmakuFlight(this.item, this.text, this.lane, this.width);

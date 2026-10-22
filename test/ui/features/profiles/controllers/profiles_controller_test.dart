@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:duanju_app/data/local_profiles.dart';
-import 'package:duanju_app/data/local_store.dart';
-import 'package:duanju_app/ui/features/profiles/controllers/profile_editor_controller.dart';
-import 'package:duanju_app/ui/features/profiles/controllers/profiles_controller.dart';
+import 'package:hoshi/data/local_profiles.dart';
+import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/ui/features/profiles/controllers/profile_editor_controller.dart';
+import 'package:hoshi/ui/features/profiles/controllers/profiles_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

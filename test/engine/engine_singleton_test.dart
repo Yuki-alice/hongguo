@@ -5,7 +5,7 @@ library;
 
 import 'dart:io';
 
-import 'package:duanju_app/data/engine_repository.dart';
+import 'package:hoshi/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/engine_setup.dart';

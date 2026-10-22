@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:media_kit/media_kit.dart';
 
-import 'package:duanju_app/data/media/media_pipeline.dart';
-import 'package:duanju_app/src/rust/api.dart' as rust;
-import 'package:duanju_app/src/rust/frb_generated.dart';
+import 'package:hoshi/data/media/media_pipeline.dart';
+import 'package:hoshi/src/rust/api.dart' as rust;
+import 'package:hoshi/src/rust/frb_generated.dart';
 
 Future<void> runPackageSmoke(List<String> arguments) async {
   if (arguments.length != 3) exit(2);

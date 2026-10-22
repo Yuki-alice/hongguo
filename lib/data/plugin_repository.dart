@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:duanju_app/domain/models.dart';
-import 'package:duanju_app/src/rust/api.dart' as api;
-import 'package:duanju_app/src/rust/api/plugins.dart' as rust;
-import 'package:duanju_app/src/rust/frb_generated.dart';
+import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/src/rust/api.dart' as api;
+import 'package:hoshi/src/rust/api/plugins.dart' as rust;
+import 'package:hoshi/src/rust/frb_generated.dart';
 
 /// 插件仓库与安装结果，映射自引擎的 [rust.PluginSummary] / [rust.RepoSummary]。
 class PluginEntry {

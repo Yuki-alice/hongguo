@@ -3,7 +3,7 @@ library;
 import 'dart:io';
 import '../support/engine_setup.dart';
 
-import 'package:duanju_app/data/engine_repository.dart';
+import 'package:hoshi/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 真实下载验证：从站源取流后下载到临时目录。
