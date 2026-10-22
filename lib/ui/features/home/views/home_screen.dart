@@ -6,10 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:hoshi/ui/core/app_layout.dart';
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/core/catalog_sort_sheet.dart';
 import 'package:hoshi/ui/core/drama_actions.dart';
-import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
 import 'package:hoshi/data/library_updater.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
@@ -486,8 +485,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _clearRecentSearches() =>
       unawaited(saveUserChange(context, widget.store.clearRecentSearches));
 
-  void _openLanSync() => openLanSync(context);
-
   bool get _updatesBusy =>
       _catalog.group.sources.any((source) => _updater.busy(source.id));
 
@@ -534,7 +531,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onMoreMenu: (value) => unawaited(_moreMenu(value)),
       onCancelSuggestions: () =>
           unawaited(widget.repository.cancelSuggestions()),
-      onOpenLanSync: _openLanSync,
       updatesBusy: _updatesBusy,
       cacheReadError: _cacheReadError,
     );

@@ -1,4 +1,3 @@
-import 'package:hoshi/data/core_bridge.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
 import 'package:hoshi/data/repository_capabilities.dart';
 import 'package:hoshi/data/engine_repository.dart';
@@ -11,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// 这些用例不触碰网络：假引擎只回答被调用的那部分，用来验证
 /// 「谁被调用、结果怎么合并、失败怎么分类」。
 class _FakeEngine extends EngineRepository {
-  _FakeEngine() : super(initialized: true);
+  _FakeEngine({String dataDirectory = ''}) : super(initialized: true) {
+    this.dataDirectory = dataDirectory;
+  }
 
   final calls = <String>[];
   final sourcesResult = <SourceSummary>[
@@ -116,21 +117,8 @@ class _FakeEngine extends EngineRepository {
   }
 }
 
-/// 一个不会被调用的下层实现：任何调用都会让用例失败。
-class _ForbiddenDelegate extends AppRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw StateError('不应调用下层：${invocation.memberName}');
-  }
-
-  @override
-  Future<void> initialize() async {}
-}
-
-EngineBackedRepository build([_FakeEngine? engine]) => EngineBackedRepository(
-  delegate: _ForbiddenDelegate(),
-  engine: engine ?? _FakeEngine(),
-);
+EngineBackedRepository build([_FakeEngine? engine]) =>
+    EngineBackedRepository(engine: engine ?? _FakeEngine());
 
 void main() {
   test('榜单看板只向声明了 rankings 的源请求', () async {
@@ -189,11 +177,8 @@ void main() {
   });
 
   test('旧下载索引导入结果被原样映射', () async {
-    final engine = _MigrationEngine();
-    final repository = EngineBackedRepository(
-      delegate: _StorageDelegate(),
-      engine: engine,
-    );
+    final engine = _MigrationEngine(dataDirectory: '/legacy');
+    final repository = EngineBackedRepository(engine: engine);
     await repository.initialize();
     final info = repository.legacyMigration;
     expect(info, isNotNull);
@@ -204,10 +189,7 @@ void main() {
 
   test('重启后从索引重建下载列表而不是丢弃', () async {
     // 模拟「进程重启」：仓库刚构造，_downloads 为空，但引擎索引里仍有任务。
-    final repository = EngineBackedRepository(
-      delegate: _ForbiddenDelegate(),
-      engine: _SnapshotEngine(),
-    );
+    final repository = EngineBackedRepository(engine: _SnapshotEngine());
     final jobs = await repository.downloads();
     expect(jobs, hasLength(1), reason: '引擎任务不能因为重启而消失');
     final job = jobs.single;
@@ -219,7 +201,6 @@ void main() {
 
   test('旧索引缺少展示字段时跳过而不是崩溃', () async {
     final repository = EngineBackedRepository(
-      delegate: _ForbiddenDelegate(),
       engine: _SnapshotEngine(dramaId: ''),
     );
     expect(await repository.downloads(), isEmpty);
@@ -238,6 +219,8 @@ void main() {
 
 /// 只回答迁移调用的假引擎。
 class _MigrationEngine extends _FakeEngine {
+  _MigrationEngine({super.dataDirectory});
+
   @override
   Future<LegacyMigrationInfo> importLegacyDownloads(String downloadRoot) async {
     calls.add('migrate:$downloadRoot');
@@ -247,12 +230,6 @@ class _MigrationEngine extends _FakeEngine {
       skipped: {'文件不存在': 1},
     );
   }
-}
-
-/// 提供旧下载目录的下层实现。
-class _StorageDelegate extends _ForbiddenDelegate {
-  @override
-  Future<Map<String, dynamic>> storage() async => {'directory': '/legacy'};
 }
 
 /// 返回固定快照的假引擎，用于验证重启后的列表重建。

@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:hoshi/app_build.dart';
-import 'package:hoshi/data/core_bridge.dart';
 import 'package:hoshi/data/local_profiles.dart';
 import 'package:hoshi/data/local_store.dart';
+import 'package:hoshi/data/engine_backed_repository.dart';
+import 'package:hoshi/data/engine_repository.dart';
+import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -153,46 +155,33 @@ void main() {
     store.dispose();
   });
 
-  test(
-    'background requests reject unavailable sources before native I/O',
-    () async {
-      final repository = NativeRepository(background: true);
-      final denied = [
-        ...SourceSite.knownValues
-            .where((source) => !SourceSite.isAvailable(source.id))
-            .map((source) => source.id),
-        'unknown',
-      ];
-      for (final source in denied) {
-        final drama = Drama(id: '$source:123', source: source, title: '合成数据');
-        final episode = Episode({'id': '1'}, 1);
-        for (final request in [
-          () => repository.catalog(source),
-          () => repository.cached(source),
-          () => repository.sourceStatus(source),
-          () => repository.startSourceJob(source, 'update'),
-          () => repository.cancelSourceJob(source),
-          () => repository.detail(drama),
-          () => repository.cover(drama),
-          () => repository.resolve(drama, episode),
-          () => repository.resolveOnline(drama, episode),
-          () => repository.enqueueDownloads(DramaDetail(drama, [episode]), [
-            episode,
-          ]),
-          () => repository.localPlayback(drama, episode),
-        ]) {
-          await expectLater(
-            request(),
-            throwsA(
-              isA<AppFailure>().having(
-                (error) => error.message,
-                'message',
-                '当前版本不包含此站源',
-              ),
-            ),
-          );
-        }
+  test('未就绪的引擎拒绝一切请求，而不是静默降级', () async {
+    // Go 后端在 Core-4 物理移除后，不再有「换一套实现继续跑」的回退路径。
+    // 引擎未就绪时，站源入口必须直接不可用。
+    final repository = EngineBackedRepository(
+      engine: EngineRepository(initialized: false),
+    );
+    final denied = [
+      ...SourceSite.knownValues.map((source) => source.id),
+      'unknown',
+    ];
+    for (final source in denied) {
+      final drama = Drama(id: '$source:123', source: source, title: '合成数据');
+      final episode = Episode({'id': '1'}, 1);
+      for (final request in [
+        () => repository.catalog(source),
+        () => repository.detail(drama),
+        () => repository.resolve(drama, episode),
+        () => repository.enqueueDownloads(DramaDetail(drama, [episode]), [
+          episode,
+        ]),
+      ]) {
+        await expectLater(
+          request(),
+          throwsA(isA<EngineException>()),
+          reason: '源 $source 在引擎未就绪时不应发起请求',
+        );
       }
-    },
-  );
+    }
+  });
 }

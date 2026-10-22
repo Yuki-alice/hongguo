@@ -1,4 +1,4 @@
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/domain/models.dart';
 
 class FixtureRepository extends AppRepository {

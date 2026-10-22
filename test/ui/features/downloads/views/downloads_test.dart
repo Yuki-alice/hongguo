@@ -1,4 +1,4 @@
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
 import 'package:hoshi/ui/features/home/views/home_screen.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/data/repository_capabilities.dart';
 import 'package:hoshi/domain/danmaku_models.dart';
@@ -21,10 +21,7 @@ import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 /// 让 UI 隐藏入口；下载、LAN、站源诊断等仍在迁移中的能力暂时委托给下层实现，
 /// 并在 [capabilities] 中如实标注。
 class EngineBackedRepository extends AppRepository {
-  EngineBackedRepository({required this.delegate, required this.engine});
-
-  /// 下层实现：承担尚未迁到引擎的本机能力（下载、媒体、LAN 等）。
-  final AppRepository delegate;
+  EngineBackedRepository({required this.engine});
 
   /// Rust 引擎访问层。
   final EngineRepository engine;
@@ -42,23 +39,25 @@ class EngineBackedRepository extends AppRepository {
   bool handles(String source) => engine.initialized && source.isNotEmpty;
 
   @override
-  RepositoryCapabilities get capabilities => RepositoryCapabilities(
+  RepositoryCapabilities get capabilities => const RepositoryCapabilities(
     sourceManagement: false,
-    downloads: delegate.supportsDownloads,
+    downloads: true,
     danmaku: true,
     recommendations: true,
     rankings: true,
     suggestions: true,
     resourceSettings: false,
-    localPlayback: delegate.supportsDownloads,
+    localPlayback: true,
     lan: false,
   );
 
   @override
-  LocalStore? get access => delegate.access;
+  LocalStore? get access => _access;
 
   @override
-  set access(LocalStore? value) => delegate.access = value;
+  set access(LocalStore? value) => _access = value;
+
+  LocalStore? _access;
 
   /// 启动顺序：先初始化下层（旧下载目录写在这里），再让引擎以只读方式
   /// 导入旧索引。迁移失败只记录、不抛错——旧数据不可读不该拦住启动。
@@ -68,14 +67,10 @@ class EngineBackedRepository extends AppRepository {
   /// 能力在真正被调用时才报错，而不是让应用停在错误页。
   @override
   Future<void> initialize() async {
+    // Go 后端已物理移除（Core-4）：没有需要初始化的下层实现。
+    // 旧 Go 下载记录仍可能在磁盘上，因此仍尝试只读导入一次。
     try {
-      await delegate.initialize();
-    } on Object catch (error) {
-      debugPrint('Go 核心不可用（未随包分发？），以降级模式启动：$error');
-    }
-    try {
-      final info = await delegate.storage();
-      final directory = info['directory'] as String? ?? '';
+      final directory = await downloadDirectory();
       if (directory.isNotEmpty) {
         _legacyMigration = await engine.importLegacyDownloads(directory);
       }
@@ -96,14 +91,7 @@ class EngineBackedRepository extends AppRepository {
     String category = '',
     bool force = false,
   }) async {
-    if (!handles(source))
-      return delegate.catalog(
-        source,
-        page: page,
-        query: query,
-        category: category,
-        force: force,
-      );
+    if (!handles(source)) throw UnsupportedFailure('目录');
     try {
       return await engine.catalog(
         source,
@@ -118,7 +106,7 @@ class EngineBackedRepository extends AppRepository {
 
   @override
   Future<DramaDetail> detail(Drama drama) async {
-    if (!handles(drama.source)) return delegate.detail(drama);
+    if (!handles(drama.source)) throw UnsupportedFailure('详情');
     try {
       return await engine.detail(drama);
     } on EngineException catch (error) {
@@ -128,10 +116,8 @@ class EngineBackedRepository extends AppRepository {
 
   @override
   Future<CatalogPage> cached(String source, {String category = ''}) async {
-    if (!handles(source)) return delegate.cached(source, category: category);
+    if (!handles(source)) return CatalogPage([]);
     final page = await engine.cachedCatalog(source, category: category);
-    // 引擎缓存为空时读下层缓存，避免切换后端瞬间出现空列表。
-    if (page.items.isEmpty) return delegate.cached(source, category: category);
     return page;
   }
 
@@ -140,7 +126,7 @@ class EngineBackedRepository extends AppRepository {
     String source, {
     bool force = false,
   }) async {
-    if (!handles(source)) return delegate.categories(source, force: force);
+    if (!handles(source)) return const [CatalogCategory.all];
     try {
       return await engine.categories(source);
     } on EngineException catch (error) {
@@ -155,7 +141,7 @@ class EngineBackedRepository extends AppRepository {
   /// 封面：引擎有 URL 时自己下载并缓存；没有 URL 时交给下层（旧记录）。
   @override
   Future<String> cover(Drama drama, {bool force = false}) async {
-    if (drama.cover.isEmpty) return delegate.cover(drama, force: force);
+    if (drama.cover.isEmpty) return '';
     // 失败直接抛出：`CachedCoverImage` 的 FutureBuilder 会渲染占位与重试，
     // 静默回退下层只会让同一张图被下载两次。
     final result = await engine.cover(drama, force: force);
@@ -168,9 +154,7 @@ class EngineBackedRepository extends AppRepository {
     Episode episode, {
     int quality = 0,
   }) async {
-    if (!handles(drama.source)) {
-      return delegate.resolve(drama, episode, quality: quality);
-    }
+    if (!handles(drama.source)) throw UnsupportedFailure('取流');
     try {
       return await engine.resolve(drama, episode);
     } on EngineException catch (error) {
@@ -179,32 +163,31 @@ class EngineBackedRepository extends AppRepository {
   }
 
   @override
-  Future<PlaybackPlan> fallback(PlaybackPlan current) =>
-      delegate.fallback(current);
+  Future<PlaybackPlan> fallback(PlaybackPlan current) async => current;
 
   @override
-  Future<void> cancelPlayback() => delegate.cancelPlayback();
+  Future<void> cancelPlayback() async {}
 
   @override
-  Future<void> release(String session) => delegate.release(session);
+  Future<void> release(String session) async {}
 
   @override
-  Future<void> cancelCatalog() => delegate.cancelCatalog();
+  Future<void> cancelCatalog() async {}
 
   @override
-  Future<void> cancelPreload() => delegate.cancelPreload();
+  Future<void> cancelPreload() async {}
 
   @override
-  Future<void> cancelDanmaku() => delegate.cancelDanmaku();
+  Future<void> cancelDanmaku() async {}
 
   @override
-  Future<void> cancelSuggestions() => delegate.cancelSuggestions();
+  Future<void> cancelSuggestions() async {}
 
   @override
-  Future<void> cancelRecommendations() => delegate.cancelRecommendations();
+  Future<void> cancelRecommendations() async {}
 
   @override
-  Future<void> cancelHandoff() => delegate.cancelHandoff();
+  Future<void> cancelHandoff() async {}
 
   /// 预加载：引擎取流本身无副作用，提前 resolve 一次即可。
   ///
@@ -216,9 +199,7 @@ class EngineBackedRepository extends AppRepository {
     int quality = 0,
     bool online = false,
   }) async {
-    if (!handles(drama.source)) {
-      return delegate.preload(drama, episode, quality: quality, online: online);
-    }
+    if (!handles(drama.source)) return null;
     try {
       return await engine.resolve(drama, episode);
     } on EngineException {
@@ -231,7 +212,7 @@ class EngineBackedRepository extends AppRepository {
     Drama drama,
     Episode episode, {
     int quality = 0,
-  }) => delegate.prepareHandoff(drama, episode, quality: quality);
+  }) async => null;
 
   /// 离线播放优先走引擎的下载索引；没有完成任务时交给下层（旧 Go 记录）。
   @override
@@ -248,7 +229,7 @@ class EngineBackedRepository extends AppRepository {
       // 未下载完成是常态，回退到下层旧记录；其它错误照常上报。
       if (!error.isUnsupported) rethrow;
     }
-    return delegate.localPlayback(drama, episode);
+    return null;
   }
 
   /// 弹幕：引擎按 `startMs` 返回该窗口内的条目，这里补上分页语义。
@@ -386,8 +367,7 @@ class EngineBackedRepository extends AppRepository {
     bool force = false,
   }) async {
     final source = RankingBoard.sourceForID(board);
-    if (source.isEmpty)
-      return delegate.rankings(board, page: page, force: force);
+    if (source.isEmpty) throw UnsupportedFailure('榜单');
     try {
       return await engine.ranking(source, board, page: page);
     } on EngineException catch (error) {
@@ -408,18 +388,26 @@ class EngineBackedRepository extends AppRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> storage() => delegate.storage();
+  Future<Map<String, dynamic>> storage() async => {
+    'directory': await downloadDirectory(),
+  };
+
+  /// 下载目录：引擎数据目录下的 `downloads/`。
+  ///
+  /// 旧 Go 版把任务放在 `<app support>/downloads`，这里的只读导入仍指向
+  /// 同一位置，因此升级后已下载的文件继续可播。
+  @override
+  Future<String> downloadDirectory() async {
+    final root = engine.dataDirectory;
+    return root.isEmpty ? '' : '$root/downloads';
+  }
 
   @override
-  Future<String> downloadDirectory() => delegate.downloadDirectory();
+  Future<void> moveDownloads(String directory) async =>
+      throw UnsupportedFailure('迁移下载目录');
 
   @override
-  Future<void> moveDownloads(String directory) =>
-      delegate.moveDownloads(directory);
-
-  @override
-  Future<int> workLease(String id, String command) =>
-      delegate.workLease(id, command);
+  Future<int> workLease(String id, String command) async => 0;
 
   @override
   Future<int> enqueueDownloads(
@@ -427,9 +415,7 @@ class EngineBackedRepository extends AppRepository {
     List<Episode> episodes, {
     int quality = 0,
   }) async {
-    if (!handles(detail.drama.source)) {
-      return delegate.enqueueDownloads(detail, episodes, quality: quality);
-    }
+    if (!handles(detail.drama.source)) throw UnsupportedFailure('下载');
     var accepted = 0;
     for (final episode in episodes) {
       try {
@@ -466,7 +452,7 @@ class EngineBackedRepository extends AppRepository {
 
   /// 计算下载目标路径（不含扩展名）。
   Future<String> _downloadTarget(Drama drama, Episode episode) async {
-    final directory = await delegate.downloadDirectory();
+    final directory = await downloadDirectory();
     final safeDrama = drama.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     final safeEpisode = episode.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     return '$directory/$safeDrama/${episode.id}_$safeEpisode';
@@ -480,10 +466,7 @@ class EngineBackedRepository extends AppRepository {
   @override
   Future<List<DownloadJob>> downloads() async {
     final rows = await engine.downloads();
-    if (rows.isEmpty) {
-      // 引擎没有任何任务时才回落到下层，避免两套队列同时出现在 UI。
-      return delegate.downloads();
-    }
+    if (rows.isEmpty) return const [];
     final jobs = <DownloadJob>[];
     for (final row in rows) {
       final context = _downloads[row.id] ?? _contextFromSnapshot(row);
@@ -532,12 +515,16 @@ class EngineBackedRepository extends AppRepository {
 
   @override
   Future<void> controlDownloads(String command, {String id = ''}) async {
-    if (id.isEmpty) return delegate.controlDownloads(command, id: id);
-    final handled = await engine.controlDownload(command, id);
-    if (!handled) {
-      await delegate.controlDownloads(command, id: id);
+    if (id.isEmpty) {
+      final ids = [for (final job in await engine.downloads()) job.id];
+      if (ids.isNotEmpty) {
+        await engine.controlDownloads(command, ids);
+        if (command == 'delete' || command == 'remove') _downloads.clear();
+      }
+      return;
     }
-    if (command == 'delete') _downloads.remove(id);
+    await engine.controlDownload(command, id);
+    if (command == 'delete' || command == 'remove') _downloads.remove(id);
   }
 
   /// 批量控制：引擎任务走引擎，其余（旧 Go 记录）交给下层。
@@ -551,21 +538,9 @@ class EngineBackedRepository extends AppRepository {
     List<String> ids, {
     Map<String, String> expectedVersions = const {},
   }) async {
-    final engineIds = <String>[];
-    final legacyIds = <String>[];
-    for (final id in ids.toSet()) {
-      if (_downloads.containsKey(id)) {
-        engineIds.add(id);
-      } else {
-        legacyIds.add(id);
-      }
-    }
+    final engineIds = ids.toSet().toList();
     if (engineIds.isEmpty) {
-      return delegate.controlDownloadBatch(
-        command,
-        legacyIds,
-        expectedVersions: expectedVersions,
-      );
+      return const DownloadBatchResult(completed: [], failures: {});
     }
 
     final versions = <rust.DownloadVersion>[
@@ -590,18 +565,6 @@ class EngineBackedRepository extends AppRepository {
     final failures = <String, String>{
       for (final failure in outcome.failures) failure.id: failure.detail,
     };
-    if (legacyIds.isNotEmpty) {
-      final legacy = await delegate.controlDownloadBatch(
-        command,
-        legacyIds,
-        expectedVersions: {
-          for (final entry in expectedVersions.entries)
-            if (legacyIds.contains(entry.key)) entry.key: entry.value,
-        },
-      );
-      completed.addAll(legacy.completed);
-      failures.addAll(legacy.failures);
-    }
     if (command == 'delete' || command == 'remove') {
       for (final id in completed) {
         _downloads.remove(id);
@@ -615,35 +578,37 @@ class EngineBackedRepository extends AppRepository {
     DramaDetail detail,
     List<Episode> episodes, {
     int quality = 0,
-  }) => delegate.updateDownloadCollection(detail, episodes, quality: quality);
+  }) async => throw UnsupportedFailure('下载合集');
 
   @override
   Future<Map<String, dynamic>> lan(
     String command,
     Map<String, dynamic> payload,
-  ) => delegate.lan(command, payload);
+  ) async => throw UnsupportedFailure('局域网互联');
 
   @override
-  Future<SourceStatus> sourceStatus(String source) =>
-      delegate.sourceStatus(source);
+  Future<SourceStatus> sourceStatus(String source) async =>
+      throw UnsupportedFailure('站源诊断');
 
   @override
   Future<SourceStatus> startSourceJob(
     String source,
     String operation, {
     Drama? drama,
-  }) => delegate.startSourceJob(source, operation, drama: drama);
+  }) async => throw UnsupportedFailure('站源任务');
 
   @override
-  Future<SourceStatus> cancelSourceJob(String source) =>
-      delegate.cancelSourceJob(source);
+  Future<SourceStatus> cancelSourceJob(String source) async =>
+      throw UnsupportedFailure('站源任务');
 
   @override
-  Future<ResourceSettings> resourceSettings() => delegate.resourceSettings();
+  Future<ResourceSettings> resourceSettings() async =>
+      throw UnsupportedFailure('资源设置');
 
   @override
-  Future<ResourceSettings> saveResourceSettings(ResourceSettings settings) =>
-      delegate.saveResourceSettings(settings);
+  Future<ResourceSettings> saveResourceSettings(
+    ResourceSettings settings,
+  ) async => throw UnsupportedFailure('资源设置');
 
   /// 站源诊断 / 健康检查仍在下层实现（Core-2 之后迁入引擎）。
   @override

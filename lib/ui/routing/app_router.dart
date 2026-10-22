@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:hoshi/ui/features/downloads/views/batch_download_screen.dart';
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
 import 'package:hoshi/domain/download_preferences.dart';
@@ -11,8 +11,6 @@ import 'package:hoshi/main.dart' show DuanjuBootstrap;
 import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
 import 'package:hoshi/ui/features/home/views/home_screen.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
-import 'package:hoshi/data/lan/lan_controller.dart';
-import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
 import 'package:hoshi/data/local_profiles.dart';
 import 'package:hoshi/ui/features/media/views/local_media_screen.dart';
 import 'package:hoshi/data/media/media_library.dart';
@@ -47,9 +45,7 @@ abstract final class AppRoutes {
   static const sources = '/sources';
   static const plugins = '/sources/plugins';
   static const rankings = '/rankings';
-  static const lanSync = '/lan';
   static const batchDownload = '/batch-download';
-  static const lanConflicts = '/lan/conflicts';
   static const downloadPreferences = '/settings/downloads';
   static const storage = '/settings/storage';
   static const engineDiagnostics = '/settings/diagnostics';
@@ -323,18 +319,6 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
           ),
         ),
         GoRoute(
-          path: AppRoutes.lanSync,
-          builder: (context, state) {
-            final controller = LanController.current;
-            if (controller == null) {
-              return _InvalidRoute(
-                message: AppLocalizations.of(context).lanNotReadyShort,
-              );
-            }
-            return LanSyncScreen(controller: controller);
-          },
-        ),
-        GoRoute(
           path: AppRoutes.downloadPreferences,
           builder: (context, state) =>
               DownloadPreferencesScreen(store: ref.read(readyStoreProvider)),
@@ -391,18 +375,6 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
               store: ref.read(readyStoreProvider),
               profile: extra is ProfileEditorExtra ? extra.profile : null,
             );
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.lanConflicts,
-          builder: (context, state) {
-            final controller = state.extra;
-            if (controller is! LanController) {
-              return _InvalidRoute(
-                message: AppLocalizations.of(context).lanNotReadyShort,
-              );
-            }
-            return LanConflictsScreen(controller: controller);
           },
         ),
         GoRoute(

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 
 /// 下载目录用量与迁移状态。
 class StorageController extends ChangeNotifier {

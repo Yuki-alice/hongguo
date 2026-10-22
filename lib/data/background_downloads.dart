@@ -6,7 +6,12 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'package:hoshi/data/app_contract.dart';
+import 'package:hoshi/data/bundled_plugins.dart';
+import 'package:hoshi/data/engine_backed_repository.dart';
+import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/data/media/media_library.dart';
 import 'package:hoshi/app_build.dart';
@@ -64,16 +69,27 @@ class BackgroundDownloads {
 }
 
 class DownloadTaskHandler extends TaskHandler {
-  final repository = NativeRepository(background: true);
+  /// 后台 isolate 里没有前台的仓库实例，因此自己装配一个引擎仓库。
+  ///
+  /// 引擎是进程级单例，同一进程内的前台代码共享同一份任务表与索引，
+  /// 后台只是换了一个 isolate 去驱动导出与轮询。
+  EngineBackedRepository? repository;
   MediaLibrary? library;
   bool _polling = false;
   int _idle = 0;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
-    await repository.initialize();
+    final support = await getApplicationSupportDirectory();
+    final engine = await EngineRepository.create(
+      dataDirectory: '${support.path}/engine',
+      bundled: await BundledPlugins.load(),
+    );
+    final repo = EngineBackedRepository(engine: engine);
+    await repo.initialize();
+    repository = repo;
     library = MediaLibrary(
-      repository,
+      repo,
       LocalStore(await SharedPreferences.getInstance()),
       automaticWorker: true,
     );
@@ -90,9 +106,9 @@ class DownloadTaskHandler extends TaskHandler {
     _polling = true;
     try {
       if (library != null) unawaited(library!.maybeExport());
-      final jobs = await repository.downloads();
+      final jobs = await repository?.downloads() ?? const [];
       final active = jobs.where((job) => job.active).toList();
-      final work = await repository.workLease('', '');
+      final work = await repository?.workLease('', '') ?? 0;
       if (active.isEmpty && work == 0) {
         _idle++;
         if (_idle >= 5) {
@@ -123,7 +139,8 @@ class DownloadTaskHandler extends TaskHandler {
 
   @override
   void onNotificationButtonPressed(String id) {
-    if (id == 'pause') unawaited(repository.controlDownloads('pauseAll'));
+    if (id == 'pause')
+      unawaited(repository?.controlDownloads('pauseAll') ?? Future.value());
   }
 
   @override
@@ -136,7 +153,7 @@ class DownloadTaskHandler extends TaskHandler {
     await library?.cancel();
     library?.dispose();
     if (isTimeout) {
-      await repository.controlDownloads('pauseAll');
+      await repository?.controlDownloads('pauseAll');
       await FFmpegKit.cancel();
     }
   }

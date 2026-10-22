@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:hoshi/ui/core/app_theme.dart';
 import 'package:hoshi/app_build.dart';
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/main.dart';

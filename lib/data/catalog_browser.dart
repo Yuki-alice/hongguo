@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/domain/models.dart';
 
 String categoryName(String name) {

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:hoshi/data/core_bridge.dart';
 import 'package:hoshi/data/local_profiles.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/main.dart';
@@ -115,56 +114,40 @@ void main() {
     store.dispose();
   });
 
-  test(
-    'native entry points reject denied sources and downloads before native I/O',
-    () async {
-      SharedPreferences.setMockInitialValues({
-        'profiles': jsonEncode([
-          const LocalProfile(
-            id: 'default',
-            name: '管理员',
-            admin: true,
-            salt: '11111111111111111111111111111111',
-            pinHash:
-                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          ).toJson(),
-          const LocalProfile(
-            id: 'viewer',
-            name: '只看红果',
-            sources: ['hongguo'],
-            download: false,
-          ).toJson(),
-        ]),
-        'activeProfile': 'viewer',
-      });
-      final store = LocalStore(await SharedPreferences.getInstance());
-      final repository = NativeRepository()..access = store;
-      expect(repository.supportsDownloads, isFalse);
-      for (final request in [
-        () => repository.catalog('huangdou'),
-        () => repository.cached('huangdou'),
-        () => repository.detail(denied),
-        () => repository.cover(denied),
-        () => repository.resolve(denied, Episode({'id': '1'}, 1)),
-        () => repository.enqueueDownloads(DramaDetail(drama, []), [
-          Episode({'id': '1'}, 1),
-        ]),
-        () => repository.localPlayback(drama, Episode({'id': '1'}, 1)),
-      ]) {
-        await expectLater(
-          request(),
-          throwsA(
-            isA<AppFailure>().having(
-              (e) => e.message,
-              'message',
-              anyOf(contains('权限'), contains('版本不包含')),
-            ),
-          ),
-        );
-      }
-      store.dispose();
-    },
-  );
+  test('受限档案在 store 层就拒绝未授权站源与下载', () async {
+    // Go 后端物理移除后，仓库层不再有第二道权限校验；权限由 LocalStore
+    // 统一裁决，UI 与下载入口都以它的结果为准。这个用例守住那条边界。
+    SharedPreferences.setMockInitialValues({
+      'profiles': jsonEncode([
+        const LocalProfile(
+          id: 'default',
+          name: '管理员',
+          admin: true,
+          salt: '11111111111111111111111111111111',
+          pinHash:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ).toJson(),
+        const LocalProfile(
+          id: 'viewer',
+          name: '只看红果',
+          sources: ['hongguo'],
+          download: false,
+        ).toJson(),
+      ]),
+      'activeProfile': 'viewer',
+    });
+    final store = LocalStore(await SharedPreferences.getInstance());
+    // 下载权限跟着档案走。
+    expect(store.canDownload, isFalse);
+    // 站源白名单：黄豆早已下线，剧果不在该档案的白名单里。
+    expect(store.allowsSource('huangdou'), isFalse);
+    expect(store.allowsSource('huangju'), isFalse);
+    expect(store.allowsSource('hongguo'), isTrue);
+    // 来源不可用的条目一律不进收藏 / 历史列表。
+    await store.toggleFavorite(denied);
+    expect(store.isFavorite(denied.id), isFalse);
+    store.dispose();
+  });
 
   testWidgets('online-only home hides download navigation and denied sources', (
     tester,

@@ -1,13 +1,15 @@
-import 'package:hoshi/data/core_bridge.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// 引擎接管判定的纯逻辑测试：不再有路由开关，只区分「引擎是否就绪」。
+/// 引擎接管判定的纯逻辑测试。
+///
+/// Go 后端已在 Core-4 物理移除，因此这里不再有「交回下层」的语义：
+/// 引擎未就绪时该站源直接不可用（`handles` 为 false），调用会得到
+/// `UnsupportedFailure`，而不是静默降级到另一套实现。
 void main() {
   EngineBackedRepository build({bool initialized = true}) =>
       EngineBackedRepository(
-        delegate: NativeRepository(),
         engine: EngineRepository(initialized: initialized),
       );
 
@@ -22,7 +24,7 @@ void main() {
     expect(build().handles(''), isFalse);
   });
 
-  test('uninitialised engine hands off to the delegate', () {
+  test('uninitialised engine handles nothing', () {
     expect(build(initialized: false).handles('wuguo'), isFalse);
   });
 
@@ -38,8 +40,13 @@ void main() {
     expect(capabilities.suggestions, isTrue);
     // 弹幕已接入（引擎按分集返回，Dart 侧补分页窗口）。
     expect(capabilities.danmaku, isTrue);
+    // 下载与离线播放由引擎索引承担；Go 删除后不再依赖下层能力探测。
+    expect(capabilities.downloads, isTrue);
+    expect(capabilities.localPlayback, isTrue);
     // LAN 与高级网络设置本轮明确不做，入口必须隐藏。
     expect(capabilities.lan, isFalse);
     expect(capabilities.resourceSettings, isFalse);
+    // 站源诊断尚未迁入引擎，诊断页据实标注。
+    expect(capabilities.sourceManagement, isFalse);
   });
 }

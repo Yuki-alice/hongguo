@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/catalog_browser.dart';
 import 'package:hoshi/domain/catalog_sort.dart';
 import 'package:hoshi/data/local_store.dart';

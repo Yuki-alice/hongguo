@@ -12,7 +12,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/ui/core/app_orientation.dart';
 import 'package:hoshi/ui/core/app_theme.dart';
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/features/player/danmaku/danmaku_controller.dart';
 import 'package:hoshi/ui/features/player/danmaku/danmaku_overlay.dart';
 import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
@@ -34,8 +34,6 @@ import 'package:hoshi/ui/features/player/widgets/television_controls.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
-import 'package:hoshi/data/lan/lan_controller.dart';
-import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
 import 'package:hoshi/data/video_enhancement/video_output_size.dart';
 
@@ -52,7 +50,6 @@ class PlayerScreen extends StatefulWidget {
     this.mediaId,
     this.playerFactory,
     this.videoBuilder,
-    this.handoff,
   });
   final DramaDetail detail;
   final int initialIndex;
@@ -62,7 +59,6 @@ class PlayerScreen extends StatefulWidget {
   final String? mediaId;
   final AppRepository repository;
   final LocalStore store;
-  final LanIncomingPlayback? handoff;
   @visibleForTesting
   final Player Function()? playerFactory;
   @visibleForTesting
@@ -87,9 +83,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   final _menuRevision = ValueNotifier<int>(0);
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   final _recovery = PlaybackRecovery();
-  Object _lanIdentity = Object();
-  bool _handoffOwned = true;
-  double? _lanFirstPosition;
   late final PlaybackProgressController _progress;
   late final PlaybackSessionController _playback;
   late final PlaybackPreferencesController _prefs;
@@ -153,7 +146,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _profileEpoch = widget.handoff?.profileEpoch ?? widget.store.profileEpoch;
+    _profileEpoch = widget.store.profileEpoch;
     final preferences = widget.store.playbackPreferences;
     _prefs = PlaybackPreferencesController(
       store: widget.store,
@@ -171,7 +164,6 @@ class _PlayerScreenState extends State<PlayerScreen>
       episodes: widget.detail.episodes,
       profileEpoch: _profileEpoch,
       mediaId: widget.mediaId,
-      onFlush: () => LanController.current?.flush(),
     )..addListener(_progressChanged);
     _loader = PlaybackLoader(widget.repository);
     _preloader = PlaybackPreloader(widget.repository);
@@ -265,7 +257,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         if (!_closed) _progress.notePosition(position, _playback.index);
         _syncDanmaku();
         _syncPreload();
-        _acknowledgeHandoff();
       }),
     );
     for (final stream in [
@@ -280,7 +271,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         stream.listen((_) {
           _syncDanmaku();
           _syncPreload();
-          _acknowledgeHandoff();
         }),
       );
     }
@@ -313,13 +303,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         unawaited(_recover());
       }
     });
-    final handoff = widget.handoff;
-    if (handoff != null) {
-      handoff.consumed = true;
-      handoff.stop = () async {
-        if (_handoffOwned && !_closed) await _stopForLan();
-      };
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_closed) {
         widget.repository.catalogUpdates.publish(
@@ -331,19 +314,13 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   void _bootstrapPlayback() {
-    final handoff = widget.handoff;
-    if (_profileEpoch != widget.store.profileEpoch ||
-        handoff?.cancelled == true) {
-      handoff?.fail(l10n.playerHandoffUserChanged);
-      if (handoff != null)
-        unawaited(widget.repository.release(handoff.plan.session));
-      _playback.fail(message: l10n.playerHandoffCancelled, localFailure: false);
-    } else {
-      _play(
-        _playback.index,
-        position: widget.initialPosition,
-        handoffPlan: handoff?.plan,
+    if (_profileEpoch != widget.store.profileEpoch) {
+      _playback.fail(
+        message: l10n.playerHandoffUserChanged,
+        localFailure: false,
       );
+    } else {
+      _play(_playback.index, position: widget.initialPosition);
     }
   }
 
@@ -364,9 +341,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         (widget.store.profileEpoch != _profileEpoch || widget.store.locked)) {
       _preloader.clear();
       _enhancement.suspend();
-      _handoffOwned = false;
       _playIntent = false;
-      widget.handoff?.fail(l10n.playerHandoffUserChangedShort);
       unawaited(_player.pause());
     }
     if (!_closed &&
@@ -556,113 +531,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     return {'left': left, 'top': top, 'right': right, 'bottom': bottom};
   }
 
-  void _attachLanPlayback() {
-    LanController.current?.attachPlayback(
-      LanPlaybackHost(
-        identity: _lanIdentity,
-        title:
-            widget.detail.drama.title +
-            l10n.playerEpisodePrefix +
-            widget.detail.episodes[_playback.index].number.toString() +
-            l10n.playerEpisodeSuffix,
-        stop: _stopForLan,
-      ),
-    );
-  }
-
-  void _acknowledgeHandoff() {
-    final handoff = widget.handoff;
-    if (!_handoffOwned ||
-        handoff == null ||
-        handoff.cancelled ||
-        handoff.started.isCompleted ||
-        _closed ||
-        _playback.loading ||
-        _playback.error != null ||
-        _progress.openedIndex != _playback.index ||
-        _playback.index != widget.initialIndex ||
-        widget.store.profileEpoch != _profileEpoch)
-      return;
-    final state = _player.state;
-    final position = state.position.inMilliseconds / 1000;
-    final duration = state.duration.inMilliseconds / 1000;
-    if (duration > 0 && handoff.position > duration + 2) {
-      handoff.fail(l10n.playerResumeTooLong);
-      return;
-    }
-    if (!state.playing ||
-        state.buffering ||
-        (state.width ?? 0) <= 0 ||
-        position < handoff.position - .5 ||
-        position > handoff.position + 20)
-      return;
-    _lanFirstPosition ??= position;
-    if (position >= _lanFirstPosition! + .15) handoff.acknowledge(position);
-  }
-
-  Future<void> _stopForLan() async {
-    final generation = _playback.generation;
-    await _serialize(() async {
-      if (_closed ||
-          generation != _playback.generation ||
-          widget.store.profileEpoch != _profileEpoch)
-        return;
-      _playIntent = false;
-      _interactions.cancel();
-      _enhancement.suspend();
-      _health.reset();
-      await _player.pause();
-      await _saveProgress(flush: true);
-    });
-  }
-
-  Future<void> _pushToDevice() async {
-    final link = LanController.current;
-    if (link == null ||
-        _panelOpen ||
-        _closed ||
-        _playback.loading ||
-        _playback.error != null ||
-        widget.mediaId != null)
-      return;
-    final generation = _playback.generation;
-    final index = _playback.index;
-    bool current() =>
-        mounted &&
-        !_closed &&
-        generation == _playback.generation &&
-        index == _playback.index &&
-        widget.store.profileEpoch == _profileEpoch;
-    _interactions.cancel();
-    setState(() => _panelOpen = true);
-    try {
-      await showLanPush(
-        context,
-        link,
-        snapshot: () => LanPlaybackIntent(
-          drama: widget.detail.drama,
-          episodeID: widget.detail.episodes[index].id,
-          episode: widget.detail.episodes[index].number,
-          position: _currentPosition,
-        ),
-        stillCurrent: current,
-        onAccepted: () async {
-          if (!current()) throw StateError(l10n.playerContentChanged);
-          await _stopForLan();
-          if (!current()) throw StateError(l10n.playerContentChanged);
-        },
-      );
-    } catch (error) {
-      if (mounted && !_closed) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
-    } finally {
-      if (mounted && !_closed) setState(() => _panelOpen = false);
-    }
-  }
-
   void _syncPreload() {
     if (_closed) return;
     if (!_prefs.preloadEnabled ||
@@ -843,8 +711,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   void _togglePlayback() {
     if (_closed || _playback.loading || _playback.error != null) return;
-    _handoffOwned = false;
-    widget.handoff?.fail(l10n.playerHandoffOperated);
     _interactions.cancel();
     _playIntent = !_player.state.playing;
     if (_playIntent) _enhancement.mediaReady();
@@ -875,7 +741,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     double position = 0,
     PlaybackRecoveryAction? recoveryAction,
     bool playWhenReady = true,
-    PlaybackPlan? handoffPlan,
     bool showControlsOnReady = true,
   }) async {
     if (_closed ||
@@ -885,12 +750,6 @@ class _PlayerScreenState extends State<PlayerScreen>
       return;
     }
     _interactions.cancel();
-    if (widget.handoff != null &&
-        handoffPlan == null &&
-        recoveryAction == null) {
-      _handoffOwned = false;
-      widget.handoff?.fail(l10n.playerHandoffChanged);
-    }
     final ticket = _playback.begin(
       index: index,
       message: switch (recoveryAction) {
@@ -901,15 +760,14 @@ class _PlayerScreenState extends State<PlayerScreen>
       showControlsOnReady: showControlsOnReady,
     );
     final warmed =
-        handoffPlan ??
         (recoveryAction == null && _prefs.preloadEnabled && !widget.localOnly
-            ? _preloader.take(
-                widget.detail.drama,
-                widget.detail.episodes[index],
-                quality: _playback.requestedQuality,
-                online: _playback.forceOnline,
-              )
-            : null);
+        ? _preloader.take(
+            widget.detail.drama,
+            widget.detail.episodes[index],
+            quality: _playback.requestedQuality,
+            online: _playback.forceOnline,
+          )
+        : null);
     _preloader.clear();
     _enhancement.suspend();
     _seekSequence++;
@@ -923,9 +781,6 @@ class _PlayerScreenState extends State<PlayerScreen>
       _playIntent = playWhenReady;
     }
     _progress.setResumePosition(position);
-    LanController.current?.detachPlayback(_lanIdentity);
-    _lanIdentity = Object();
-    _attachLanPlayback();
     PlaybackPlan? prepared;
     PlaybackPlan? retained;
     bool installed = false;
@@ -1008,14 +863,12 @@ class _PlayerScreenState extends State<PlayerScreen>
         }
         _progress.markOpened(index);
         _enhancement.mediaReady();
-        _attachLanPlayback();
         _health.reset();
         await _interactions.applySpeed();
         if (mounted && !_closed && ticket == _playback.generation) {
           _playback.finish(plan: plan, index: index);
           _danmaku.setPlan(plan);
           _syncDanmaku();
-          _acknowledgeHandoff();
           _menuRevision.value++;
         }
       });
@@ -1038,7 +891,6 @@ class _PlayerScreenState extends State<PlayerScreen>
                   (error is AppFailure && error.code == 'local_media') ||
                   (widget.localOnly && !_playback.forceOnline),
             );
-            widget.handoff?.fail(message);
           }
         }
       } else if (prepared != null && !installed) {
@@ -1270,8 +1122,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   Future<void> _seekTo(Duration target) async {
     if (_closed || _playback.loading || _playback.error != null) return;
-    _handoffOwned = false;
-    widget.handoff?.fail(l10n.playerHandoffSeeked);
     final ticket = ++_seekSequence;
     final generation = _playback.generation;
     _danmaku.beginSeek();
@@ -1393,8 +1243,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     _playback.removeListener(_playbackChanged);
     _prefs.removeListener(_prefsChanged);
     final enhancementClosed = _enhancement.close();
-    LanController.current?.detachPlayback(_lanIdentity);
-    widget.handoff?.fail(l10n.playerHandoffExited);
     widget.store.removeListener(_accessChanged);
     _danmaku.dispose();
     _preloader.dispose();
@@ -1649,7 +1497,6 @@ class _PlayerScreenState extends State<PlayerScreen>
             onRetryDanmaku: _danmaku.canRetry
                 ? _retryDanmakuFromControls
                 : null,
-            onPush: widget.mediaId == null ? _pushToDevice : null,
             onPictureInPicture: _canUsePictureInPicture
                 ? _enterPictureInPicture
                 : null,

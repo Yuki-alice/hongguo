@@ -8,13 +8,12 @@
 | 目录 | 语言 | 规模 | 角色 |
 | --- | --- | --- | --- |
 | `lib/` | Dart / Flutter | ~5 万行 | 应用与全部 UI |
-| `rust/` | Rust | ~2 万行 | **唯一运行时后端**：站源、解析、播放、下载、缓存、插件 |
-| `native/` | Go | ~2.1 万行 | 历史后端，已退出构建链，仅作迁移期只读参考（ADR-5c 决定最终删除） |
+| `rust/` | Rust | ~2 万行 | **唯一后端**：站源、解析、播放、下载、缓存、插件 |
 
 发布包与 `flutter run` 跑的都是 Rust 引擎：`lib/main.dart` 装配 `EngineBackedRepository`，
-引擎不可用时启动页报错并提供重试，**没有**回退到 Go 的静默降级路径。
-少量尚未迁完的能力（LAN、下载编排等）仍挂在 Go 委托上，干净环境缺少 `duanju_core.dll`
-时按降级模式启动，调用到未迁移能力才会报错。
+引擎不可用时启动页报错并提供重试。Go 后端已在 Core-4 物理删除，仓库内不再有第二套实现，
+因此也不存在「静默降级成功能不全」的路径——未接入的能力由 `capabilities` 如实报告，
+UI 据此隐藏入口。
 
 ## 目录结构
 
@@ -39,7 +38,6 @@ rust/
   rules/               随包分发的声明式站源（JSON）
   rust-toolchain.toml  钉住工具链版本与交付目标（crate 目录内还有一份镜像）
 docs/                  架构、审计、进度、POC、交接记录
-native/                Go 历史后端（只读参考，不在构建链内）
 scripts/               Windows 构建冒烟（唯一的 CLI 之外工具）
 hook/build.dart        native-assets 构建钩子：flutter build/test 时自动编译引擎
 ```

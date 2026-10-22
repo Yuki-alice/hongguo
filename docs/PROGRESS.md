@@ -28,6 +28,54 @@
 | **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
 | **Core-3 Wasm 源运行时** | ✅ 2026-10-22：7/7 代码源插件化并随包预装（二十七～三十三）；剩 cursor 语义与 P95 基线（不阻塞验收） |
 
+## 第三十四轮：Core-4 收口 —— Go 与 LAN 物理删除（2026-10-22）
+
+目标：兑现 ADR-5c 的最终决定，仓库里只留一套后端。
+
+### 删除范围
+
+| 项 | 内容 |
+| --- | --- |
+| Go 后端 | `native/`（128 文件 / 约 2.6 万行）、`lib/data/core_bridge.dart` |
+| LAN | `lib/data/lan/`、`lib/ui/features/lan/`、`lib/domain/lan_models.dart` 与 4 个测试文件 |
+| 路由与入口 | `/lan`、`/lan/conflicts` 两条路由；设置页与首页的局域网入口；播放器的投屏按钮 |
+| 构建链 | CI 已无 `setup-go`；`scripts/build_native.py` 早前已删 |
+
+`lib/domain/lan_sync_models.dart` **保留**：它承担本地历史 / 收藏的版本化与备份格式，
+与网络传输无关，删掉会让旧备份读不回来。
+
+### `EngineBackedRepository` 去掉 delegate
+
+`delegate` 是「尚未迁到引擎的能力委托给 Go」的通道。Go 删除后它失去意义，
+44 处调用按三类处理：
+
+| 类别 | 处理 | 例子 |
+| --- | --- | --- |
+| 引擎已有等价能力 | 直接调用引擎 | 目录 / 详情 / 分类 / 取流 / 榜单 / 弹幕 |
+| 引擎可推导 | 从 `dataDirectory` 推出 | `downloadDirectory` → `<data>/downloads` |
+| 尚未迁移 | 抛 `UnsupportedFailure` | 站源诊断、资源设置、下载合集、迁移目录 |
+
+`AppFailure` 与 `AppRepository` 从 `core_bridge.dart` 抽到 `lib/data/app_contract.dart`
+（57 个文件改导入），这两个类型被引擎实现与 UI 共用，与 Go 无关。
+
+### 行为变化（需要知道）
+
+1. **没有降级路径了**。以前 Go 库缺失会「降级模式启动」，现在引擎未就绪时
+   站源入口直接不可用，调用得到 `UnsupportedFailure`。
+2. **权限校验只剩一层**。Go 在仓库层做过一次站源白名单校验；删除后由
+   `LocalStore.allowsSource` + UI controller 过滤承担。相应用例已改写为验证这层。
+3. **下载目录改了归属**。从 Go 的 `<app support>/downloads` 改为引擎数据目录下的
+   `downloads/`，旧索引仍按只读方式导入一次。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `dart analyze lib test integration_test test_driver` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | **342 通过 / 1 跳过** |
+| `cargo test --workspace` | 全部通过（引擎侧未改动） |
+| 全仓 Go 引用 | `git grep` 零命中（docs 的历史叙述除外） |
+
 ## 第三十三轮：Core-3 收官 —— 黄果旧版插件 + 手写密码学的教训（2026-10-22）
 
 目标：迁移最后一个代码源（黄果旧版），完成「第一方代码源全部 Wasm」。

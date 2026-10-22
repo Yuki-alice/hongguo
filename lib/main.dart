@@ -4,14 +4,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:hoshi/data/bundled_plugins.dart';
-import 'package:hoshi/data/core_bridge.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
@@ -22,11 +20,10 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/app_l10n.dart';
 import 'package:hoshi/data/media/media_library.dart';
 import 'package:hoshi/package_smoke.dart';
-import 'package:hoshi/data/lan/lan_controller.dart';
 import 'package:hoshi/ui/providers/app_providers.dart';
-import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement_assets.dart';
+import 'package:hoshi/data/app_contract.dart';
 
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,8 +72,6 @@ class _AppBootstrapState extends State<AppBootstrap>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    LanController.current?.dispose();
-    LanController.current = null;
     MediaLibrary.current?.dispose();
     MediaLibrary.current = null;
     _store?.dispose();
@@ -112,7 +107,6 @@ class _AppBootstrapState extends State<AppBootstrap>
   /// 引擎是唯一后端：初始化失败不会回退到 Go（已移除），而是把错误交给
   /// 启动页展示并提供重试，避免「静默降级成功能不全」的假象。
   Future<AppRepository> _buildRepository() async {
-    final core = NativeRepository();
     final support = await getApplicationSupportDirectory();
     // 随包官方插件在初始化时预装；读取失败只记日志，不拦启动。
     final bundled = await BundledPlugins.load(warn: debugPrint);
@@ -122,7 +116,7 @@ class _AppBootstrapState extends State<AppBootstrap>
     );
     // 把引擎上报的站源（含已安装插件）并入 SourceSite，供 UI 列表使用。
     await engine.syncSourceCatalog();
-    return EngineBackedRepository(delegate: core, engine: engine);
+    return EngineBackedRepository(engine: engine);
   }
 
   Future<void> _refreshDevice() async {
@@ -146,18 +140,6 @@ class _AppBootstrapState extends State<AppBootstrap>
       final store = LocalStore(preferences);
       repository.access = store;
       MediaLibrary.attach(repository, store);
-      LanController.current?.dispose();
-      final link = LanController(
-        repository,
-        store,
-        kind: _device.television
-            ? 'tv'
-            : Platform.isWindows
-            ? 'computer'
-            : 'phone',
-      );
-      LanController.current = link;
-      link.openPlayback = _handoffPlayback(link, store, repository);
       setState(() {
         _repository = repository;
         _store = store;
@@ -165,51 +147,6 @@ class _AppBootstrapState extends State<AppBootstrap>
     } catch (failure) {
       if (mounted) setState(() => _error = failure);
     }
-  }
-
-  /// 局域网推送播放的接收逻辑。
-  ///
-  /// 播放页需要完整的 `DramaDetail`，无法只靠 URL 重建，因此通过
-  /// go_router 的 `extra` 传递；路径本身仍带标识，便于日志与深链兜底。
-  Future<void> Function(LanIncomingPlayback) _handoffPlayback(
-    LanController link,
-    LocalStore store,
-    AppRepository repository,
-  ) {
-    return (LanIncomingPlayback request) async {
-      final epoch = request.profileEpoch;
-      if (request.cancelled ||
-          !mounted ||
-          store.locked ||
-          !link.receiving ||
-          store.profileEpoch != epoch ||
-          !store.allowsSource(request.detail.drama.source)) {
-        throw StateError('当前用户不能接收播放');
-      }
-      await link.playbackHost?.stop();
-      if (request.cancelled ||
-          !mounted ||
-          store.locked ||
-          store.profileEpoch != epoch ||
-          !link.receiving) {
-        throw StateError('播放接收已取消');
-      }
-      final context = appNavigatorKey.currentContext;
-      if (context == null || !context.mounted) {
-        throw StateError('接收设备界面尚未就绪');
-      }
-      final ref = DramaRef.fromDramaId(request.detail.drama.id);
-      if (ref == null) throw StateError('接收到的剧集标识无效');
-      final location = AppRoutes.playerOf(ref);
-      context.go(
-        location,
-        extra: PlayerRouteExtra(
-          detail: request.detail,
-          initialIndex: request.index,
-          initialPosition: request.position,
-        ),
-      );
-    };
   }
 
   @override

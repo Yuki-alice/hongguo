@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:hoshi/data/background_downloads.dart';
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/data/media/media_pipeline.dart';
 import 'package:hoshi/domain/models.dart';
@@ -189,13 +189,8 @@ class MediaLibrary extends ChangeNotifier {
       );
     }
     if (!Platform.isAndroid) {
-      final automatic = MediaLibrary(
-        repository is NativeRepository
-            ? NativeRepository(background: true)
-            : repository,
-        store,
-        automaticWorker: true,
-      );
+      // Go 后端已移除：前台仓库本身就是引擎仓库，自动导出直接共用它。
+      final automatic = MediaLibrary(repository, store, automaticWorker: true);
       library._automatic = automatic;
       library._timer = Timer.periodic(
         const Duration(seconds: 8),

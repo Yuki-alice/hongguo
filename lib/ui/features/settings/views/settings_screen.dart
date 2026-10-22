@@ -7,14 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/app_theme.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/core/widgets.dart';
-import 'package:hoshi/ui/features/lan/views/lan_screen.dart';
 import 'package:hoshi/ui/features/settings/controllers/settings_controller.dart';
 import 'package:hoshi/ui/features/settings/controllers/storage_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
@@ -201,15 +200,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     })
   >
   _televisionEntries(AppLocalizations l10n) => [
-    // 局域网互联当前不提供（PLAN.md §5），入口按能力矩阵隐藏。
-    if (widget.repository.capabilities.lan)
-      (
-        id: 'lan',
-        icon: Icons.devices_rounded,
-        title: l10n.deviceInterop,
-        subtitle: l10n.lanAutoSyncHint,
-        onPressed: () => openLanSync(context),
-      ),
     if (widget.repository.supportsSourceManagement)
       (
         id: 'sources',
@@ -336,15 +326,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      if (widget.repository.capabilities.lan)
-                        ListTile(
-                          key: const ValueKey('lan-settings'),
-                          leading: const Icon(Icons.devices_rounded),
-                          title: Text(l10n.deviceInterop),
-                          subtitle: Text(l10n.lanAutoSyncHint),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => openLanSync(context),
-                        ),
                       if (widget.repository.supportsSourceManagement)
                         ListTile(
                           leading: const Icon(Icons.dns_outlined),

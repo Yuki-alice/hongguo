@@ -64,7 +64,6 @@ class DiscoverView extends StatefulWidget {
     required this.onToggleVip,
     required this.onMoreMenu,
     required this.onCancelSuggestions,
-    required this.onOpenLanSync,
     required this.updatesBusy,
     this.cacheReadError,
   });
@@ -107,7 +106,6 @@ class DiscoverView extends StatefulWidget {
   final VoidCallback onToggleVip;
   final ValueChanged<String> onMoreMenu;
   final VoidCallback onCancelSuggestions;
-  final VoidCallback onOpenLanSync;
   final bool updatesBusy;
 
   /// 缓存回读失败时的提示，非空时覆盖目录自身错误。
@@ -559,13 +557,6 @@ class _DiscoverViewState extends State<DiscoverView> {
             child: Text(l10n.cancel),
           ),
         ] else ...[
-          if (widget.tabIndex == 1 && controller.repository.capabilities.lan)
-            IconButton(
-              key: const ValueKey('follow-lan-sync'),
-              tooltip: l10n.lanSyncTitle,
-              onPressed: widget.onOpenLanSync,
-              icon: const Icon(Icons.sync_rounded),
-            ),
           if (widget.tabIndex == 0) ...[
             if (!controller.showRecommendations)
               IconButton(

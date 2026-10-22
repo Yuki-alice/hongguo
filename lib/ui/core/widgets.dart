@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';

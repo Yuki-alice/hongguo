@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:hoshi/data/core_bridge.dart';
+import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/data/playback/playback_loader.dart';
 import 'package:flutter_test/flutter_test.dart';
