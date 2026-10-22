@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import re
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from app_build import BuildVariant, add_variant_argument
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
-parser.add_argument('--platform', choices=['android', 'windows'], required=True)
+parser.add_argument('--platform', choices=['android', 'windows', 'macos'], required=True)
 parser.add_argument('--abi', action='append', choices=['arm64-v8a', 'armeabi-v7a', 'x86_64'])
 add_variant_argument(parser)
 options = parser.parse_args()
@@ -39,7 +40,7 @@ if options.platform == 'android':
         target = output / f'{variant.slug}-{version}-{abi}.apk'
         shutil.copy2(source, target)
         artifacts.append(target)
-else:
+elif options.platform == 'windows':
     bundle = root / 'build' / 'windows' / 'x64' / 'runner' / 'Release'
     # `duanju_core.dll`（Go）已退出构建链。
     required = ['zhenguojian.exe', 'flutter_windows.dll', 'libffmpegkit.dll',
@@ -56,6 +57,16 @@ else:
                 if relative == 'zhenguojian.exe':
                     relative = variant.slug + '.exe'
                 archive.write(source, relative)
+    artifacts.append(target)
+else:
+    # macOS：.app 里带符号链接（Frameworks 版本目录），必须用 ditto 打包，
+    # zipfile 会把链接展开成副本、丢掉签名结构。
+    bundle = root / 'build' / 'macos' / 'Build' / 'Products' / 'Release' / 'duanju_app.app'
+    if not bundle.is_dir():
+        raise SystemExit('缺少 macOS 应用包：' + str(bundle))
+    target = output / f'{variant.slug}-{version}-macos.zip'
+    subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent',
+                    str(bundle), str(target)], check=True)
     artifacts.append(target)
 
 checksums = []

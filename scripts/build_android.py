@@ -20,8 +20,6 @@ environment = os.environ.copy()
 if platform.system() == 'Darwin':
     environment['LANG'] = 'en_US.UTF-8'
     environment['LC_ALL'] = 'en_US.UTF-8'
-environment.setdefault('GOPROXY', 'https://goproxy.cn,direct')
-environment.setdefault('GOSUMDB', 'off')
 flutter = shutil.which('flutter')
 if not flutter:
     raise SystemExit('请先将 Flutter SDK 的 bin 目录加入 PATH。')

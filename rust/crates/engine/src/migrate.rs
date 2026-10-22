@@ -280,11 +280,10 @@ mod tests {
         let scheduler = Scheduler::open(2, root.join("engine-index.json"));
         assert_eq!(import_legacy_index(&root, &scheduler).imported, 1);
         let job = scheduler.get("job1").expect("job");
-        assert!(
-            job.target.ends_with("huangju/job1/index.m3u8"),
-            "{}",
-            job.target
-        );
+        // 旧索引里的 folder 用正斜杠，落到磁盘路径后由平台决定分隔符：
+        // Windows 上是 `huangju\job1\index.m3u8`，所以比较 Path 而不是字符串。
+        let expected = root.join("huangju").join("job1").join("index.m3u8");
+        assert_eq!(PathBuf::from(&job.target), expected, "{}", job.target);
         let _ = std::fs::remove_dir_all(&root);
     }
 }

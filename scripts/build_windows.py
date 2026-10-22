@@ -15,8 +15,6 @@ add_variant_argument(parser)
 options = parser.parse_args()
 variant = BuildVariant(options.all_sources)
 environment = os.environ.copy()
-environment.setdefault('GOPROXY', 'https://goproxy.cn,direct')
-environment.setdefault('GOSUMDB', 'off')
 flutter = shutil.which('flutter')
 if not flutter:
     raise SystemExit('请先将 Flutter SDK 的 bin 目录加入 PATH。')

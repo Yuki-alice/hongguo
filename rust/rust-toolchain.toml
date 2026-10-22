@@ -4,12 +4,22 @@
 # 注意：本文件是 rust/bridge/rust-toolchain.toml 的镜像（hook 要求在 crate 目录内），
 # 供 workspace 级 cargo 命令（CI 的 cargo test --workspace）使用，两份需同步修改。
 channel = "1.99.1"
+# 组件必须显式声明：CI 的 cargo fmt / clippy 由这里决定装哪些，缺了就报
+# 「'cargo-fmt' is not installed for the toolchain」。
+components = ["rustfmt", "clippy"]
+# native_toolchain_rust 会校验宿主机目标是否在列表内，缺了直接拒绝构建
+# （Linux CI 上报 `does not include the target x86_64-unknown-linux-gnu`）。
+# 这里列出三端构建目标 + 各宿主目标，覆盖 CI 与本地开发。
 targets = [
+  # 桌面：Windows / macOS / Linux 宿主机
+  "x86_64-pc-windows-msvc",
   "aarch64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  # Apple 移动端
   "aarch64-apple-ios",
   "aarch64-apple-ios-sim",
+  # Android
   "aarch64-linux-android",
   "armv7-linux-androideabi",
   "x86_64-linux-android",
-  "x86_64-pc-windows-msvc",
 ]

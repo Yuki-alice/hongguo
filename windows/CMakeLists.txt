@@ -107,8 +107,9 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/runner/duanju_core.dll"
-  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)
+# 引擎动态库由上面的 NATIVE_ASSETS_DIR 安装（native-assets 钩子构建 guo_engine）。
+# 这里不再单独 install Go 时代的 duanju_core.dll —— 它已不存在，会让 cmake install 报
+# `file INSTALL cannot find .../runner/duanju_core.dll`。
 
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "${INSTALL_BUNDLE_LIB_DIR}")
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT Runtime)

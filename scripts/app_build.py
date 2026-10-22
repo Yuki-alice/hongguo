@@ -22,10 +22,6 @@ class BuildVariant:
     def flutter_arguments(self):
         return ['--dart-define=ALL_SOURCES=' + str(self.all_sources).lower()]
 
-    @property
-    def linker_flags(self):
-        return '-s -w -X duanjuapp/native/core.buildAllSources=' + str(self.all_sources).lower()
-
     @classmethod
     def from_dart_defines(cls, encoded):
         values = {}
