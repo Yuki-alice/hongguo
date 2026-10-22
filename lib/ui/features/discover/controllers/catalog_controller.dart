@@ -121,8 +121,12 @@ class CatalogController extends ChangeNotifier {
     ...categories.where((entry) => entry.id.isNotEmpty),
   ];
 
-  bool get supportsVipFilter =>
-      group.sources.any((source) => source.id == 'huangdou');
+  /// 是否有任何条目带 VIP 标记。
+  ///
+  /// 以前这里写死 `source.id == 'huangdou'`，黄豆下线后该分支永远为假，
+  /// VIP 过滤控件就再也不会出现。改成看数据本身：只要当前源返回的条目里
+  /// 有 VIP 标记，这个开关就有意义。
+  bool get supportsVipFilter => _items.any((drama) => drama.vip);
   bool get hideVip => supportsVipFilter && _store.hideVip;
 
   /// 当前应渲染的条目：按权限、分类、VIP 与本地筛选收窄后排序。
@@ -135,7 +139,7 @@ class CatalogController extends ChangeNotifier {
             categoryName(drama.category) != category.substring(6)) {
           return false;
         }
-        if (hideVip && drama.source == 'huangdou' && drama.vip) return false;
+        if (hideVip && drama.vip) return false;
         return onlineSearch || query.isEmpty || matchesDramaQuery(drama, query);
       }),
       _store.catalogView,
