@@ -265,15 +265,17 @@ jobs:
       - name: 诊断：iOS 目标直接 cargo build
         # 钩子在 Xcode 的 Run Script 阶段跑，Xcode 只保留 rustc 的第一行错误，
         # 真正的 ld 报错会被吞掉。这里用同样的链接器环境单独构建一次，
-        # 把完整 stderr 打到日志里（诊断通过后删除）。
+        # 把完整 stderr 打到日志里（绿了之后删除）。
         run: |
+          set -o pipefail
           cd rust
+          DEPLOYMENT_TARGET=$(grep -oE "platform :ios, '[^']+'" ../ios/Podfile | grep -oE "[0-9.]+")
+          export IPHONEOS_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
           export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$(xcrun --sdk iphoneos --find clang)"
-          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-Clink-arg=-isysroot -Clink-arg=$(xcrun --sdk iphoneos --show-sdk-path)"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-Clink-arg=-isysroot -Clink-arg=$(xcrun --sdk iphoneos --show-sdk-path) -Clink-arg=-miphoneos-version-min=$DEPLOYMENT_TARGET"
+          echo "deployment target: $DEPLOYMENT_TARGET"
           echo "linker: $CARGO_TARGET_AARCH64_APPLE_IOS_LINKER"
-          echo "sdk: $(xcrun --sdk iphoneos --show-sdk-path)"
-          "$CARGO_TARGET_AARCH64_APPLE_IOS_LINKER" --version | head -1
-          cargo build --release -p guo_engine --target aarch64-apple-ios 2>&1 | tail -60
+          cargo build --release -p guo_engine --target aarch64-apple-ios 2>&1 | tail -40
       - name: Build
         run: flutter build ios --release --no-codesign --no-pub --dart-define=ALL_SOURCES=true
       - name: Package unsigned app

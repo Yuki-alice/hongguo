@@ -8,6 +8,8 @@ import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/src/rust/api.dart' as rust;
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/engine_setup.dart';
+
 /// Core-3 验收：随包官方插件在首次启动时装进插件仓库，并且能被引擎加载。
 ///
 /// 这里用仓库里的真实产物 `assets/bundled_plugins/*.zip`，与 App 启动时
@@ -45,6 +47,7 @@ void main() {
     final repository = await EngineRepository.create(
       dataDirectory: dataDir.path,
       bundled: packages,
+      engineLibrary: resolveEngineLibrary(),
     );
     for (final id in [
       'guo.maoguo',

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show ExternalLibrary;
 
 import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/domain/models.dart';
@@ -33,8 +35,11 @@ class EngineRepository {
     required String dataDirectory,
     String? pluginDirectory,
     List<rust.BundledPlugin> bundled = const [],
+    ExternalLibrary? engineLibrary,
   }) async {
-    await RustLib.init();
+    // engineLibrary 只给测试/桌面开发用：打包后的移动端由 Flutter 的代码
+    // 资产映射加载，传 null 即沿用生成代码的默认解析。
+    await RustLib.init(externalLibrary: engineLibrary);
     await rust.initEngine();
     final result = await _guard(
       () => rust.initEngineWithDirectory(

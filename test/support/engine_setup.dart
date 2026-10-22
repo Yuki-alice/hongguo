@@ -15,7 +15,7 @@ import 'package:hoshi/src/rust/frb_generated.dart';
 ///
 /// 用法：各引擎测试的 `setUpAll` 里 `await initEngineForTest();`。
 Future<void> initEngineForTest() async {
-  await RustLib.init(externalLibrary: _bundledEngineLibrary());
+  await RustLib.init(externalLibrary: resolveEngineLibrary());
   final directory = Directory.systemTemp
       .createTempSync('guo-engine-test-')
       .path;
@@ -32,7 +32,7 @@ Future<void> initEngineForTest() async {
 /// 把它加进 PATH，裸名 `DynamicLibrary.open` 能找到；Linux / macOS 不会，
 /// 于是报 `cannot open shared object file`。这里统一给绝对路径，三端一致。
 /// 找不到时返回 null，退回生成代码的默认解析（打包后的应用走资产映射）。
-ExternalLibrary? _bundledEngineLibrary() {
+ExternalLibrary? resolveEngineLibrary() {
   final (directory, fileName) = switch (Platform.operatingSystem) {
     'windows' => ('windows', 'guo_engine.dll'),
     'macos' => ('macos', 'libguo_engine.dylib'),
