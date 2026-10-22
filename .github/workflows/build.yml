@@ -186,11 +186,23 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: NDK
+        # 版本必须与 android/app/build.gradle.kts 的 ndkVersion 一致：
+        # 钩子交叉编译时从我方 SDK 目录取 clang，gradle 也按同一版本找。
+        # sdkmanager 的 NDK 包约 1GB，下载偶发中断（Error on ZipFile
+        # unknown archive），因此带重试。
         run: |
+          NDK_VERSION=28.2.13676358
           SDKM_BIN=$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -path '*/bin/*' | head -1)")
           echo "$SDKM_BIN" >> "$GITHUB_PATH"
           yes | "$SDKM_BIN/sdkmanager" --licenses > /dev/null || true
-          "$SDKM_BIN/sdkmanager" 'ndk;28.2.13676358'
+          for attempt in 1 2 3; do
+            if [ -d "$ANDROID_HOME/ndk/$NDK_VERSION" ]; then break; fi
+            if "$SDKM_BIN/sdkmanager" "ndk;$NDK_VERSION"; then break; fi
+            echo "NDK 安装失败，第 $attempt 次重试"
+            sleep 15
+          done
+          test -d "$ANDROID_HOME/ndk/$NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - name: Configure Android signing
         # 官方机制：gradle 的 signingConfigs 读 android/key.properties；
         # 未配置 secrets 时跳过，gradle 自动回退 debug 签名，仍可安装。
