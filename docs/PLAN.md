@@ -316,7 +316,7 @@ Flutter UI
 - `cargo test --workspace`
 - `flutter test --exclude-tags engine`
 - `flutter test --tags engine`（真实站源，非阻断）
-- `dart analyze lib test integration_test test_driver` 无 error / warning
+- `dart analyze lib test integration_test` 无 error / warning
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 

@@ -1,0 +1,28 @@
+name: 'Flutter + Rust 构建环境'
+description: 'checkout、Flutter SDK、Rust 工具链（版本由 rust-toolchain.toml 钉住）与 cargo 缓存。供所有需要构建/测试 Flutter 应用的 job 复用。'
+
+inputs:
+  flutter-version:
+    description: 'Flutter SDK 版本（与本地开发保持一致，避免格式检查假失败）'
+    required: false
+    default: '3.47.7'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ inputs.flutter-version }}
+        channel: stable
+        cache: true
+    - name: Rust 工具链（供 native-assets 钩子构建引擎）
+      # 不用 dtolnay/rust-toolchain@stable：那会装成浮动 stable，覆盖
+      # rust-toolchain.toml 钉住的 1.99.1。runner 自带 rustup，在 rust/
+      # 目录下执行 `rustup show` 就会按 toolchain 文件装齐版本、组件与目标。
+      run: rustup show
+      working-directory: rust
+      shell: bash
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust -> target

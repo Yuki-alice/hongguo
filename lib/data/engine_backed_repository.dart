@@ -62,9 +62,17 @@ class EngineBackedRepository extends AppRepository {
 
   /// 启动顺序：先初始化下层（旧下载目录写在这里），再让引擎以只读方式
   /// 导入旧索引。迁移失败只记录、不抛错——旧数据不可读不该拦住启动。
+  ///
+  /// Go 核心已退出构建链（ADR-5c），干净环境里没有 `duanju_core.dll`：
+  /// 下层初始化失败时以降级模式继续启动，引擎接管全部已迁移路径，尚未迁移的
+  /// 能力在真正被调用时才报错，而不是让应用停在错误页。
   @override
   Future<void> initialize() async {
-    await delegate.initialize();
+    try {
+      await delegate.initialize();
+    } on Object catch (error) {
+      debugPrint('Go 核心不可用（未随包分发？），以降级模式启动：$error');
+    }
     try {
       final info = await delegate.storage();
       final directory = info['directory'] as String? ?? '';

@@ -368,7 +368,7 @@ lib/
 ### 4.0 全量测试归零（0.2.58+64 本轮）
 
 本轮把全量 Dart 测试从 **44 失败 / 256 通过** 清到 **0 失败 / 328 通过（跳过 1）**，
-`dart analyze lib test integration_test test_driver` 为 **0 error / 0 warning**（80 条历史
+`dart analyze lib test integration_test` 为 **0 error / 0 warning**（80 条历史
 `info` 级 lint 保留）。
 
 失败分三类，处理方式不同：
@@ -387,7 +387,7 @@ lib/
 ### 4.1 静态检查
 
 ```
-dart analyze lib test integration_test test_driver   →   0 errors, 0 warnings
+dart analyze lib test integration_test   →   0 errors, 0 warnings
 ```
 
 （80 条 `info` 级 lint 为项目历史遗留，与本次迁移无关。）

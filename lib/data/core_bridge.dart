@@ -28,16 +28,22 @@ typedef _DartFree = void Function(Pointer<Utf8>);
 
 String _nativeRequest(String body) {
   final DynamicLibrary library;
-  if (Platform.isAndroid) {
-    library = DynamicLibrary.open('libduanju_core.so');
-  } else if (Platform.isWindows) {
-    library = DynamicLibrary.open(
-      path.join(path.dirname(Platform.resolvedExecutable), 'duanju_core.dll'),
-    );
-  } else if (Platform.isIOS) {
-    library = DynamicLibrary.process();
-  } else {
-    throw UnsupportedError('当前首版支持 Android 手机和 Windows 电脑');
+  try {
+    if (Platform.isAndroid) {
+      library = DynamicLibrary.open('libduanju_core.so');
+    } else if (Platform.isWindows) {
+      library = DynamicLibrary.open(
+        path.join(path.dirname(Platform.resolvedExecutable), 'duanju_core.dll'),
+      );
+    } else if (Platform.isIOS) {
+      library = DynamicLibrary.process();
+    } else {
+      throw UnsupportedError('当前首版支持 Android 手机和 Windows 电脑');
+    }
+  } on Object catch (error) {
+    // Go 核心已退出构建链（ADR-5c）：缺失时给出可读原因，而不是把
+    // DynamicLibrary.open 的 ArgumentError 原样抛给 UI。
+    throw AppFailure('本地核心库不可用（Go 核心已停止随包分发）：$error');
   }
   final request = library.lookupFunction<_NativeRequest, _DartRequest>(
     'DuanjuRequest',

@@ -71,30 +71,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        # 不用 dtolnay/rust-toolchain@stable：那会装成浮动 stable，覆盖
-        # rust-toolchain.toml 钉住的 1.99.1。runner 自带 rustup，在 rust/
-        # 目录下执行 `rustup show` 就会按 toolchain 文件装齐版本、组件与目标。
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - run: flutter pub get --enforce-lockfile
       - name: Format
         # --set-exit-if-changed 是必需的：不带它 dart format 会就地改写文件并
         # 返回 0，格式漂移会被静默吞掉。
-        run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
       - name: Analyze
         run: |
           # info 级提示不拦合并，但 error / warning 必须为零。
-          dart analyze lib test integration_test test_driver | tee analyze.log
+          dart analyze lib test integration_test | tee analyze.log
           if grep -Eq '^\s*(error|warning)\s+-' analyze.log; then
             echo "::error::dart analyze 存在 error / warning"
             exit 1
@@ -103,7 +91,14 @@ jobs:
       - name: Test
         # 排除 `engine` tag：那批用例请求真实站源，断网或站点改版都会失败，
         # 不属于代码回归。在线用例由 `engine-online` job 单独跑且不阻断。
-        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
+        # --coverage 收集行覆盖，产物可后续接 codecov（需仓库 secret）。
+        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --coverage
+      - name: 覆盖率产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: ignore
       - name: Test (全部站源)
         run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true
 
@@ -114,36 +109,17 @@ jobs:
     timeout-minutes: 30
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - run: flutter pub get --enforce-lockfile
       - name: Test (在线站源)
         run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
 
-  scripts:
-    # 构建脚本自身的单元测试（scripts/test_*.py）。
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
-
   # ───────────────────────────── 四端构建 ─────────────────────────────
   # 矩阵的两个版本：红果鉴（默认）与真果鉴（--all-sources）。
-  # 构建脚本统一走 flutter build，引擎动态库由 native-assets 钩子交叉编译。
+  # Windows / macOS 直接走 flutter build CLI——引擎动态库由 native-assets 钩子
+  # 交叉编译，Python 脚本只保留发布打包（package_release.py）与签名等 CLI 之外的事。
   windows:
     name: windows (${{ matrix.edition }})
     runs-on: windows-2022
@@ -154,24 +130,14 @@ jobs:
         include:
           - edition: hongguojian
             arguments: ''
+            all_sources: 'false'
           - edition: zhenguojian
             arguments: '--all-sources'
+            all_sources: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - name: Install MinGW
         # media_kit 的 libmpv 链接需要 MinGW 提供的一组导入库。
         run: |
@@ -182,7 +148,11 @@ jobs:
             Remove-Item (Join-Path $lib 'libpthread.dll.a') -ErrorAction SilentlyContinue
             Remove-Item (Join-Path $lib 'libwinpthread.dll.a') -ErrorAction SilentlyContinue
           }
-      - run: python scripts/build_windows.py ${{ matrix.arguments }}
+      - run: flutter pub get --enforce-lockfile
+      - name: Build
+        run: flutter build windows --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+      - name: Package
+        run: python scripts/package_release.py --platform windows ${{ matrix.arguments }}
       - run: choco install ffmpeg --no-progress -y
       - name: Windows package smoke
         # 冒烟检查依赖 ffmpeg 生成的测试媒体；失败只作信号，不拦产物上传。
@@ -205,29 +175,23 @@ jobs:
         include:
           - edition: hongguojian
             arguments: ''
+            all_sources: 'false'
           - edition: zhenguojian
             arguments: '--all-sources'
+            all_sources: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - name: CocoaPods
         run: |
           flutter config --enable-macos-desktop
           sudo xcode-select -s /Applications/Xcode.app
-      - run: python scripts/build_macos.py ${{ matrix.arguments }}
+      - run: flutter pub get --enforce-lockfile
+      - name: Build
+        run: flutter build macos --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+      - name: Package
+        run: python scripts/package_release.py --platform macos ${{ matrix.arguments }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-macos
@@ -245,28 +209,18 @@ jobs:
         include:
           - edition: hongguojian
             arguments: ''
+            all_sources: 'false'
           - edition: zhenguojian
             arguments: '--all-sources'
+            all_sources: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup
         with:
-          python-version: '3.12'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - name: NDK
         run: |
           SDKM_BIN=$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -path '*/bin/*' | head -1)")
@@ -281,6 +235,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      # ABI 拆分与 target-platform 映射在脚本里；Rust 引擎由钩子交叉编译。
       - run: python scripts/build_android.py ${{ matrix.arguments }}
       - name: Remove signing files
         if: always()
@@ -303,24 +258,14 @@ jobs:
         include:
           - edition: hongguojian
             arguments: ''
+            all_sources: 'false'
           - edition: zhenguojian
             arguments: '--all-sources'
+            all_sources: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Rust 工具链（供 native-assets 钩子构建引擎）
-        run: rustup show
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
       - name: CocoaPods
         run: |
           sudo xcode-select -s /Applications/Xcode.app

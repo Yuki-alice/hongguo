@@ -31,8 +31,9 @@ class DeviceFixtureRepository extends AppRepository {
     episodes: 3,
   );
 
+  // Go 核心已退出构建链：夹具自带数据，无需原生初始化。
   @override
-  Future<void> initialize() => native.initialize();
+  Future<void> initialize() async {}
   @override
   Future<CatalogPage> cached(String source, {String category = ''}) async =>
       CatalogPage([]);
