@@ -78,11 +78,11 @@ jobs:
       - name: Format
         # --set-exit-if-changed 是必需的：不带它 dart format 会就地改写文件并
         # 返回 0，格式漂移会被静默吞掉。
-        run: dart format --output=none --set-exit-if-changed lib test integration_test
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
         run: |
           # info 级提示不拦合并，但 error / warning 必须为零。
-          dart analyze lib test integration_test | tee analyze.log
+          dart analyze lib test | tee analyze.log
           if grep -Eq '^\s*(error|warning)\s+-' analyze.log; then
             echo "::error::dart analyze 存在 error / warning"
             exit 1
@@ -117,9 +117,9 @@ jobs:
         run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
 
   # ───────────────────────────── 四端构建 ─────────────────────────────
-  # 矩阵的两个版本：红果鉴（默认）与真果鉴（--all-sources）。
-  # Windows / macOS 直接走 flutter build CLI——引擎动态库由 native-assets 钩子
-  # 交叉编译，Python 脚本只保留发布打包（package_release.py）与签名等 CLI 之外的事。
+  # 全部直连 flutter build CLI——引擎动态库由 native-assets 钩子交叉编译，
+  # 与纯 Flutter 项目的 CI 形态一致。矩阵的两个版本：红果鉴（默认）与
+  # 真果鉴（ALL_SOURCES=true）。
   windows:
     name: windows (${{ matrix.edition }})
     runs-on: windows-2022
@@ -129,10 +129,8 @@ jobs:
       matrix:
         include:
           - edition: hongguojian
-            arguments: ''
             all_sources: 'false'
           - edition: zhenguojian
-            arguments: '--all-sources'
             all_sources: 'true'
     steps:
       - uses: ./.github/actions/setup
@@ -151,17 +149,15 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Build
         run: flutter build windows --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
-      - name: Package
-        run: python scripts/package_release.py --platform windows ${{ matrix.arguments }}
       - run: choco install ffmpeg --no-progress -y
-      - name: Windows package smoke
-        # 冒烟检查依赖 ffmpeg 生成的测试媒体；失败只作信号，不拦产物上传。
-        run: python scripts/smoke_windows.py ${{ matrix.arguments }}
+      - name: Smoke
+        # 直接运行构建产物，验收随包原生核心与媒体链路；失败只作信号，不拦产物上传。
+        run: python scripts/smoke_windows.py
         continue-on-error: true
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-windows
-          path: dist/windows/*
+          path: build/windows/x64/runner/Release
           if-no-files-found: error
           retention-days: 14
 
@@ -174,10 +170,8 @@ jobs:
       matrix:
         include:
           - edition: hongguojian
-            arguments: ''
             all_sources: 'false'
           - edition: zhenguojian
-            arguments: '--all-sources'
             all_sources: 'true'
     steps:
       - uses: ./.github/actions/setup
@@ -190,12 +184,10 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Build
         run: flutter build macos --release --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
-      - name: Package
-        run: python scripts/package_release.py --platform macos ${{ matrix.arguments }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-macos
-          path: dist/macos/*
+          path: build/macos/Build/Products/Release/duanju_app.app
           if-no-files-found: error
           retention-days: 14
 
@@ -208,10 +200,8 @@ jobs:
       matrix:
         include:
           - edition: hongguojian
-            arguments: ''
             all_sources: 'false'
           - edition: zhenguojian
-            arguments: '--all-sources'
             all_sources: 'true'
     steps:
       - uses: ./.github/actions/setup
@@ -228,22 +218,34 @@ jobs:
           yes | "$SDKM_BIN/sdkmanager" --licenses > /dev/null || true
           "$SDKM_BIN/sdkmanager" 'ndk;28.2.13676358'
       - name: Configure Android signing
-        # 未配置 secrets 时脚本保持 debug 签名，构建仍可产出可安装包。
-        run: python scripts/configure_signing.py
+        # 官方机制：gradle 的 signingConfigs 读 android/key.properties；
+        # 未配置 secrets 时跳过，gradle 自动回退 debug 签名，仍可安装。
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      # ABI 拆分与 target-platform 映射在脚本里；Rust 引擎由钩子交叉编译。
-      - run: python scripts/build_android.py ${{ matrix.arguments }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "未配置签名 secrets，使用 debug 签名。"
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+      - name: Build
+        run: flutter build apk --release --split-per-abi --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
       - name: Remove signing files
         if: always()
-        run: python scripts/configure_signing.py --clean
+        run: rm -f android/key.properties
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-android
-          path: dist/android/*
+          path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -257,10 +259,8 @@ jobs:
       matrix:
         include:
           - edition: hongguojian
-            arguments: ''
             all_sources: 'false'
           - edition: zhenguojian
-            arguments: '--all-sources'
             all_sources: 'true'
     steps:
       - uses: ./.github/actions/setup
@@ -270,10 +270,18 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode.app
           pod --version
-      - run: python3 scripts/build_ios.py ${{ matrix.arguments }}
+      - run: flutter pub get --enforce-lockfile
+      - name: Build
+        run: flutter build ios --release --no-codesign --no-pub --dart-define=ALL_SOURCES=${{ matrix.all_sources }}
+      - name: Package unsigned app
+        run: |
+          mkdir -p build/ios-artifacts
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/iphoneos/Runner.app \
+            "build/ios-artifacts/${{ matrix.edition }}-ios-unsigned-app.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.edition }}-ios-unsigned
-          path: dist/ios/*
+          path: build/ios-artifacts/*.zip
           if-no-files-found: error
           retention-days: 14

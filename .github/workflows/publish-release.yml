@@ -20,15 +20,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Download android artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
-          path: dist
+          path: artifacts
       - name: Collect packages
+        # 产物布局：<edition>-android/*.apk、<edition>-windows/（Release 目录）、
+        # <edition>-macos/（.app）、<edition>-ios-unsigned/*.zip。
         run: |
-          find dist -type f \( -name '*.apk' -o -name '*-windows-x64.zip' -o -name '*-ios*' \) -exec mv {} . \;
+          find artifacts -type f -name '*.apk' -exec mv {} . \;
+          find artifacts -type f -name '*.ipa' -exec mv {} . \;
+          for zip in artifacts/*-ios-unsigned/*.zip; do [ -e "$zip" ] && mv "$zip" .; done
+          for dir in artifacts/*-windows; do
+            [ -d "$dir" ] || continue
+            edition=$(basename "$dir" -windows)
+            (cd "$dir" && zip -qr "../${edition}-windows-x64.zip" .)
+          done
           ls -la *.apk *.zip *.ipa 2>/dev/null || true
       - name: Publish to GitHub Release
         env:
