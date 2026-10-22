@@ -28,23 +28,23 @@ void main() {
       final local = await store();
       await tester.pumpWidget(DuanjuApp(repository: repository, store: local));
       await tester.pumpAndSettle();
-      expect(find.byTooltip('VIP：隐藏'), findsNothing);
+      // VIP 开关由数据决定：当前源的目录里有会员剧，就提供过滤。
       expect(find.text('测试短剧'), findsOneWidget);
       if (allSourcesEnabled) {
         await tester.tap(find.byKey(const ValueKey('source-switch')));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('黄豆'));
+        await tester.tap(find.text('剧果'));
         await tester.pumpAndSettle();
+        // hideVip 默认 true，会员剧被过滤。
         expect(find.text('会员测试剧'), findsNothing);
         expect(find.byTooltip('VIP：隐藏'), findsOneWidget);
         await tester.tap(find.byTooltip('VIP：隐藏'));
         await tester.pumpAndSettle();
         expect(find.byTooltip('VIP：显示'), findsOneWidget);
         expect(find.text('会员测试剧'), findsOneWidget);
+        // 复位，后续断言假设会员剧不可见。
         await tester.tap(find.byTooltip('VIP：显示'));
         await tester.pumpAndSettle();
-      } else {
-        expect(find.text('黄豆'), findsNothing);
       }
       expect(find.text('会员测试剧'), findsNothing);
       await tester.tap(

@@ -348,7 +348,9 @@ GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
                 : null;
             if (engine == null) {
               return _InvalidRoute(
-                message: AppLocalizations.of(context).engineDiagnosticsUnsupported,
+                message: AppLocalizations.of(
+                  context,
+                ).engineDiagnosticsUnsupported,
               );
             }
             return EngineDiagnosticsScreen(

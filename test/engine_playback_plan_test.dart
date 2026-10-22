@@ -63,7 +63,8 @@ void main() {
       final plan = await engine.resolve(detail.drama, detail.episodes.first);
       // 剧果的媒体域走 CDN 签名，Cookie 必须透传到播放计划。
       expect(
-        plan.headers.containsKey('Cookie') || plan.headers.containsKey('Origin'),
+        plan.headers.containsKey('Cookie') ||
+            plan.headers.containsKey('Origin'),
         isTrue,
         reason: '签名源的播放计划必须带 Cookie 或 Origin：${plan.headers.keys}',
       );

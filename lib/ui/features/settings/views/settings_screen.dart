@@ -400,11 +400,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (widget.store.profile.admin) ...[
                         if (widget.repository.capabilities.resourceSettings)
                           ListTile(
-                            leading: const Icon(Icons.settings_ethernet_rounded),
+                            leading: const Icon(
+                              Icons.settings_ethernet_rounded,
+                            ),
                             title: Text(l10n.resourceSettingsTitle),
                             subtitle: Text(l10n.networkResourcesHint),
                             trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () => context.push(AppRoutes.resourceSettings),
+                            onTap: () =>
+                                context.push(AppRoutes.resourceSettings),
                           ),
                         SwitchListTile(
                           value: widget.store.autoExport,

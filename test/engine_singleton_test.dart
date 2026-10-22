@@ -76,11 +76,7 @@ void main() {
     final diagnostics = await repository.diagnostics();
     final file = File(diagnostics.sessionFile);
     // 芽果登录后必须留下文件；文件缺失意味着令牌只在内存里。
-    expect(
-      file.existsSync(),
-      isTrue,
-      reason: '登录令牌应落盘，否则重启后每次都要重新登录',
-    );
+    expect(file.existsSync(), isTrue, reason: '登录令牌应落盘，否则重启后每次都要重新登录');
     expect(diagnostics.sessionKeys, greaterThan(0));
   }, timeout: const Timeout(Duration(minutes: 2)));
 

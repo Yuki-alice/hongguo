@@ -287,14 +287,12 @@ class EngineRepository {
   }
 
   /// 缓存是否仍在有效期内。
-  Future<bool> catalogIsFresh(String source, {String category = ''}) => _guard(
-    () => rust.catalogIsFresh(sourceId: source, category: category),
-  );
+  Future<bool> catalogIsFresh(String source, {String category = ''}) =>
+      _guard(() => rust.catalogIsFresh(sourceId: source, category: category));
 
   /// 清空指定键的缓存。
-  Future<void> clearCatalog(String source, {String category = ''}) => _guard(
-    () => rust.clearCatalog(sourceId: source, category: category),
-  );
+  Future<void> clearCatalog(String source, {String category = ''}) =>
+      _guard(() => rust.clearCatalog(sourceId: source, category: category));
 
   /// 取消某个会话的在途目录请求。
   Future<bool> cancelCatalog(String source) =>
@@ -424,9 +422,8 @@ class EngineRepository {
   }
 
   /// 下载进度流。先补发当前任务，随后持续推送变化。
-  Stream<DownloadProgressInfo> watchDownloads() => rust
-      .downloadProgressStream()
-      .map(
+  Stream<DownloadProgressInfo> watchDownloads() =>
+      rust.downloadProgressStream().map(
         (event) => DownloadProgressInfo(
           id: event.id,
           dramaId: event.dramaId,
@@ -479,10 +476,7 @@ class EngineRepository {
   }
 
   /// 取封面本地路径。命中缓存直接返回，否则下载后落盘。
-  Future<CoverInfo> cover(
-    Drama drama, {
-    bool force = false,
-  }) async {
+  Future<CoverInfo> cover(Drama drama, {bool force = false}) async {
     final result = await _guard(
       () => rust.fetchCover(
         sourceId: drama.source,

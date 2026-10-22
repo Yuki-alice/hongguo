@@ -30,12 +30,12 @@ void main() {
   test('unknown source fails with a clear message', () async {
     await expectLater(
       fetchCatalog(
-      sourceId: 'does-not-exist',
-      page: 1,
-      category: '',
-      requestId: 'test',
-      session: 'catalog-test',
-    ),
+        sourceId: 'does-not-exist',
+        page: 1,
+        category: '',
+        requestId: 'test',
+        session: 'catalog-test',
+      ),
       throwsA(isA<Object>()),
     );
   });

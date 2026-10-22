@@ -120,20 +120,20 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (SourceSite.values.length > 1) {
+          // 用「短剧」分组的名字点选，不依赖菜单项顺序或按键次数。
+          // 分组列表随站源迁移变化，索引式选择会静默选错分组。
+          final target = SourceGroup.fromSources(
+            SourceSite.values,
+          ).firstWhere((group) => group.id != SourceSite.hongguo.groupId);
           final switcher = find.byKey(const ValueKey('source-switch'));
-          final title = find
-              .descendant(of: switcher, matching: find.byType(Text))
-              .first;
-          Focus.of(tester.element(title)).requestFocus();
+          await tester.tap(switcher);
           await tester.pumpAndSettle();
-          await press(tester, LogicalKeyboardKey.select);
-          await press(tester, LogicalKeyboardKey.arrowDown);
-          await press(tester, LogicalKeyboardKey.arrowDown);
-          await press(tester, LogicalKeyboardKey.select);
+          await tester.tap(find.text(target.name).last);
+          await tester.pumpAndSettle();
         }
         expect(
           repository.requests.last,
-          SourceSite.values.length > 1 ? SourceSite.values[1].id : 'hongguo',
+          SourceSite.values.length > 1 ? isNot('hongguo') : 'hongguo',
         );
         focusRemote(tester, find.byKey(ValueKey(FixtureRepository.free.id)));
         await tester.pumpAndSettle();

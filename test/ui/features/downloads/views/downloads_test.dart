@@ -363,15 +363,37 @@ void main() {
     repository.detailOverride = DramaDetail(drama, [
       Episode({'id': '1', 'currentEpisode': 1, 'vip': true}, 1),
     ]);
+    // 详情页的播放走 `context.push`，必须有 GoRouter 祖先。
+    // 播放页不需要真实渲染——这里只验证「没有弹 VIP 确认框」。
+    final router = GoRouter(
+      initialLocation: '/detail',
+      routes: [
+        GoRoute(
+          path: '/detail',
+          builder: (_, _) =>
+              DetailScreen(drama: drama, repository: repository, store: store),
+        ),
+        GoRoute(
+          path: AppRoutes.player,
+          builder: (_, _) => const Scaffold(body: Text('正在准备播放')),
+        ),
+      ],
+    );
     await tester.pumpWidget(
-      _app(
+      MaterialApp.router(
         theme: ThemeData.dark(),
-        home: DetailScreen(drama: drama, repository: repository, store: store),
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
       ),
     );
     await tester.pumpAndSettle();
+    // 手机布局下分集区默认折叠，先展开选择器再点分集。
+    await tester.tap(find.byIcon(Icons.grid_view_rounded));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('episode-1')));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    // DSD 的 VIP 集不弹确认框，直接进入播放。
     expect(find.text('这是一集 VIP 内容'), findsNothing);
     expect(find.text('正在准备播放'), findsOneWidget);
     expect(tester.takeException(), isNull);

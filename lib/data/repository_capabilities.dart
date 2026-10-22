@@ -50,10 +50,7 @@ class RepositoryCapabilities {
 /// 与「网络失败」区分开：UI 对前者隐藏入口，对后者提示重试。
 class UnsupportedFailure extends EngineException {
   UnsupportedFailure(String capability)
-    : super(
-        kind: EngineFailureKind.unsupported,
-        message: '当前版本不支持$capability',
-      );
+    : super(kind: EngineFailureKind.unsupported, message: '当前版本不支持$capability');
 }
 
 /// 把失败翻译成可展示文案。

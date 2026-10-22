@@ -96,7 +96,7 @@ void main() {
     },
   );
 
-  testWidgets('only Huangdou exposes and applies the persistent VIP filter', (
+  testWidgets('the VIP filter follows the catalog data, not a fixed source', (
     tester,
   ) async {
     viewport(tester, const Size(390, 844));
@@ -112,18 +112,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // 每个源都返回带 VIP 标记的「会员合成剧」，因此每个源都应提供过滤开关。
+    // 这条断言曾经写死「只有黄豆有」，黄豆下线后控件就再也不会出现——
+    // 现在开关由数据决定，不再绑定某个源 id。
+    // `hideVip` 默认是 true，此时 tooltip 显示「VIP：隐藏」，条目被过滤。
     for (final group in SourceGroup.fromSources(SourceSite.values)) {
       await select(group.name);
-      if (group.id == 'huangdou') {
-        expect(find.text('会员合成剧'), findsNothing);
-        await tester.tap(find.byTooltip('VIP：隐藏'));
-        await tester.pumpAndSettle();
-        expect(find.text('会员合成剧'), findsOneWidget);
-      } else {
-        expect(find.byTooltip('VIP：隐藏'), findsNothing);
-        expect(find.byTooltip('VIP：显示'), findsNothing);
-        expect(find.text('会员合成剧'), findsWidgets);
-      }
+      expect(find.byTooltip('VIP：隐藏'), findsOneWidget);
+      expect(find.text('会员合成剧'), findsNothing);
     }
     if (!allSourcesEnabled) {
       for (final source in SourceSite.knownValues.skip(1)) {
@@ -131,14 +127,15 @@ void main() {
       }
       return;
     }
-    await select('黄豆');
-    expect(find.byTooltip('VIP：显示'), findsOneWidget);
-    await tester.tap(find.byTooltip('VIP：显示'));
+    // 点一下开关：会员剧出现，偏好被持久化。
+    await tester.tap(find.byTooltip('VIP：隐藏'));
     await tester.pumpAndSettle();
-    expect(store.hideVip, isTrue);
+    expect(find.text('会员合成剧'), findsOneWidget);
+    expect(store.hideVip, isFalse);
+    expect(find.byTooltip('VIP：显示'), findsOneWidget);
+    // 切到别的源，偏好仍然生效。
     await select('红果');
     expect(find.text('会员合成剧'), findsOneWidget);
-    expect(find.textContaining('VIP：'), findsNothing);
   });
 
   for (final layout in [
@@ -153,6 +150,9 @@ void main() {
       viewport(tester, layout.$1, layout.$2);
       final repository = InterfaceRepository();
       final store = await localStore();
+      // 默认 hideVip 为 true，会员剧会被过滤掉；这个用例要检查三张封面的对齐，
+      // 显式关掉隐藏才能拿到完整的三条。
+      await store.setHideVip(false);
       for (final drama in repository.dramas('hongguo')) {
         await store.toggleFavorite(drama);
         await store.saveWatch(

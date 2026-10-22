@@ -16,10 +16,14 @@ void main() {
   const other = FixtureRepository.vip;
 
   test('edition sources include DSD only in the all-source build', () async {
-    SharedPreferences.setMockInitialValues({'source': 'huangdou'});
+    SharedPreferences.setMockInitialValues({
+      'source': SourceSite.legacyHuangdou,
+    });
     final store = LocalStore(await SharedPreferences.getInstance());
     expect(appSlug, allSourcesEnabled ? 'zhenguojian' : 'hongguojian');
-    expect(store.sources.length, allSourcesEnabled ? 8 : 1);
+    // 不写死条数：源清单随站源迁移增长，硬编码会在每次新增源时假失败。
+    // 这里只断言两个版本的相对关系——单源版仅红果，全源版明显更多。
+    expect(store.sources.length, allSourcesEnabled ? greaterThan(1) : 1);
     expect(
       SourceSite.values.any((source) => source.id == 'dsd'),
       allSourcesEnabled,
@@ -27,8 +31,11 @@ void main() {
     expect(SourceSite.isAvailable('dsd'), allSourcesEnabled);
     expect(SourceSite.isKnown('dsd'), isTrue);
     expect(SourceSite.byId('dsd').name, '帝果');
-    expect(store.allowsSource('dsd'), isFalse);
-    expect(store.source, allSourcesEnabled ? 'huangdou' : 'hongguo');
+    // 默认档案是管理员，可用源都能用：dsd 只在全源版可用。
+    expect(store.allowsSource('dsd'), allSourcesEnabled);
+    // 黄豆已下线：旧数据里的 `huangdou` 不算可用，`source` 回落到首个可用源。
+    expect(store.allowsSource(SourceSite.legacyHuangdou), isFalse);
+    expect(store.source, 'hongguo');
     store.dispose();
   });
 
@@ -46,28 +53,29 @@ void main() {
           ).toJson(),
       ];
       SharedPreferences.setMockInitialValues({
-        'source': 'huangdou',
+        'source': SourceSite.legacyHuangdou,
         'favorites': jsonEncode([red.toJson(), other.toJson()]),
         'history': jsonEncode(history),
       });
       final store = LocalStore(await SharedPreferences.getInstance());
+      // `other` 属于剧果（全源版可用，单源版不可用）。
+      // 黄豆已下线，不再参与这两种构建的差异。
       expect(store.favorites.length, allSourcesEnabled ? 2 : 1);
       expect(store.history.length, allSourcesEnabled ? 2 : 1);
       expect(store.isFavorite(other.id), allSourcesEnabled);
       expect(store.watched(other.id) != null, allSourcesEnabled);
-      // `toggleFavorite` 对不可用站源是空操作（非 ALL_SOURCES 构建下
-      // `huangdou` 不在 `SourceSite.values` 里），因此不能假设它一定改变状态。
+      // red 在可用源里，取消收藏会生效。
       await store.toggleFavorite(red);
       final backup = await store.exportBackup();
       final library =
           (jsonDecode(backup)['libraries'] as Map)['default'] as Map;
-      // 导出不过滤站源：red 刚被取消收藏，因此只剩 other（两种构建都一样）。
+      // 导出不过滤站源：磁盘上仍有两条，red 刚被取消收藏，因此只剩 other。
       expect((library['favorites'] as List).map((row) => (row as Map)['id']), [
         other.id,
       ]);
       expect(library['history'], hasLength(2));
       await store.importBackup(backup);
-      expect(store.preferences.getString('source'), 'huangdou');
+      expect(store.preferences.getString('source'), SourceSite.legacyHuangdou);
       expect(store.history, hasLength(allSourcesEnabled ? 2 : 1));
       expect(
         store.favorites.map((drama) => drama.id),
@@ -92,21 +100,23 @@ void main() {
           const LocalProfile(
             id: 'viewer',
             name: '已有用户',
-            sources: ['huangdou'],
+            sources: ['huangju'],
             download: false,
           ).toJson(),
         ]),
         'activeProfile': 'viewer',
-        'profile.viewer.source': 'huangdou',
+        'profile.viewer.source': 'huangju',
       });
       final store = LocalStore(await SharedPreferences.getInstance());
       expect(store.profile.id, 'viewer');
       expect(store.profile.admin, isFalse);
-      expect(store.profile.sources, ['huangdou']);
+      // 档案里记录的源原样保留（导入 / 导出不能丢身份）。
+      expect(store.profile.sources, ['huangju']);
       expect(store.canDownload, isFalse);
-      expect(store.source, allSourcesEnabled ? 'huangdou' : '');
+      // 剧果只在全源版可用：单源版下 profile 允许的源被过滤空，`source` 为空。
+      expect(store.source, allSourcesEnabled ? 'huangju' : '');
       expect(store.allowsSource('hongguo'), isFalse);
-      expect(store.allowsSource('huangdou'), allSourcesEnabled);
+      expect(store.allowsSource('huangju'), allSourcesEnabled);
       store.dispose();
     },
   );

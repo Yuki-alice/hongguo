@@ -99,9 +99,7 @@ class _AppBootstrapState extends State<AppBootstrap>
       // 走仓库契约而不是直接构造后端：下载队列仍在迁移中（Core-2），
       // 由实现方决定能否暂停，入口这里不感知具体后端。
       unawaited(
-        _repository
-                ?.controlDownloads('pauseAll')
-                .catchError((Object _) {}) ??
+        _repository?.controlDownloads('pauseAll').catchError((Object _) {}) ??
             Future<void>.value(),
       );
     } else if (state == AppLifecycleState.resumed) {

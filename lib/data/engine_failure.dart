@@ -79,15 +79,16 @@ class EngineException implements Exception {
   }
 
   /// 从 FRB 的 `EngineFailure` 转换。
-  factory EngineException.fromRust(rust_error.EngineFailure failure) => EngineException(
-    kind: EngineFailureKind.parse(failure.kind),
-    message: failure.message,
-    sourceId: failure.sourceId,
-    requestId: failure.requestId,
-    retryable: failure.retryable,
-    httpStatus: failure.httpStatus,
-    retryAtMs: failure.retryAtMs.toInt(),
-  );
+  factory EngineException.fromRust(rust_error.EngineFailure failure) =>
+      EngineException(
+        kind: EngineFailureKind.parse(failure.kind),
+        message: failure.message,
+        sourceId: failure.sourceId,
+        requestId: failure.requestId,
+        retryable: failure.retryable,
+        httpStatus: failure.httpStatus,
+        retryAtMs: failure.retryAtMs.toInt(),
+      );
 
   /// 把任意异常归一为引擎异常。
   ///
@@ -95,7 +96,8 @@ class EngineException implements Exception {
   /// 因此这里也要处理 `AnyhowException` 一类只有文案的兜底。
   static EngineException from(Object error) {
     if (error is EngineException) return error;
-    if (error is rust_error.EngineFailure) return EngineException.fromRust(error);
+    if (error is rust_error.EngineFailure)
+      return EngineException.fromRust(error);
     return EngineException(
       kind: EngineFailureKind.internal,
       message: error.toString(),

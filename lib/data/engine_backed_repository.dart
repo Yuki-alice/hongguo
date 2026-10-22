@@ -88,7 +88,14 @@ class EngineBackedRepository extends AppRepository {
     String category = '',
     bool force = false,
   }) async {
-    if (!handles(source)) return delegate.catalog(source, page: page, query: query, category: category, force: force);
+    if (!handles(source))
+      return delegate.catalog(
+        source,
+        page: page,
+        query: query,
+        category: category,
+        force: force,
+      );
     try {
       return await engine.catalog(
         source,
@@ -317,8 +324,13 @@ class EngineBackedRepository extends AppRepository {
       // 推荐页整页替换而不是追加，因此这里必须返回累积结果；
       // 只返回增量会让「加载更多」把已有条目冲掉。
       final merged = more
-          ? {...{for (final drama in _recommendItems[genre] ?? const <Drama>[]) drama.id: drama},
-             for (final drama in page.items) drama.id: drama}
+          ? {
+              ...{
+                for (final drama in _recommendItems[genre] ?? const <Drama>[])
+                  drama.id: drama,
+              },
+              for (final drama in page.items) drama.id: drama,
+            }
           : {for (final drama in page.items) drama.id: drama};
       _recommendItems[genre] = merged.values.toList();
       return CatalogPage(
@@ -366,7 +378,8 @@ class EngineBackedRepository extends AppRepository {
     bool force = false,
   }) async {
     final source = RankingBoard.sourceForID(board);
-    if (source.isEmpty) return delegate.rankings(board, page: page, force: force);
+    if (source.isEmpty)
+      return delegate.rankings(board, page: page, force: force);
     try {
       return await engine.ranking(source, board, page: page);
     } on EngineException catch (error) {

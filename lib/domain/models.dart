@@ -126,10 +126,10 @@ class SourceSite {
   ///
   /// 引擎同步过就以引擎清单为准——它已经包含版本裁剪的结果（单源构建里
   /// 引擎只注册红果）。未同步时按编译期清单兜底，供启动早期与测试使用。
-  static bool isAvailable(String id) =>
-      _synced
+  static bool isAvailable(String id) => _synced
       ? _reported.containsKey(id)
       : knownValues.any((site) => site.id == id);
+
   /// 是否是「认识」的 id。旧数据里可能引用已下线的源（`huangdou` / `piguo`），
   /// 这些仍算已知，才能读回档案与历史而不报格式错误。
   static bool isKnown(String id) =>
@@ -138,10 +138,7 @@ class SourceSite {
       _reported.containsKey(id);
   static SourceSite byId(String id) =>
       _reported[id] ??
-      allKnownValues.firstWhere(
-        (site) => site.id == id,
-        orElse: () => hongguo,
-      );
+      allKnownValues.firstWhere((site) => site.id == id, orElse: () => hongguo);
 }
 
 class SourceGroup {

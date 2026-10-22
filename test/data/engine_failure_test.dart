@@ -48,7 +48,10 @@ void main() {
     });
 
     test('未知类别归为 internal，不抛异常', () {
-      expect(EngineFailureKind.parse('future_kind'), EngineFailureKind.internal);
+      expect(
+        EngineFailureKind.parse('future_kind'),
+        EngineFailureKind.internal,
+      );
     });
   });
 
@@ -85,7 +88,10 @@ void main() {
 
     test('已过期的风控时间返回 0', () {
       final past = DateTime.now().millisecondsSinceEpoch - 1000;
-      expect(fromRust(kind: 'blocked', retryAtMs: past).retryAfter, Duration.zero);
+      expect(
+        fromRust(kind: 'blocked', retryAtMs: past).retryAfter,
+        Duration.zero,
+      );
       expect(fromRust(kind: 'blocked').retryAfter, Duration.zero);
     });
   });
@@ -114,9 +120,7 @@ void main() {
     });
 
     test('5xx 与 4xx 文案不同', () {
-      final server = describeFailure(
-        fromRust(kind: 'http', httpStatus: 503),
-      );
+      final server = describeFailure(fromRust(kind: 'http', httpStatus: 503));
       final client = describeFailure(fromRust(kind: 'http', httpStatus: 404));
       expect(server, contains('稍后重试'));
       expect(client, contains('404'));

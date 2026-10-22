@@ -25,7 +25,8 @@ class EngineDiagnosticsScreen extends StatefulWidget {
   final RepositoryCapabilities capabilities;
 
   @override
-  State<EngineDiagnosticsScreen> createState() => _EngineDiagnosticsScreenState();
+  State<EngineDiagnosticsScreen> createState() =>
+      _EngineDiagnosticsScreenState();
 }
 
 class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
@@ -94,7 +95,10 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
             children: [
               Text(describeFailure(error), textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton(onPressed: () => unawaited(_load()), child: Text(l10n.retry)),
+              FilledButton(
+                onPressed: () => unawaited(_load()),
+                child: Text(l10n.retry),
+              ),
             ],
           ),
         ),
@@ -108,8 +112,14 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
           title: l10n.engineDiagnosticsRuntime,
           children: [
             _Row(label: l10n.engineDiagnosticsVersion, value: snapshot.version),
-            _Row(label: l10n.engineDiagnosticsData, value: snapshot.dataDirectory),
-            _Row(label: l10n.engineDiagnosticsPlugins, value: snapshot.pluginDirectory),
+            _Row(
+              label: l10n.engineDiagnosticsData,
+              value: snapshot.dataDirectory,
+            ),
+            _Row(
+              label: l10n.engineDiagnosticsPlugins,
+              value: snapshot.pluginDirectory,
+            ),
             _Row(
               label: l10n.engineDiagnosticsUptime,
               value: _duration(snapshot.uptime),
@@ -150,7 +160,8 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
               ),
           ],
         ),
-        if (snapshot.pluginsLoaded.isNotEmpty || snapshot.pluginsFailed.isNotEmpty) ...[
+        if (snapshot.pluginsLoaded.isNotEmpty ||
+            snapshot.pluginsFailed.isNotEmpty) ...[
           const SizedBox(height: 16),
           _Section(
             title: l10n.engineDiagnosticsPluginReport,
@@ -182,9 +193,18 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
     return [
       _Row(label: l10n.engineDiagnosticsCatalog, value: _flag(true, l10n)),
       _Row(label: l10n.engineDiagnosticsPlayback, value: _flag(true, l10n)),
-      _Row(label: l10n.engineDiagnosticsDownloads, value: _flag(capabilities.downloads, l10n)),
-      _Row(label: l10n.engineDiagnosticsDanmaku, value: _flag(capabilities.danmaku, l10n)),
-      _Row(label: l10n.engineDiagnosticsRankings, value: _flag(capabilities.rankings, l10n)),
+      _Row(
+        label: l10n.engineDiagnosticsDownloads,
+        value: _flag(capabilities.downloads, l10n),
+      ),
+      _Row(
+        label: l10n.engineDiagnosticsDanmaku,
+        value: _flag(capabilities.danmaku, l10n),
+      ),
+      _Row(
+        label: l10n.engineDiagnosticsRankings,
+        value: _flag(capabilities.rankings, l10n),
+      ),
       _Row(
         label: l10n.engineDiagnosticsRecommendations,
         value: _flag(capabilities.recommendations, l10n),
@@ -201,7 +221,10 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
         label: l10n.engineDiagnosticsResourceSettings,
         value: _flag(capabilities.resourceSettings, l10n),
       ),
-      _Row(label: l10n.engineDiagnosticsLan, value: _flag(capabilities.lan, l10n)),
+      _Row(
+        label: l10n.engineDiagnosticsLan,
+        value: _flag(capabilities.lan, l10n),
+      ),
     ];
   }
 
@@ -211,7 +234,8 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
 
   String _duration(Duration value) {
     if (value.inHours > 0) return '${value.inHours}h ${value.inMinutes % 60}m';
-    if (value.inMinutes > 0) return '${value.inMinutes}m ${value.inSeconds % 60}s';
+    if (value.inMinutes > 0)
+      return '${value.inMinutes}m ${value.inSeconds % 60}s';
     return '${value.inSeconds}s';
   }
 }

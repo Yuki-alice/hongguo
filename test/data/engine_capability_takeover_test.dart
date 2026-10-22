@@ -1,6 +1,5 @@
 import 'package:duanju_app/data/core_bridge.dart';
 import 'package:duanju_app/data/engine_backed_repository.dart';
-import 'package:duanju_app/data/engine_failure.dart';
 import 'package:duanju_app/data/repository_capabilities.dart';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:duanju_app/domain/models.dart';
@@ -12,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// 这些用例不触碰网络：假引擎只回答被调用的那部分，用来验证
 /// 「谁被调用、结果怎么合并、失败怎么分类」。
 class _FakeEngine extends EngineRepository {
-  _FakeEngine({super.initialized = true});
+  _FakeEngine() : super(initialized: true);
 
   final calls = <String>[];
   final sourcesResult = <SourceSummary>[
@@ -49,7 +48,12 @@ class _FakeEngine extends EngineRepository {
   /// 推荐页：按 offset 返回不同条目，便于验证累积。
   List<Drama> recommendPage(int offset) => [
     for (var i = offset; i < offset + 2; i++)
-      Drama(id: 'hongguo:r$i', source: 'hongguo', sourceId: 'r$i', title: '推荐$i'),
+      Drama(
+        id: 'hongguo:r$i',
+        source: 'hongguo',
+        sourceId: 'r$i',
+        title: '推荐$i',
+      ),
   ];
 
   @override
@@ -74,7 +78,12 @@ class _FakeEngine extends EngineRepository {
       items: [
         RankingItem(
           1,
-          const Drama(id: 'hongguo:1', source: 'hongguo', sourceId: '1', title: '第一'),
+          const Drama(
+            id: 'hongguo:1',
+            source: 'hongguo',
+            sourceId: '1',
+            title: '第一',
+          ),
         ),
       ],
       page: page,
