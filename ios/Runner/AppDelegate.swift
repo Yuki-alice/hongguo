@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import DuanjuCore
 import CFNetwork
 
 @main
@@ -9,7 +8,6 @@ import CFNetwork
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    ZgjEnsureCoreLinked()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

@@ -78,7 +78,7 @@ python scripts/build_android.py --all-sources --abi arm64-v8a
 python scripts/build_ios.py
 ```
 
-构建脚本会先跑 `build_native.py`（Go 核心），再 `flutter build`，最后 `package_release.py`。
+构建脚本跑 `flutter pub get --enforce-lockfile`、`flutter build`，最后 `package_release.py`。
 产物在 `dist/`，不进版本管理。
 
 Rust 动态库由 native-assets 构建钩子（`hook/build.dart`）在 `flutter build` /
