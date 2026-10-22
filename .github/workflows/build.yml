@@ -92,18 +92,16 @@ jobs:
             echo "::error::dart analyze 存在 error / warning"
             exit 1
           fi
-      - name: ffmpeg
-        # 镜像通常自带；没有才装。apt-get update 在网络抖动时会长时间挂住，
-        # 曾把整个 job 拖到 30 分钟超时（测试一步没跑），所以这里既有快速
-        # 路径，也有硬超时兜底。
-        timeout-minutes: 5
+      - name: 探测 ffmpeg
+        # 只有 test/data/media/media_library_test 的媒体解码用例需要它，缺了
+        # 那组会自己 skip，所以这里不装：镜像是否自带随镜像轮换变化，而
+        # apt-get 在这个环境里会挂很久（曾把 job 拖到 30 分钟超时）。
         run: |
           if command -v ffmpeg > /dev/null; then
             ffmpeg -version | head -1
-            exit 0
+          else
+            echo "未安装 ffmpeg：media_library_test 的媒体用例将 skip"
           fi
-          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=20
-          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Test
         # `engine` tag 只标记 2 个真实在线用例；其余引擎用例是离线夹具驱动。
         # --coverage 收集行覆盖，产物可接 codecov。
