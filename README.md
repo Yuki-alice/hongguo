@@ -83,18 +83,38 @@ python scripts/smoke_windows.py     # Windows：ffmpeg 合成媒体 + 无头启�
 ## 测试
 
 ```sh
-# Dart 单元 / 控件测试：默认排除在线站源用例（引擎库由钩子自动构建）
+# Dart 单元 / 控件测试（含离线引擎用例；引擎库由钩子自动构建）
 flutter test
-flutter test --tags engine          # 只跑需要真实站点的用例
+flutter test --tags engine          # 只跑 2 个真实站点用例（在线）
 flutter test --coverage             # 覆盖率（CI 收集为产物）
 
 # Rust
 cargo test --workspace --manifest-path rust/Cargo.toml
 ```
 
-`test/engine_*.dart` 里有一批用例会请求真实站点（`wuguo` / `maoguo` 等），
-断网或站点改版时失败**不属于代码回归**，因此打了 `engine` tag，
-默认运行被排除（见 `dart_test.yaml`）。CI 里它们由非阻断的 `engine-online` job 单独跑。
+测试目录按 lib 结构组织：`test/support/` 放共享夹具与 harness（`fixtures.dart`、
+`router_harness.dart`、`engine_setup.dart` 等），`test/engine/` 放引擎用例，
+`test/data` / `test/domain` / `test/ui` 镜像 `lib/` 对应层。根层只保留跨层用例
+（`app_build_test.dart`）。
+
+只有 `test/engine/*_live_test.dart` 两个文件会请求真实站点（`wuguo` / `maoguo` 等），
+断网或站点改版时失败**不属于代码回归**，因此打了 `engine` tag 并在默认运行中排除
+（见 `dart_test.yaml`）；CI 里由非阻断的 `engine-online` job 单独跑。
+其余引擎用例全部是离线夹具驱动，随默认套件在 CI 必过。
+
+**改完 Rust API 或重新 codegen 后**如果出现
+`Bad state: Content hash on Dart side ... is different from Rust side`，
+说明加载到了**旧的引擎动态库**——生成代码的 `ioDirectory`
+（`rust/target/release/`）是手工构建的兜底路径，会遮住 native-assets
+钩子产出的新库：
+
+```sh
+rm -f rust/target/release/guo_engine.dll rust/target/debug/guo_engine.dll
+rm -rf "$TEMP"/frb_native_assets_*   # Windows: %TEMP%\frb_native_assets_*
+flutter clean && flutter pub get
+```
+
+CI 每次都是全新工作区，不受影响。
 
 > 设备端集成测试（播放 / 界面 / 外观）曾存在于 `integration_test/`，因耦合已退出
 > 构建链的 Go 核心且 Windows 桌面不支持截图通道而整体移除；待移植到引擎后端后

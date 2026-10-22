@@ -1,4 +1,3 @@
-@Tags(['engine'])
 library;
 
 import 'dart:io';
@@ -6,7 +5,7 @@ import 'dart:io';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'engine_support.dart';
+import '../support/engine_setup.dart';
 
 void main() {
   late EngineRepository engine;

@@ -1,4 +1,3 @@
-@Tags(['engine'])
 library;
 
 // 这批用例会真实请求芽果，断网或站点改版时失败不算回归。
@@ -9,7 +8,7 @@ import 'dart:io';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'engine_support.dart';
+import '../support/engine_setup.dart';
 
 /// Core-1 验收：引擎单例的状态必须跨 FRB 调用存活。
 ///

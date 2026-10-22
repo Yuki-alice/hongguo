@@ -3,7 +3,7 @@ import 'package:duanju_app/ui/features/discover/controllers/catalog_controller.d
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 /// 校验发现页在拆分后的浏览状态机。
 ///

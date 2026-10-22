@@ -5,7 +5,7 @@ import 'package:duanju_app/ui/features/settings/controllers/storage_controller.d
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _SettingsStore extends LocalStore {
   _SettingsStore(super.preferences);

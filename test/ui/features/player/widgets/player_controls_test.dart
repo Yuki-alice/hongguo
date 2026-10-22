@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 
-import '../../../../player_fixtures.dart';
+import '../../../../support/player_fixtures.dart';
 
 Widget _app({
   required Widget home,

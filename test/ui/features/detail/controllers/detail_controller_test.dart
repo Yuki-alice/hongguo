@@ -7,7 +7,7 @@ import 'package:duanju_app/ui/features/detail/controllers/detail_controller.dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _DetailRepository extends FixtureRepository {
   _DetailRepository({this.failDetail = false, this.supplement});

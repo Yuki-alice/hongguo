@@ -9,8 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
-import '../../../../player_fixtures.dart';
+import '../../../../support/fixtures.dart';
+import '../../../../support/player_fixtures.dart';
 
 Widget _app({
   required Widget home,

@@ -4,7 +4,7 @@ import 'package:duanju_app/ui/features/player/controllers/playback_progress_cont
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _FailingStore extends LocalStore {
   _FailingStore(super.preferences);

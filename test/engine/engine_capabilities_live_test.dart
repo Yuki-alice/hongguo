@@ -7,7 +7,7 @@ import 'package:duanju_app/data/engine_failure.dart';
 import 'package:duanju_app/data/engine_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'engine_support.dart';
+import '../support/engine_setup.dart';
 
 /// Core-0 验收：榜单、推荐、联想由引擎直接返回，不再经过 Go。
 void main() {

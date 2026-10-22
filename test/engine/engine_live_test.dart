@@ -3,7 +3,7 @@
 @Tags(['engine'])
 library;
 
-import 'engine_support.dart';
+import '../support/engine_setup.dart';
 
 import 'package:duanju_app/src/rust/api.dart';
 import 'package:flutter_test/flutter_test.dart';

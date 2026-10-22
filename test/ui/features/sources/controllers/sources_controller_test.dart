@@ -6,7 +6,7 @@ import 'package:duanju_app/ui/features/sources/controllers/sources_controller.da
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _SourceRepository extends FixtureRepository {
   final statuses = <String, SourceStatus>{};

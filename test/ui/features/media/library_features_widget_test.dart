@@ -15,8 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'library_feature_fixtures.dart';
-import 'router_harness.dart';
+import '../../../support/library_fixtures.dart';
+import '../../../support/router_harness.dart';
 
 Widget _app({required Widget home}) => MaterialApp(
   localizationsDelegates: AppLocalizations.localizationsDelegates,

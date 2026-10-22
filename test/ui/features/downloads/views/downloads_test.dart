@@ -17,10 +17,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:duanju_app/ui/routing/app_router.dart';
 import 'package:duanju_app/ui/routing/route_args.dart';
 
-import '../../../../fixtures.dart';
-import '../../../../player_fixtures.dart';
-import '../../../../remote_test_helpers.dart';
-import '../../../../router_harness.dart';
+import '../../../../support/fixtures.dart';
+import '../../../../support/player_fixtures.dart';
+import '../../../../support/remote_helpers.dart';
+import '../../../../support/router_harness.dart';
 
 class DownloadRepository extends FixtureRepository {
   final commands = <String>[];

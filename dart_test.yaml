@@ -1,14 +1,17 @@
 # 测试标签配置。
 #
-# 部分引擎用例会向真实站源发起请求（`wuguo` / `maoguo` 等）。断网、站点改版
-# 或限流都会让它们失败，那不是代码回归，因此不能放进必过路径。
+# `engine` tag 只标记**真正会向线上站点发请求**的用例
+# （`test/engine/engine_live_test.dart`、`engine_capabilities_live_test.dart`）。
+# 断网、站点改版或限流都会让它们失败，那不是代码回归，因此不能放进必过路径。
 #
-#   flutter test                                   # 离线用例（默认）
-#   flutter test --tags engine                     # 只跑在线用例
-#   flutter test --exclude-tags engine             # 显式排除在线用例
+# 其余引擎用例（bridge / cache / capabilities / resolve / download ...）全部是
+# 离线夹具驱动，已回归默认套件——引擎动态库由 native-assets 构建钩子
+# （hook/build.dart）在测试启动时自动编译提供。
 #
-# CI 用最后一条：默认行为保持不变，在线用例单独作为一个非阻断 job。
+#   flutter test                       # 离线用例（默认，含离线引擎用例）
+#   flutter test --tags engine         # 只跑在线用例
+#   flutter test --exclude-tags engine # 显式排除在线用例（CI 用这条）
+#
+# CI 用最后一条：在线用例单独作为一个非阻断 job。
 tags:
   engine:
-    # 引擎动态库由 native-assets 构建钩子（hook/build.dart）在测试启动时
-    # 自动编译提供，与是否在线无关。

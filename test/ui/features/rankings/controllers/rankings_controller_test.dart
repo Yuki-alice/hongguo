@@ -6,7 +6,7 @@ import 'package:duanju_app/ui/features/rankings/controllers/rankings_controller.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _RankingRepository extends FixtureRepository {
   List<RankingBoard> boards = const [];

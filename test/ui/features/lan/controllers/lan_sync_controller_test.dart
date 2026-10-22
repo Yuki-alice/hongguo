@@ -4,7 +4,7 @@ import 'package:duanju_app/ui/features/lan/controllers/lan_sync_controller.dart'
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

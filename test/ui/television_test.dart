@@ -10,8 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'fixtures.dart';
-import 'remote_test_helpers.dart';
+import '../support/fixtures.dart';
+import '../support/remote_helpers.dart';
 
 class TelevisionRepository extends FixtureRepository {
   @override

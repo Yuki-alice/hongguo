@@ -10,8 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
-import '../../../../danmaku_fixtures.dart';
-import '../../../../local_persistence_test.dart' show FailingPreferences;
+import '../../../../support/danmaku_fixtures.dart';
+import '../../../../data/local_persistence_test.dart';
 
 const danmakuPlan = PlaybackPlan(
   url: 'https://media.example.test/synthetic.mp4',

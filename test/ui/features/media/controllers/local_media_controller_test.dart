@@ -6,7 +6,7 @@ import 'package:duanju_app/ui/features/media/controllers/local_media_controller.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../fixtures.dart';
+import '../../../../support/fixtures.dart';
 
 class _MediaRepository extends FixtureRepository {
   _MediaRepository(this.jobs);

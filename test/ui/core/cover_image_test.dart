@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:duanju_app/l10n/generated/app_localizations.dart';
 
-import 'fixtures.dart';
+import '../../support/fixtures.dart';
 
 class CoverFixtureRepository extends FixtureRepository {
   final attempts = <bool>[];

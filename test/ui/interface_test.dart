@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:duanju_app/l10n/generated/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'interface_fixtures.dart';
+import '../support/interface_fixtures.dart';
 
 void main() {
   Future<LocalStore> localStore() async {

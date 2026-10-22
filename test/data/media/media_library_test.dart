@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'fixtures.dart';
+import '../../support/fixtures.dart';
 
 class ProcessMediaExecutor implements MediaExecutor {
   final commands = <List<String>>[];
