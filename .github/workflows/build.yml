@@ -37,6 +37,7 @@ jobs:
         run: |
           rustup show
           rustup component add rustfmt clippy
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -76,6 +77,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        # 不用 dtolnay/rust-toolchain@stable：那会装成浮动 stable，覆盖
+        # rust-toolchain.toml 钉住的 1.99.1。runner 自带 rustup，在 rust/
+        # 目录下执行 `rustup show` 就会按 toolchain 文件装齐版本、组件与目标。
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -113,6 +120,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -156,6 +166,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -204,6 +217,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -245,6 +261,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target
@@ -296,6 +315,9 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Rust 工具链（供 native-assets 钩子构建引擎）
+        run: rustup show
+        working-directory: rust
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust -> target

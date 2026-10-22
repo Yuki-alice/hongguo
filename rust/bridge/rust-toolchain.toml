@@ -1,23 +1,26 @@
 [toolchain]
 # native_toolchain_rust 要求钉住具体版本保证构建可复现（不要用浮动的 stable）。
 # 1.99.1 为当前已知可完整构建本 workspace 的版本。
-# 注意：本文件是 rust/rust-toolchain.toml 的镜像（hook 要求在 crate 目录内），
+# 注意：本文件是 rust/bridge/rust-toolchain.toml 的镜像（hook 要求在 crate 目录内），
 # 供 workspace 级 cargo 命令（CI 的 cargo test --workspace）使用，两份需同步修改。
 channel = "1.99.1"
 # 组件必须显式声明：CI 的 cargo fmt / clippy 由这里决定装哪些，缺了就报
 # 「'cargo-fmt' is not installed for the toolchain」。
 components = ["rustfmt", "clippy"]
-# native_toolchain_rust 会校验宿主机目标是否在列表内，缺了直接拒绝构建
-# （Linux CI 上报 `does not include the target x86_64-unknown-linux-gnu`）。
+# native_toolchain_rust 会校验本次构建的目标是否在列表内，缺了直接拒绝构建
+# （例如 Linux 上报 `does not include the target x86_64-unknown-linux-gnu`）。
 # 这里列出三端构建目标 + 各宿主目标，覆盖 CI 与本地开发。
 targets = [
-  # 桌面：Windows / macOS / Linux 宿主机
+  # 桌面宿主：Windows / Linux / macOS（Intel 与 Apple Silicon 都要，
+  # GitHub 的 macos-latest 是 x64，本机开发常见 aarch64）
   "x86_64-pc-windows-msvc",
-  "aarch64-apple-darwin",
   "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
   # Apple 移动端
   "aarch64-apple-ios",
   "aarch64-apple-ios-sim",
+  "x86_64-apple-ios",
   # Android
   "aarch64-linux-android",
   "armv7-linux-androideabi",
