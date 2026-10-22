@@ -85,7 +85,7 @@ pub fn legacy_index_path(download_root: impl AsRef<Path>) -> PathBuf {
 
 /// 把旧索引里的已完成任务导入调度器。
 ///
-/// `download_root` 是旧版下载目录（`NativeRepository.storage()['directory']`）。
+/// `download_root` 是旧版下载目录（Go 时代的 `<app support>/downloads`）。
 /// 索引缺失或损坏时返回 `found: false`，不产生错误——旧数据不可读不应该
 /// 拦住应用启动。
 pub fn import_legacy_index(

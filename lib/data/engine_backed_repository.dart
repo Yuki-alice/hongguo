@@ -59,16 +59,12 @@ class EngineBackedRepository extends AppRepository {
 
   LocalStore? _access;
 
-  /// 启动顺序：先初始化下层（旧下载目录写在这里），再让引擎以只读方式
-  /// 导入旧索引。迁移失败只记录、不抛错——旧数据不可读不该拦住启动。
+  /// 启动时把旧 Go 下载记录以只读方式导入引擎索引。
   ///
-  /// Go 核心已退出构建链（ADR-5c），干净环境里没有 `duanju_core.dll`：
-  /// 下层初始化失败时以降级模式继续启动，引擎接管全部已迁移路径，尚未迁移的
-  /// 能力在真正被调用时才报错，而不是让应用停在错误页。
+  /// Go 后端已在 Core-4 物理移除，这里没有「先初始化下层」这一步；
+  /// 迁移失败只记录、不抛错——旧数据不可读不该拦住启动。
   @override
   Future<void> initialize() async {
-    // Go 后端已物理移除（Core-4）：没有需要初始化的下层实现。
-    // 旧 Go 下载记录仍可能在磁盘上，因此仍尝试只读导入一次。
     try {
       final directory = await downloadDirectory();
       if (directory.isNotEmpty) {
