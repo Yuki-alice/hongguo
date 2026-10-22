@@ -44,8 +44,9 @@ rust/target/
 # 桥接 crate 的历史同步目录（cargokit 时期遗留，可随本地清理删除）
 rust/bridge/target/
 rust/Cargo.lock.bak
-# 插件模板是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）
+# 插件是独立 workspace，构建产物不随仓库分发（测试夹具另行固定）
 rust/examples/plugin-template/target/
+rust/examples/plugins/*/target/
 # 官方规则仓库的构建产物：由 pack_rules 从 rules/*.json 重新生成，
 # 不进版本管理（否则改规则时容易忘记重新打包）
 rust/dist/
