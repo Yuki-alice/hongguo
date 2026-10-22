@@ -178,6 +178,9 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+      # 必须有：后面的 `flutter build ... --no-pub` 不会自己解析依赖，
+      # 缺 .dart_tool/package_config.json 会让 gradle 的 build_hooks 直接失败。
+      - run: flutter pub get --enforce-lockfile
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
