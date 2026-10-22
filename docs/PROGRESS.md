@@ -26,7 +26,74 @@
 | **Core-0 切轨** | ✅ 2026-10-21：源身份统一 `dsd`、源列表引擎驱动、删除路由开关与 Go 构建链（第二十一轮）；D4 能力接管 + 诊断页（第二十二轮） |
 | **Core-1 运行时内核** | ✅ 2026-10-21：`Engine` 单例、磁盘会话、类型化错误、取消、进度流、诊断（见第二十一轮） |
 | **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
-| **Core-3 Wasm 源运行时** | 🔄 2026-10-22：六源已插件化（签名 / 登录 / 加密 / CDN / 提取原语 / 镜像回退，二十七～三十二）；剩黄果旧版 |
+| **Core-3 Wasm 源运行时** | ✅ 2026-10-22：7/7 代码源插件化并随包预装（二十七～三十三）；剩 cursor 语义与 P95 基线（不阻塞验收） |
+
+## 第三十三轮：Core-3 收官 —— 黄果旧版插件 + 手写密码学的教训（2026-10-22）
+
+目标：迁移最后一个代码源（黄果旧版），完成「第一方代码源全部 Wasm」。
+
+### 黄果旧版插件
+
+`rust/examples/plugins/cloudfront`，269 KB 组件（七个插件中最大）：
+
+| 项 | 说明 |
+| --- | --- |
+| 协议提取 | 从官网首页找 `main-*.js`，再从压缩脚本里提取 `interfaceKey` / `parameterKey` / `parameterIv`（三种键名写法都认） |
+| 参数加密 | JSON → PKCS#7 → AES-128-CBC（`parameterKey` / `parameterIv`）→ Base64 → `data` |
+| 响应解密 | `interfaceKey` + 响应自带 12 字节前缀做 SHA-256 密钥派生，再 AES-CBC 解 JSON |
+| 会话 | 协议密钥与访客令牌都存宿主存储，跨实例复用（协议脚本只抓一次） |
+| crypto | **用审计过的 crate**（`aes` / `sha2` / `base64`），不手写 |
+
+### 教训：手写密码学 30 分钟修不出来的 bug
+
+第一版我手写了 SHA-256 与 AES。SHA-256 对空输入输出 `4585e55b…` 而不是
+`e3b0c442…`。K 表逐项对、轮函数逐项对、Python 一字不差的移植算出来是对的——
+Rust 侧却不是。这类 bug 的特征是「能算出字节，只是内容错」，静默且极难定位。
+
+最终决策：**删掉全部手写实现，换 `aes` / `sha2` / `base64` crate**。
+它们是纯 Rust、支持 wasm32-unknown-unknown，与编译版 source-huangguo 用同一批
+实现。「crypto 由插件自带」的正确含义是插件**携带自己的密码学依赖**，
+不是在插件里重新发明算法。这条修正已写进 ADR-12 的注释。
+
+### 顺带修掉编译版的真实缺陷：响应解密从未走通
+
+密钥派生把 `left[..8] + right[8..24] + left[24..]` 拼成 **32 字节**，
+而 AES-128 需要 16——`key.len() != 16` 检查必然拦截。也就是说编译版的
+「`data` 为字符串」响应解密分支**从未成功过**（线上能用的接口都是
+`data` 直接为对象、不走解密）。两侧同步修复：取派生材料的前 16 字节。
+若与站点实际协议不符，错误信息两侧一致、好排查。
+
+### 插件迁移：7/7 完成
+
+| 源 | id | 验证重点 | 大小 |
+| --- | --- | --- | --- |
+| 猫果 | `guo.maoguo` | 请求签名（MD5 + 字符映射） | 72 KB |
+| 芽果 | `guo.yaguo` | 登录态跨实例复用 | 87 KB |
+| 牛果 | `guo.niuguo` | AES-128-ECB 响应解密 | 51 KB |
+| 剧果 | `guo.huangju` | CDN 签名 Cookie 透传 | 67 KB |
+| 黄果视频 | `guo.huangguo-video` | 宿主提取原语 | 99 KB |
+| 黄果 AI | `guo.huangguo-ai` | 镜像回退 + 递归 JSON | 67 KB |
+| 黄果旧版 | `guo.cloudfront` | 协议提取 + 三层加密 | 269 KB |
+
+包 id 与描述符 id 的约束在黄果旧版上再次得到印证：包按文件名生成
+`guo.huangguo-legacy`，而源语义 id 必须保持 `cloudfront`（旧数据主键）。
+修正方式是改包名（`guo-plugin-cloudfront`），让两者自然一致。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | 通过 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
+| `cargo test --workspace` | 526 通过（黄果旧版插件 8 + 宿主 4） |
+| `dart analyze lib test integration_test` | 0 error / 0 warning |
+| `flutter test --exclude-tags engine` | 308 通过 / 1 跳过 |
+| `flutter test --tags engine` | 59 通过（预装端到端覆盖全部七个插件） |
+
+### Core-3 状态
+
+代码源插件化 **7/7 完成**，全部随包预装（`assets/bundled_plugins/`，约 713 KB）。
+剩余：`query.cursor` 翻页语义、Pulley P95 基线——都不阻塞「插件化完成」的验收。
 
 ## 第三十二轮：Core-3 提取原语 + 黄果 AI / 视频插件（2026-10-22）
 

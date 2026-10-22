@@ -70,5 +70,17 @@
       "size": 66679,
       "sha256": "258a5802dde4c1dcb06d84236c4819b510effca925448c0812daba8caa950e42",
       "path": "plugins/guo.huangguo-ai/guo.huangguo-ai-1.0.0.zip"
+    },
+    {
+      "id": "guo.cloudfront",
+      "name": "cloudfront",
+      "version": "1.0.0",
+      "kind": "component",
+      "api": 1,
+      "minHost": "0.3.0",
+      "author": "official",
+      "size": 98056,
+      "sha256": "64e0604b7e34d5ca1ac88e915bd3db0568d6ceb25a780ea272078cb0bf201cd5",
+      "path": "plugins/guo.cloudfront/guo.cloudfront-1.0.0.zip"
     }
 ]

@@ -1171,11 +1171,14 @@ dependencies = [
 name = "guo-plugin-wasm"
 version = "0.3.0"
 dependencies = [
+ "aes",
  "async-trait",
+ "base64 0.23.1",
  "guo-rule-engine",
  "guo-source-api",
  "scraper",
  "serde_json",
+ "sha2 0.11.1",
  "tokio",
  "wasmtime",
 ]

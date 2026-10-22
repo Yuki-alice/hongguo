@@ -1,0 +1,21 @@
+[package]
+name = "guo-plugin-cloudfront"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# 插件只依赖 ABI 生成器与自己带的密码学库；**不**依赖宿主 crate，
+# 这样插件包与宿主版本可以各自演进。crypto 由插件自带（ADR-12），
+# aes / sha2 / base64 都是纯 Rust、支持 wasm32-unknown-unknown。
+wit-bindgen = "0.44"
+serde_json = "1"
+aes = "0.8"
+sha2 = "0.10"
+base64 = "0.22"
+
+# 独立 workspace：插件以 wasm 目标编译，不参与宿主的三端构建。
+[workspace]

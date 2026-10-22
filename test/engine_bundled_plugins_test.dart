@@ -34,6 +34,7 @@ void main() {
         'guo.huangju-1.0.0.zip',
         'guo.huangguo-video-1.0.0.zip',
         'guo.huangguo-ai-1.0.0.zip',
+        'guo.cloudfront-1.0.0.zip',
       ])
         rust.BundledPlugin(
           name: name,
@@ -53,6 +54,7 @@ void main() {
       'guo.huangju',
       'guo.huangguo-video',
       'guo.huangguo-ai',
+      'guo.cloudfront',
     ]) {
       expect(repository.bundledInstalled, contains(id), reason: id);
     }
@@ -66,6 +68,7 @@ void main() {
       'guo.huangju',
       'guo.huangguo-video',
       'guo.huangguo-ai',
+      'guo.cloudfront',
     ]) {
       expect(ids, contains(id), reason: '预装的代码插件应出现在引擎清单里：$id');
     }
@@ -89,6 +92,7 @@ void main() {
       ('huangju', 'guo.huangju'),
       ('huangguo-video', 'guo.huangguo-video'),
       ('huangguoai', 'guo.huangguo-ai'),
+      ('cloudfront', 'guo.cloudfront'),
     ]) {
       expect(ids, contains(pair.$1), reason: '编译版 ${pair.$1}');
       expect(ids, contains(pair.$2), reason: '插件版 ${pair.$2}');

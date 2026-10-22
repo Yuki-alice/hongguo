@@ -191,7 +191,7 @@ Flutter UI
 - 旧 Go 下载记录迁移后可播放。
 - `EngineBackedRepository` 不再引用 `NativeRepository`（除 `native/` 删除前的只读迁移）。
 
-### Core-3 · Wasm 源运行时 🔄 进行中
+### Core-3 · Wasm 源运行时 ✅ 代码源插件化完成
 
 **目标**：兑现「第一方代码源全部 Wasm」。
 
@@ -224,9 +224,16 @@ Flutter UI
 - 黄果视频插件（宿主提取原语 + 精确选择器定位）
 - 黄果 AI 插件（镜像回退 + 递归 JSON 挖掘）
 
-**剩余**
+**已完成（第三十三轮）**
 
-- 黄果旧版插件化（AES 参数加密 + SHA-256 密钥协商，最复杂的一个）
+- 黄果旧版插件（协议提取 + 三层加密，crypto 用审计过的 crate）
+- 修掉编译版响应解密的密钥长度缺陷（32 字节拼进 AES-128 必被拦）
+- 代码源插件化 7/7 完成，全部随包预装
+
+**剩余（不阻塞验收）**
+
+- `query.cursor` 翻页语义
+- Pulley P95 基线
 - 工具链：打包、校验、签名、索引生成
 - `query.cursor` 的翻页 / 推荐语义
 - Pulley 下首屏 P95 相对编译源的基线
@@ -313,7 +320,7 @@ Flutter UI
 - `python3 -m unittest discover -s scripts -p 'test_*.py'`
 - 新增状态能力必须有回归：跨调用复用、取消、重启恢复、迁移
 
-**当前基线**（2026-10-22，第三十二轮）：cargo 522 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
+**当前基线**（2026-10-22，第三十三轮）：cargo 526 通过；flutter 离线 305 通过 / 1 跳过；engine 在线 54 通过；dart analyze 0 error / 0 warning；scripts 9 通过。
 
 Core-3 起增加：
 
@@ -350,7 +357,7 @@ Core-3 起增加：
 1. App 只运行 Rust 引擎，构建链无 Go。⏳ 构建链已无 Go；运行期仍有下载 / 封面走 Go
 2. 首发功能矩阵中的 ✅ 项全部通过真实源验收。⏳ 待 Core-2
 3. 令牌 / 会话 / 缓存 / 下载跨重启保留，取消与错误分级可用。⏳ 前三项已完成，下载待 Core-2
-4. 7 个第一方代码源全部由 Wasm 插件提供，红果保持编译。⏳ Core-3
+4. 7 个第一方代码源全部由 Wasm 插件提供，红果保持编译。✅ 已完成（Core-3）
 5. macOS / Android / iOS 三端可构建、可测试。⏳ Core-4
 6. 旧下载记录可读，旧收藏 / 历史不丢。⏳ 收藏 / 历史已不丢；下载待 Core-2
 7. CI 全绿，性能与包体基线入库，README / ARCHITECTURE / PROGRESS 与实现一致。⏳ Core-4

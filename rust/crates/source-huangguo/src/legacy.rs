@@ -486,9 +486,14 @@ fn decrypt_response(encoded: &str, interface_key: &[u8]) -> Result<Value, Source
     right.extend_from_slice(&seed);
     let left_hash = sha256(&left);
     let right_hash = sha256(&right);
-    let mut key = left_hash[..8].to_vec();
-    key.extend_from_slice(&right_hash[8..24]);
-    key.extend_from_slice(&left_hash[24..]);
+    // 密钥取派生材料的前 16 字节（AES-128）。
+    // 原实现把 8 + 16 + 8 = 32 字节全拼进来，必然被 key.len() != 16 拦下——
+    // 该分支在线上从未走通过（data 为对象的响应不走解密）。
+    // 这里截取前 16 字节；若与站点实际协议不符，错误信息与插件侧一致。
+    let mut material = left_hash[..8].to_vec();
+    material.extend_from_slice(&right_hash[8..24]);
+    material.extend_from_slice(&left_hash[24..]);
+    let key = material[..16].to_vec();
     let mut iv = right_hash[..4].to_vec();
     iv.extend_from_slice(&left_hash[12..20]);
     iv.extend_from_slice(&right_hash[28..]);

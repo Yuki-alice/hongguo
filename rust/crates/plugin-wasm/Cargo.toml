@@ -22,3 +22,7 @@ wasmtime = { version = "=49.0.2", default-features = false, features = [
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
+# 测试里要按真实协议构造加密夹具（与编译版同一批实现）。
+aes.workspace = true
+sha2.workspace = true
+base64.workspace = true
