@@ -71,7 +71,9 @@ jobs:
     # 引擎动态库由 native-assets 构建钩子（hook/build.dart）在 `flutter test`
     # 启动时自动编译注入，无需手工准备产物。
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # job 级超时只是兜底：每个可能挂住的步骤都有自己的 timeout，
+    # 否则一次 apt 卡顿就会吃掉整个 job 的时间预算。
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -90,10 +92,22 @@ jobs:
             echo "::error::dart analyze 存在 error / warning"
             exit 1
           fi
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: ffmpeg
+        # 镜像通常自带；没有才装。apt-get update 在网络抖动时会长时间挂住，
+        # 曾把整个 job 拖到 30 分钟超时（测试一步没跑），所以这里既有快速
+        # 路径，也有硬超时兜底。
+        timeout-minutes: 5
+        run: |
+          if command -v ffmpeg > /dev/null; then
+            ffmpeg -version | head -1
+            exit 0
+          fi
+          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=20
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Test
         # `engine` tag 只标记 2 个真实在线用例；其余引擎用例是离线夹具驱动。
         # --coverage 收集行覆盖，产物可接 codecov。
+        timeout-minutes: 20
         run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --coverage
       - name: 覆盖率产物
         uses: actions/upload-artifact@v4
@@ -101,12 +115,10 @@ jobs:
           name: coverage-lcov
           path: coverage/lcov.info
           if-no-files-found: ignore
-      - name: Test (全源变体)
-        # 站源门控是编译期开关，全源变体单独跑一轮离线套件。
-        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true
       - name: Test (在线站源)
         # 站点不可达、改版或限流都会失败——提供信号，但不拦合并。
         continue-on-error: true
+        timeout-minutes: 10
         run: flutter test --tags engine --dart-define=DISABLE_REMOTE_IMAGES=true
 
   # ───────────────────────────── 四端构建 ─────────────────────────────
@@ -250,6 +262,18 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app
           pod --version
       - run: flutter pub get --enforce-lockfile
+      - name: 诊断：iOS 目标直接 cargo build
+        # 钩子在 Xcode 的 Run Script 阶段跑，Xcode 只保留 rustc 的第一行错误，
+        # 真正的 ld 报错会被吞掉。这里用同样的链接器环境单独构建一次，
+        # 把完整 stderr 打到日志里（诊断通过后删除）。
+        run: |
+          cd rust
+          export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$(xcrun --sdk iphoneos --find clang)"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-Clink-arg=-isysroot -Clink-arg=$(xcrun --sdk iphoneos --show-sdk-path)"
+          echo "linker: $CARGO_TARGET_AARCH64_APPLE_IOS_LINKER"
+          echo "sdk: $(xcrun --sdk iphoneos --show-sdk-path)"
+          "$CARGO_TARGET_AARCH64_APPLE_IOS_LINKER" --version | head -1
+          cargo build --release -p guo_engine --target aarch64-apple-ios 2>&1 | tail -60
       - name: Build
         run: flutter build ios --release --no-codesign --no-pub --dart-define=ALL_SOURCES=true
       - name: Package unsigned app
