@@ -7,6 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/domain/ranking_models.dart';
+import 'package:hoshi/domain/resource_settings.dart';
 import 'package:hoshi/src/rust/api.dart' as rust;
 import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 import 'package:hoshi/src/rust/frb_generated.dart';
@@ -512,6 +513,43 @@ class EngineRepository {
       },
     );
   }
+
+  /// 读取运行期资源设置（并发 / 间隔 / 代理）。
+  Future<ResourceSettings> resourceSettings() async {
+    final dto = await _guard(rust.resourceSettings);
+    return _settingsFromDto(dto);
+  }
+
+  /// 保存资源设置。越界字段由引擎夹取，返回实际生效的值。
+  Future<ResourceSettings> saveResourceSettings(
+    ResourceSettings settings,
+  ) async {
+    final dto = await _guard(
+      () => rust.saveResourceSettings(
+        settings: rust.ResourceSettingsDto(
+          proxyMode: settings.proxyMode,
+          proxyUrl: settings.proxyUrl,
+          catalogConcurrency: settings.catalogConcurrency,
+          catalogIntervalMs: settings.catalogIntervalMs,
+          downloadConcurrency: settings.downloadConcurrency,
+          downloadBySource: settings.downloadBySource,
+          warning: settings.warning,
+        ),
+      ),
+    );
+    return _settingsFromDto(dto);
+  }
+
+  static ResourceSettings _settingsFromDto(rust.ResourceSettingsDto dto) =>
+      ResourceSettings(
+        proxyMode: dto.proxyMode,
+        proxyUrl: dto.proxyUrl,
+        catalogConcurrency: dto.catalogConcurrency,
+        catalogIntervalMs: dto.catalogIntervalMs,
+        downloadConcurrency: dto.downloadConcurrency,
+        downloadBySource: dto.downloadBySource,
+        warning: dto.warning,
+      );
 
   /// 清空某个站源的会话（令牌 / Cookie）。
   Future<int> clearSourceSession(String source) =>

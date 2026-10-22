@@ -13,7 +13,9 @@ mod cover;
 mod engine;
 mod error;
 mod events;
+mod gate;
 mod migrate;
+mod settings;
 mod store;
 
 pub use bundled::{
@@ -24,7 +26,12 @@ pub use cover::{CoverCache, CoverResult};
 pub use engine::{current, initialize, require, BuiltinSources, Engine, EngineConfig};
 pub use error::{timeout_error, EngineError, EngineErrorKind};
 pub use events::{DownloadEvent, EventBus};
+pub use gate::RequestGate;
 pub use migrate::{import_legacy_index, legacy_index_path, MigrationReport};
+pub use settings::{
+    ResourceSettings, SettingsStore, CATALOG_CONCURRENCY_RANGE, CATALOG_INTERVAL_MAX_MS,
+    DOWNLOAD_CONCURRENCY_RANGE,
+};
 pub use store::{DiskSourceStore, NamespacedStore};
 
 #[cfg(test)]

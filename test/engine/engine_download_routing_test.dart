@@ -43,9 +43,10 @@ void main() {
     // 下载与离线播放由引擎索引承担；Go 删除后不再依赖下层能力探测。
     expect(capabilities.downloads, isTrue);
     expect(capabilities.localPlayback, isTrue);
-    // LAN 与高级网络设置本轮明确不做，入口必须隐藏。
+    // LAN 已随 Core-4 删除，入口必须隐藏。
     expect(capabilities.lan, isFalse);
-    expect(capabilities.resourceSettings, isFalse);
+    // 资源设置已迁入引擎（并发 / 间隔 / 代理），入口应可见。
+    expect(capabilities.resourceSettings, isTrue);
     // 站源诊断尚未迁入引擎，诊断页据实标注。
     expect(capabilities.sourceManagement, isFalse);
   });

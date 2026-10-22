@@ -8,7 +8,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `join_url`, `media_inner`, `prepare`, `run`, `search_inner`, `timeout_for`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_registry`
 
 /// 初始化日志与运行时。Dart 侧在启动时调用一次。
@@ -295,6 +295,15 @@ Future<DownloadBatchOutcome> controlDownloadBatch({
   ids: ids,
   expectedVersions: expectedVersions,
 );
+
+/// 读取当前资源设置。
+Future<ResourceSettingsDto> resourceSettings() =>
+    RustLib.instance.api.crateApiResourceSettings();
+
+/// 保存资源设置。越界字段会被夹回合法范围，返回值是实际生效的设置。
+Future<ResourceSettingsDto> saveResourceSettings({
+  required ResourceSettingsDto settings,
+}) => RustLib.instance.api.crateApiSaveResourceSettings(settings: settings);
 
 /// 读取诊断快照。
 Future<EngineDiagnostics> engineDiagnostics() =>
@@ -1387,6 +1396,66 @@ class RepoSummary {
           index == other.index &&
           signed == other.signed &&
           fingerprint == other.fingerprint;
+}
+
+/// 资源设置（并发 / 间隔 / 代理）。
+///
+/// 这是跨 FRB 边界的扁平 DTO：外部 crate 的类型会被当成不透明句柄，
+/// Dart 读不到字段，所以在这里重新声明一份。
+class ResourceSettingsDto {
+  /// `auto`（跟随系统代理）/ `direct`（直连）/ `manual`（自定义地址）。
+  final String proxyMode;
+
+  /// `manual` 模式下的代理地址。
+  final String proxyUrl;
+
+  /// 目录请求并发。
+  final int catalogConcurrency;
+
+  /// 两次目录请求之间的最小间隔（毫秒）。
+  final int catalogIntervalMs;
+
+  /// 下载并发。
+  final int downloadConcurrency;
+
+  /// 按站源分流下载。
+  final bool downloadBySource;
+
+  /// 生效时的提示，只读。
+  final String warning;
+
+  const ResourceSettingsDto({
+    required this.proxyMode,
+    required this.proxyUrl,
+    required this.catalogConcurrency,
+    required this.catalogIntervalMs,
+    required this.downloadConcurrency,
+    required this.downloadBySource,
+    required this.warning,
+  });
+
+  @override
+  int get hashCode =>
+      proxyMode.hashCode ^
+      proxyUrl.hashCode ^
+      catalogConcurrency.hashCode ^
+      catalogIntervalMs.hashCode ^
+      downloadConcurrency.hashCode ^
+      downloadBySource.hashCode ^
+      warning.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResourceSettingsDto &&
+          runtimeType == other.runtimeType &&
+          proxyMode == other.proxyMode &&
+          proxyUrl == other.proxyUrl &&
+          catalogConcurrency == other.catalogConcurrency &&
+          catalogIntervalMs == other.catalogIntervalMs &&
+          downloadConcurrency == other.downloadConcurrency &&
+          downloadBySource == other.downloadBySource &&
+          warning == other.warning;
 }
 
 /// 一季。

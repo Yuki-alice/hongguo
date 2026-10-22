@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
@@ -137,6 +137,10 @@ struct IndexDisk {
 pub struct Scheduler {
     jobs: Mutex<BTreeMap<String, Job>>,
     gate: Arc<Semaphore>,
+    /// 期望的并发数。信号量的许可数由 [`Scheduler::set_concurrency`] 调整，
+    /// 这里单独记一份是因为 `available_permits()` 反映的是「当前空闲」，
+    /// 不是配置值。
+    concurrency: AtomicUsize,
     revision: AtomicU64,
     index_path: Option<PathBuf>,
 }
@@ -147,6 +151,7 @@ impl Scheduler {
         Self {
             jobs: Mutex::new(BTreeMap::new()),
             gate: Arc::new(Semaphore::new(limit)),
+            concurrency: AtomicUsize::new(limit),
             revision: AtomicU64::new(0),
             index_path: None,
         }
@@ -227,8 +232,29 @@ impl Scheduler {
         let _ = std::fs::rename(&temporary, path);
     }
 
+    /// 配置的下载并发数（不是当前空闲许可数）。
     pub fn concurrency(&self) -> usize {
-        self.gate.available_permits()
+        self.concurrency.load(Ordering::SeqCst)
+    }
+
+    /// 调整下载并发。已经在跑的任务不受影响，只是后续许可数变化。
+    ///
+    /// 返回实际生效的值（仍夹在 1..=6，与构造时一致）。
+    pub fn set_concurrency(&self, concurrency: usize) -> usize {
+        let limit = concurrency.clamp(1, 6);
+        let current = self.concurrency.swap(limit, Ordering::SeqCst);
+        if limit > current {
+            self.gate.add_permits(limit - current);
+        } else if limit < current {
+            // 缩容：只回收当前空闲的许可，避免把正在执行的任务掐断。
+            // 正在运行的任务结束后归还许可，下一次缩容再回收。
+            let idle = self.gate.available_permits();
+            let reclaim = (current - limit).min(idle);
+            if reclaim > 0 {
+                self.gate.forget_permits(reclaim);
+            }
+        }
+        limit
     }
 
     /// 登记任务；同一 id 重复登记会被忽略。

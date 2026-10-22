@@ -321,6 +321,9 @@ async fn catalog_inner(
     ticket: &RequestTicket,
 ) -> Result<DramaPage, EngineFailure> {
     let (source, env) = prepare(source_id)?;
+    // 目录请求统一走限流：并发与最小间隔取自运行期资源设置。
+    let settings = engine.settings().get();
+    let _permit = engine.gate().acquire(settings.catalog_interval()).await;
     let parsed = run(source_id, &ticket.request_id, "catalog", async {
         source.catalog(&env, page, category).await
     })
@@ -1182,6 +1185,67 @@ pub struct SourceCapabilities {
 pub struct FailedPluginReport {
     pub id: String,
     pub detail: String,
+}
+
+/// 资源设置（并发 / 间隔 / 代理）。
+///
+/// 这是跨 FRB 边界的扁平 DTO：外部 crate 的类型会被当成不透明句柄，
+/// Dart 读不到字段，所以在这里重新声明一份。
+pub struct ResourceSettingsDto {
+    /// `auto`（跟随系统代理）/ `direct`（直连）/ `manual`（自定义地址）。
+    pub proxy_mode: String,
+    /// `manual` 模式下的代理地址。
+    pub proxy_url: String,
+    /// 目录请求并发。
+    pub catalog_concurrency: u32,
+    /// 两次目录请求之间的最小间隔（毫秒）。
+    pub catalog_interval_ms: u32,
+    /// 下载并发。
+    pub download_concurrency: u32,
+    /// 按站源分流下载。
+    pub download_by_source: bool,
+    /// 生效时的提示，只读。
+    pub warning: String,
+}
+
+impl From<guo_engine_core::ResourceSettings> for ResourceSettingsDto {
+    fn from(value: guo_engine_core::ResourceSettings) -> Self {
+        Self {
+            proxy_mode: value.proxy_mode,
+            proxy_url: value.proxy_url,
+            catalog_concurrency: value.catalog_concurrency,
+            catalog_interval_ms: value.catalog_interval_ms,
+            download_concurrency: value.download_concurrency,
+            download_by_source: value.download_by_source,
+            warning: value.warning,
+        }
+    }
+}
+
+impl From<ResourceSettingsDto> for guo_engine_core::ResourceSettings {
+    fn from(value: ResourceSettingsDto) -> Self {
+        Self {
+            proxy_mode: value.proxy_mode,
+            proxy_url: value.proxy_url,
+            catalog_concurrency: value.catalog_concurrency,
+            catalog_interval_ms: value.catalog_interval_ms,
+            download_concurrency: value.download_concurrency,
+            download_by_source: value.download_by_source,
+            warning: value.warning,
+        }
+    }
+}
+
+/// 读取当前资源设置。
+pub fn resource_settings() -> Result<ResourceSettingsDto, EngineFailure> {
+    Ok(engine()?.settings().get().into())
+}
+
+/// 保存资源设置。越界字段会被夹回合法范围，返回值是实际生效的设置。
+pub fn save_resource_settings(
+    settings: ResourceSettingsDto,
+) -> Result<ResourceSettingsDto, EngineFailure> {
+    Ok(engine()?.save_settings(settings.into()).into())
 }
 
 /// 读取诊断快照。

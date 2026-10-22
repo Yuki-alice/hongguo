@@ -51,6 +51,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalPlayback dco_decode_box_autoadd_local_playback(dynamic raw);
 
   @protected
+  ResourceSettingsDto dco_decode_box_autoadd_resource_settings_dto(dynamic raw);
+
+  @protected
   BundledPlugin dco_decode_bundled_plugin(dynamic raw);
 
   @protected
@@ -219,6 +222,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RepoSummary dco_decode_repo_summary(dynamic raw);
 
   @protected
+  ResourceSettingsDto dco_decode_resource_settings_dto(dynamic raw);
+
+  @protected
   SeasonItem dco_decode_season_item(dynamic raw);
 
   @protected
@@ -275,6 +281,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LocalPlayback sse_decode_box_autoadd_local_playback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ResourceSettingsDto sse_decode_box_autoadd_resource_settings_dto(
     SseDeserializer deserializer,
   );
 
@@ -485,6 +496,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RepoSummary sse_decode_repo_summary(SseDeserializer deserializer);
 
   @protected
+  ResourceSettingsDto sse_decode_resource_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SeasonItem sse_decode_season_item(SseDeserializer deserializer);
 
   @protected
@@ -555,6 +571,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_local_playback(
     LocalPlayback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_resource_settings_dto(
+    ResourceSettingsDto self,
     SseSerializer serializer,
   );
 
@@ -827,6 +849,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_repo_summary(RepoSummary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_resource_settings_dto(
+    ResourceSettingsDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_season_item(SeasonItem self, SseSerializer serializer);

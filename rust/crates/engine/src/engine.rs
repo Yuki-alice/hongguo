@@ -25,6 +25,8 @@ use crate::cancel::{CancellationRegistry, RequestTicket};
 use crate::cover::{CoverCache, CoverResult};
 use crate::error::{EngineError, EngineErrorKind};
 use crate::events::{DownloadEvent, EventBus};
+use crate::gate::RequestGate;
+use crate::settings::{ResourceSettings, SettingsStore};
 use crate::store::{DiskSourceStore, NamespacedStore};
 
 /// 随包分发的声明式规则。
@@ -98,6 +100,8 @@ pub struct Engine {
     cache: CatalogCache,
     covers: CoverCache,
     scheduler: Scheduler,
+    settings: SettingsStore,
+    gate: RequestGate,
     cancel: CancellationRegistry,
     events: EventBus,
     registry: Mutex<Arc<SourceRegistry>>,
@@ -131,6 +135,10 @@ impl Engine {
             config.download_concurrency,
             config.data_directory.join("downloads").join("index.json"),
         );
+        // 用户上次设置的下载并发优先于装配期默认值。
+        let settings = SettingsStore::open(&config.data_directory);
+        scheduler.set_concurrency(settings.get().download_concurrency as usize);
+        let gate = RequestGate::new(settings.get().catalog_concurrency);
         Ok(Self {
             config,
             transport,
@@ -138,6 +146,8 @@ impl Engine {
             cache,
             covers,
             scheduler,
+            settings,
+            gate,
             cancel: CancellationRegistry::new(),
             events: EventBus::default(),
             registry: Mutex::new(Arc::new(SourceRegistry::new())),
@@ -341,6 +351,27 @@ impl Engine {
 
     pub fn scheduler(&self) -> &Scheduler {
         &self.scheduler
+    }
+
+    /// 运行期资源设置。
+    pub fn settings(&self) -> &SettingsStore {
+        &self.settings
+    }
+
+    /// 目录请求限流器。
+    pub fn gate(&self) -> &RequestGate {
+        &self.gate
+    }
+
+    /// 保存资源设置，并把下载并发同步到调度器。
+    ///
+    /// 目录并发与间隔由请求路径自行读取，无需在这里下发。
+    pub fn save_settings(&self, settings: ResourceSettings) -> ResourceSettings {
+        let saved = self.settings.save(settings);
+        self.scheduler
+            .set_concurrency(saved.download_concurrency as usize);
+        self.gate.reconfigure(saved.catalog_concurrency);
+        saved
     }
 
     pub fn events(&self) -> &EventBus {

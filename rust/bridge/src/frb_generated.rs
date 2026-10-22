@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -21470150;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -164191073;
 
 // Section: executor
 
@@ -1615,6 +1615,38 @@ fn wire__crate__api__plugins__remember_repository_impl(
         },
     )
 }
+fn wire__crate__api__resource_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resource_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::error::EngineFailure>((move || {
+                    let output_ok = crate::api::resource_settings()?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__plugins__rollback_plugin_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1682,6 +1714,39 @@ fn wire__crate__api__run_download_impl(
                     })()
                     .await,
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__save_resource_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_resource_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::ResourceSettingsDto>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::error::EngineFailure>((move || {
+                    let output_ok = crate::api::save_resource_settings(api_settings)?;
+                    std::result::Result::Ok(output_ok)
+                })())
             }
         },
     )
@@ -2718,6 +2783,28 @@ impl SseDecode for crate::api::RepoSummary {
     }
 }
 
+impl SseDecode for crate::api::ResourceSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_proxyMode = <String>::sse_decode(deserializer);
+        let mut var_proxyUrl = <String>::sse_decode(deserializer);
+        let mut var_catalogConcurrency = <u32>::sse_decode(deserializer);
+        let mut var_catalogIntervalMs = <u32>::sse_decode(deserializer);
+        let mut var_downloadConcurrency = <u32>::sse_decode(deserializer);
+        let mut var_downloadBySource = <bool>::sse_decode(deserializer);
+        let mut var_warning = <String>::sse_decode(deserializer);
+        return crate::api::ResourceSettingsDto {
+            proxy_mode: var_proxyMode,
+            proxy_url: var_proxyUrl,
+            catalog_concurrency: var_catalogConcurrency,
+            catalog_interval_ms: var_catalogIntervalMs,
+            download_concurrency: var_downloadConcurrency,
+            download_by_source: var_downloadBySource,
+            warning: var_warning,
+        };
+    }
+}
+
 impl SseDecode for crate::api::SeasonItem {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2871,12 +2958,14 @@ fn pde_ffi_dispatcher_primary_impl(
         42 => {
             wire__crate__api__plugins__remember_repository_impl(port, ptr, rust_vec_len, data_len)
         }
-        43 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__resource_settings_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__plugins__rollback_plugin_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__run_download_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__save_resource_settings_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__plugins__set_plugin_enabled_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__source_catalog_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__plugins__uninstall_plugin_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__validate_rule_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3547,6 +3636,32 @@ impl flutter_rust_bridge::IntoDart for crate::api::RepoSummary {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::RepoSummary {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::RepoSummary> for crate::api::RepoSummary {
     fn into_into_dart(self) -> crate::api::RepoSummary {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ResourceSettingsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.proxy_mode.into_into_dart().into_dart(),
+            self.proxy_url.into_into_dart().into_dart(),
+            self.catalog_concurrency.into_into_dart().into_dart(),
+            self.catalog_interval_ms.into_into_dart().into_dart(),
+            self.download_concurrency.into_into_dart().into_dart(),
+            self.download_by_source.into_into_dart().into_dart(),
+            self.warning.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ResourceSettingsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ResourceSettingsDto>
+    for crate::api::ResourceSettingsDto
+{
+    fn into_into_dart(self) -> crate::api::ResourceSettingsDto {
         self
     }
 }
@@ -4242,6 +4357,19 @@ impl SseEncode for crate::api::RepoSummary {
         <String>::sse_encode(self.index, serializer);
         <bool>::sse_encode(self.signed, serializer);
         <String>::sse_encode(self.fingerprint, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ResourceSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.proxy_mode, serializer);
+        <String>::sse_encode(self.proxy_url, serializer);
+        <u32>::sse_encode(self.catalog_concurrency, serializer);
+        <u32>::sse_encode(self.catalog_interval_ms, serializer);
+        <u32>::sse_encode(self.download_concurrency, serializer);
+        <bool>::sse_encode(self.download_by_source, serializer);
+        <String>::sse_encode(self.warning, serializer);
     }
 }
 

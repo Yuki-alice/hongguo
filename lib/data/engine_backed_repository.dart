@@ -46,7 +46,7 @@ class EngineBackedRepository extends AppRepository {
     recommendations: true,
     rankings: true,
     suggestions: true,
-    resourceSettings: false,
+    resourceSettings: true,
     localPlayback: true,
     lan: false,
   );
@@ -598,13 +598,11 @@ class EngineBackedRepository extends AppRepository {
       throw UnsupportedFailure('站源任务');
 
   @override
-  Future<ResourceSettings> resourceSettings() async =>
-      throw UnsupportedFailure('资源设置');
+  Future<ResourceSettings> resourceSettings() => engine.resourceSettings();
 
   @override
-  Future<ResourceSettings> saveResourceSettings(
-    ResourceSettings settings,
-  ) async => throw UnsupportedFailure('资源设置');
+  Future<ResourceSettings> saveResourceSettings(ResourceSettings settings) =>
+      engine.saveResourceSettings(settings);
 
   /// 站源诊断 / 健康检查仍在下层实现（Core-2 之后迁入引擎）。
   @override
