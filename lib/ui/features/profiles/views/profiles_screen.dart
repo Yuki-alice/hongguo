@@ -10,6 +10,7 @@ import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/profiles/controllers/profile_editor_controller.dart';
 import 'package:hoshi/ui/features/profiles/controllers/profiles_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class ProfilesScreen extends StatefulWidget {
   const ProfilesScreen({super.key, required this.store, this.locked = false});
@@ -127,7 +128,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
         ),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -376,7 +377,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
         ),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
+            constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [

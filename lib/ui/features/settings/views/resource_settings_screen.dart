@@ -7,6 +7,7 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/settings/controllers/resource_settings_controller.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class DownloadPreferencesScreen extends StatelessWidget {
   const DownloadPreferencesScreen({super.key, required this.store});
@@ -21,7 +22,7 @@ class DownloadPreferencesScreen extends StatelessWidget {
         appBar: AppBar(title: Text(l10n.downloadPrefsTitle)),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
+            constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -184,7 +185,7 @@ class _ResourceSettingsScreenState extends State<ResourceSettingsScreen> {
                     )
             : Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
+                  constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [

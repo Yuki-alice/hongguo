@@ -13,6 +13,7 @@ import 'package:hoshi/ui/features/rankings/controllers/rankings_controller.dart'
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class RankingsScreen extends StatefulWidget {
   const RankingsScreen({
@@ -243,37 +244,83 @@ class _RankingsScreenState extends State<RankingsScreen> {
                           onFocus: onFocus,
                         ),
                       )
-                    : RefreshIndicator(
-                        onRefresh: () => _controller.load(force: true),
-                        child: ListView.builder(
-                          key: ValueKey('ranking-${_controller.board!.id}'),
-                          controller: _scroll,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                          itemCount: items.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == items.length) {
-                              return Center(
-                                child: _controller.more
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(16),
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : _controller.hasMore
-                                    ? OutlinedButton(
-                                        onPressed: () =>
-                                            _controller.load(more: true),
-                                        child: Text(l10n.loadMore),
-                                      )
-                                    : Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Text(l10n.allRankingsShown),
-                                      ),
-                              );
-                            }
-                            return _rankTile(items[index]);
-                          },
-                        ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          // 宽屏双列：榜单是短行内容，单列在 1280 以上会
+                          // 出现极长的横向空白。
+                          final columns =
+                              constraints.maxWidth >= Md3WindowClass.large
+                              ? 2
+                              : 1;
+                          final padding = Md3Spacing.contentInset(
+                            constraints.maxWidth,
+                            maxWidth: Md3Spacing.contentMaxWidth,
+                          );
+                          return RefreshIndicator(
+                            onRefresh: () => _controller.load(force: true),
+                            child: ListView.builder(
+                              key: ValueKey(
+                                'ranking-${_controller.board!.id}',
+                              ),
+                              controller: _scroll,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: EdgeInsets.fromLTRB(
+                                padding,
+                                0,
+                                padding,
+                                24,
+                              ),
+                              itemCount:
+                                  (items.length / columns).ceil() +
+                                  (columns == 1 ? 1 : 1),
+                              itemBuilder: (context, rowIndex) {
+                                final start = rowIndex * columns;
+                                if (start >= items.length) {
+                                  return Center(
+                                    child: _controller.more
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(16),
+                                            child: CircularProgressIndicator(),
+                                          )
+                                        : _controller.hasMore
+                                        ? OutlinedButton(
+                                            onPressed: () =>
+                                                _controller.load(more: true),
+                                            child: Text(l10n.loadMore),
+                                          )
+                                        : Padding(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Text(l10n.allRankingsShown),
+                                          ),
+                                  );
+                                }
+                                if (columns == 1) {
+                                  return _rankTile(items[start]);
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      for (var column = 0;
+                                          column < columns;
+                                          column++) ...[
+                                        if (column > 0)
+                                          const SizedBox(width: 12),
+                                        Expanded(
+                                          child: start + column < items.length
+                                              ? _rankTile(items[start + column])
+                                              : const SizedBox.shrink(),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
                       ),
               ),
             ],
@@ -320,6 +367,8 @@ class _RankingsScreenState extends State<RankingsScreen> {
               drama: item.drama,
               repository: widget.repository,
               radius: 8,
+              // 榜单与详情同在根 Navigator，Hero 能生效。
+              heroTag: 'cover-${item.drama.id}',
             ),
           ),
           const SizedBox(width: 14),

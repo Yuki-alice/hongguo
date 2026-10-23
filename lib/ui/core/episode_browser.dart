@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/episode_grid.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -299,6 +300,18 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
                   );
                 });
               }
+              if (!television) {
+                return EpisodeGrid(
+                  key: ValueKey('episode-page-$_page-$_located'),
+                  controller: _scroll,
+                  episodes: visible,
+                  keyPrefix: widget.keyPrefix,
+                  currentNumber: widget.currentNumber,
+                  selectedNumbers: widget.selectedNumbers,
+                  padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
+                  onSelected: (index) => widget.onSelected(start + index),
+                );
+              }
               return RemoteGrid(
                 key: ValueKey('episode-page-$_page-$_located'),
                 controller: _scroll,
@@ -419,7 +432,8 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
         children: [
           _compactRangeSelector(target: target, pageCount: pageCount),
           Expanded(
-            child: RemoteGrid(
+            child: television
+                ? RemoteGrid(
               key: ValueKey('episode-continuous-$_located'),
               controller: _scroll,
               autofocus: television && _located != null,
@@ -446,6 +460,17 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
                   onPressed: () => widget.onSelected(index),
                 );
               },
+            )
+                : EpisodeGrid(
+              key: ValueKey('episode-continuous-$_located'),
+              controller: _scroll,
+              episodes: widget.episodes,
+              keyPrefix: widget.keyPrefix,
+              currentNumber: widget.currentNumber,
+              selectedNumbers: widget.selectedNumbers,
+              compact: true,
+              padding: const EdgeInsets.fromLTRB(4, 6, 4, 4),
+              onSelected: widget.onSelected,
             ),
           ),
         ],

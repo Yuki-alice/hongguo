@@ -118,10 +118,13 @@ jobs:
             echo "未安装 ffmpeg：media_library_test 的媒体用例将 skip"
           fi
       - name: Test
-        # `engine` tag 只标记 2 个真实在线用例；其余引擎用例是离线夹具驱动。
+        # `dart_test.yaml` 里 `slow` 默认 skip，所以 CI 必须带 `--run-skipped`，
+        # 否则那批重集成套件会静默不跑、覆盖率掉下来。
+        # 排除三类：`engine`（在线站源，单独 job）、`capture`（只出图，
+        # 依赖宿主字体与 golden）、`env`（要 ALL_SOURCES 或 ffmpeg）。
         # --coverage 收集行覆盖，产物可接 codecov。
         timeout-minutes: 20
-        run: flutter test --exclude-tags engine --dart-define=DISABLE_REMOTE_IMAGES=true --coverage
+        run: flutter test --run-skipped --exclude-tags "engine||capture||env" --dart-define=DISABLE_REMOTE_IMAGES=true --coverage
       - name: 覆盖率产物
         uses: actions/upload-artifact@v4
         with:

@@ -3,12 +3,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 export 'package:hoshi/app_build.dart';
 
-const appVersion = '0.2.51';
+/// 兜底版本号。
+///
+/// 真实版本在启动时由 [AppDevice.detect] 从平台读取（Android 走
+/// `hoshi/device`，桌面走 `package_info_plus`），这里只用于测试与
+/// 读不到平台信息时的显示。改动 pubspec 的 `version:` 后无需同步此处。
+const appVersion = '0.2.62';
 
 ThemeData televisionTheme(ThemeData theme) {
   final colors = theme.colorScheme;
@@ -55,7 +61,8 @@ class AppDevice {
     AppDevice fallback = const AppDevice(),
   }) async {
     if (defaultTargetPlatform != TargetPlatform.android) {
-      return const AppDevice();
+      final version = await _packageVersion();
+      return AppDevice(version: version ?? fallback.version);
     }
     try {
       final data = await channel
@@ -76,6 +83,23 @@ class AppDevice {
       return fallback;
     } on TimeoutException {
       return fallback;
+    }
+  }
+
+  /// 桌面与 iOS 的版本号来自平台包信息。
+  ///
+  /// Android 由 `hoshi/device` 一并返回（电视模式检测走同一次调用），
+  /// 其余平台没有自己的通道，直接用 `package_info_plus`，避免把版本号
+  /// 抄进 Dart 常量后在每次发版时忘记同步。
+  static Future<String?> _packageVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (info.version.isEmpty) return null;
+      return info.buildNumber.isEmpty
+          ? info.version
+          : '${info.version}+${info.buildNumber}';
+    } catch (_) {
+      return null;
     }
   }
 }

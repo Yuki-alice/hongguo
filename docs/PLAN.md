@@ -29,6 +29,20 @@
 | **Core-4 收口** | 2026-10-22 | 删除 `native/` 与 `core_bridge.dart`；删除 LAN；构建链 11→3 脚本；四端 CI 启用 |
 | **性能与包体基线** | 2026-10-23 | `guo-bench`；`docs/PERFORMANCE.md`；CI 护栏；资源设置迁入引擎 |
 
+### 前端重构（2026-10-23）
+
+| 阶段 | 交付 |
+| --- | --- |
+| P0 | 布局契约测试 + 桌面验收测试；修 `appVersion` 与 pubspec 漂移 |
+| P1 | `AppShell` 三形态导航、5 分支嵌套路由、旧路径重定向、目录宽度上限 |
+| P2 | 设置两栏、详情沉浸头、榜单宽屏双列、全站统一内容上限 |
+| P3 | 主题状态层与 hover/focus、桌面常显滚动条、骨架屏、手绘空态与加载指示器 |
+| P4 | 自绘窗口 chrome、窗口尺寸记忆、关闭行为、托盘、桌面快捷键；补 macOS 沙箱网络权限 |
+| P5 | 主题个性化：9 色种子调色板、动态取色、OLED 纯黑、系统字体 |
+
+验收：`flutter test --exclude-tags engine` 406 通过 / 1 跳过（改造前 352）；
+`dart analyze` 0 error / 0 warning。设计规范见 `docs/UI.md`。
+
 验收结果（`PROGRESS.md` 第三十四 / 三十五轮）：
 
 - `cargo test --workspace` 534 通过；`flutter test --exclude-tags engine` 352 通过 / 1 跳过；

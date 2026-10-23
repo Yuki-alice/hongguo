@@ -1,3 +1,8 @@
+// 重集成套件：单个文件 10–30 秒，且不在桌面视觉改造面上，默认套件跳过（见根目录 dart_test.yaml）。
+// 需要时：flutter test --tags slow --run-skipped
+@Tags(['slow'])
+library;
+
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/domain/models.dart';

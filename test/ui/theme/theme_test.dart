@@ -112,13 +112,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('设置与备份'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('theme-setting')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('浅色'));
+    // 明暗模式现在直接列在设置面板里，不再弹对话框。
+    await tester.tap(find.byKey(const ValueKey('theme-mode-light')));
     await tester.pumpAndSettle();
     expect(store.themeMode, 'light');
     expect(
-      Theme.of(tester.element(find.byType(SettingsScreen))).brightness,
+      Theme.of(
+        tester.element(find.byType(SettingsScreen)),
+      ).brightness,
       Brightness.light,
     );
     expect(

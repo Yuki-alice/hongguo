@@ -6,6 +6,7 @@ import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/data/repository_capabilities.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 引擎诊断页。
 ///
@@ -105,9 +106,15 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
       );
     }
     final snapshot = _snapshot!;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: Md3Spacing.pageInset(MediaQuery.sizeOf(context).width),
+            vertical: Md3Spacing.lg,
+          ),
+          children: [
         _Section(
           title: l10n.engineDiagnosticsRuntime,
           children: [
@@ -183,7 +190,9 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
             ],
           ),
         ],
-      ],
+          ],
+        ),
+      ),
     );
   }
 

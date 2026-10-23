@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hoshi/data/plugin_repository.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 插件仓库管理页。
 ///
@@ -57,7 +58,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
           ),
           body: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 960),
+              constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [

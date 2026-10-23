@@ -1,3 +1,6 @@
+// 重集成套件：随包插件要编译并加载真实动态库，单文件约 18 秒。
+// 需要时：flutter test --tags slow --run-skipped
+@Tags(['slow'])
 library;
 
 // 组件插件加载需要真实动态库；不访问网络。

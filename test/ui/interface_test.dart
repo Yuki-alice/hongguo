@@ -8,6 +8,7 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/main.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -172,13 +173,19 @@ void main() {
       Size? catalogSize;
       for (var tab = 0; tab < 3; tab++) {
         if (tab > 0) {
+          // 导航形态随宽度变化：<840 底部导航、840–1000 图标轨、
+          // ≥1000 常驻侧栏。电视用遥控列表。
           final destination = layout.$3
               ? find.byKey(ValueKey('tv-nav-$tab'))
               : layout.$1.width < 840
               ? find.byKey(ValueKey('bottom-nav-$tab'))
-              : find.descendant(
-                  of: find.byType(NavigationRail),
-                  matching: find.text(tab == 1 ? '追剧' : '最近观看'),
+              : find.byKey(
+                  ValueKey(
+                    'rail-nav-${switch (tab) {
+                      1 => 'follows',
+                      _ => 'history',
+                    }}',
+                  ),
                 );
           await tester.tap(destination);
           await tester.pumpAndSettle();
@@ -192,7 +199,7 @@ void main() {
         expect(first.height, closeTo(catalogSize.height, .01));
         for (var index = 0; index < 3; index++) {
           final rect = tester.getRect(covers.at(index));
-          expect(rect.width / rect.height, closeTo(2 / 3, .001));
+          expect(rect.width / rect.height, closeTo(Md3Grid.posterRatio, .001));
           expect(rect.width, closeTo(first.width, .01));
           expect(rect.bottom, closeTo(first.bottom, .01));
           expect(

@@ -884,6 +884,102 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置与备份';
 
   @override
+  String get settingsAdvanced => '高级';
+
+  @override
+  String get settingsAdvancedHint => '管理员专属：备份、导出与网络资源';
+
+  @override
+  String get downloadsPickCollection => '选择左边的合集';
+
+  @override
+  String get downloadsPickCollectionHint => '点选一个合集查看它的剧集下载进度';
+
+  @override
+  String get expandSidebar => '展开侧栏';
+
+  @override
+  String get collapseSidebar => '收起侧栏';
+
+  @override
+  String get detailEpisodesTab => '剧集';
+
+  @override
+  String get detailOverviewTab => '简介';
+
+  @override
+  String get detailSourceTab => '来源';
+
+  @override
+  String get detailNoSynopsis => '这部剧还没有简介';
+
+  @override
+  String get detailTagsTitle => '标签';
+
+  @override
+  String get detailCategoryLabel => '分类';
+
+  @override
+  String get detailStatusLabel => '状态';
+
+  @override
+  String get detailOnlineLabel => '上线';
+
+  @override
+  String get detailHeatLabel => '热度';
+
+  @override
+  String get detailViewsLabel => '播放';
+
+  @override
+  String get closeBehaviorTitle => '关闭窗口时';
+
+  @override
+  String get closeBehaviorExit => '退出应用';
+
+  @override
+  String get closeBehaviorTray => '最小化到托盘';
+
+  @override
+  String get closeBehaviorAsk => '每次询问';
+
+  @override
+  String get windowStateHint => '窗口大小与位置会自动记住';
+
+  @override
+  String get themeSettingsTitle => '外观';
+
+  @override
+  String get themeModeTitle => '明暗模式';
+
+  @override
+  String get themeColorTitle => '主题色';
+
+  @override
+  String get themeColorHint => '选一个种子色，深浅两套主题都会由它推导';
+
+  @override
+  String get themeDynamicTitle => '跟随系统取色';
+
+  @override
+  String get themeDynamicHint => '使用系统的壁纸主色（Android 12+ / macOS 14+）';
+
+  @override
+  String get themeOledTitle => 'OLED 纯黑';
+
+  @override
+  String get themeOledHint => '深色模式下把背景压到纯黑，OLED 屏更省电';
+
+  @override
+  String get themeFontTitle => '字体';
+
+  @override
+  String get themeSystemFontTitle => '使用系统字体';
+
+  @override
+  String get themeSystemFontHint => '关闭后使用内置中文字体，字形更统一';
+
+  @override
   String get appearanceTheme => '外观主题';
 
   @override

@@ -10,6 +10,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class SavedLibrary extends StatefulWidget {
   const SavedLibrary({
@@ -271,12 +272,11 @@ class _SavedLibraryState extends State<SavedLibrary> {
       return LayoutBuilder(
         builder: (context, constraints) {
           if (AppLayout.isTelevision(context)) {
-            final columns = ((constraints.maxWidth - 36) / 150).floor().clamp(
-              1,
-              8,
+            final grid = remoteGridLayout(
+              context,
+              constraints.maxWidth,
+              withMeta: true,
             );
-            final tileWidth =
-                (constraints.maxWidth - 36 - (columns - 1) * 14) / columns;
             return Column(
               children: [
                 ConstrainedBox(
@@ -293,9 +293,9 @@ class _SavedLibraryState extends State<SavedLibrary> {
                             'saved-tv-${widget.history}-$_filter-${_search.text}',
                           ),
                           itemKeys: items.map((item) => item.id).toList(),
-                          columns: columns,
-                          itemExtent:
-                              DramaTile.extentFor(context, tileWidth - 14) + 14,
+                          columns: grid.columns,
+                          spacing: Md3Grid.spacing,
+                          itemExtent: grid.itemExtent,
                           autofocus: widget.remoteAutofocus,
                           onExitLeft: widget.onExitLeft,
                           onExitUp: widget.onExitUp,
@@ -310,7 +310,11 @@ class _SavedLibraryState extends State<SavedLibrary> {
               ],
             );
           }
-          final padding = constraints.maxWidth < 600 ? 16.0 : 24.0;
+          // 与发现页同一套宽度策略：内容不随窗口无限铺开。
+          final padding = Md3Spacing.contentInset(
+            constraints.maxWidth,
+            maxWidth: Md3Spacing.wideMaxWidth,
+          );
           return CustomScrollView(
             key: PageStorageKey(
               'saved-${widget.history}-$_filter-${_search.text}',
@@ -323,9 +327,13 @@ class _SavedLibraryState extends State<SavedLibrary> {
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(padding, 0, padding, 20),
                   sliver: SliverGrid(
+                    // 这一页的卡片带元信息行（追剧状态 / 观看进度），
+                    // 因此行高要多预留一行——`withMeta` 必须与卡片实际
+                    // 是否传 badge / subtitle 一致。
                     gridDelegate: dramaGridDelegate(
                       context,
                       constraints.maxWidth - 2 * padding,
+                      withMeta: true,
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (_, index) => _tile(items[index], l10n: l10n),

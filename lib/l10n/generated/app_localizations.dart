@@ -1642,6 +1642,198 @@ abstract class AppLocalizations {
   /// **'设置与备份'**
   String get settingsTitle;
 
+  /// No description provided for @settingsAdvanced.
+  ///
+  /// In zh, this message translates to:
+  /// **'高级'**
+  String get settingsAdvanced;
+
+  /// No description provided for @settingsAdvancedHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理员专属：备份、导出与网络资源'**
+  String get settingsAdvancedHint;
+
+  /// No description provided for @downloadsPickCollection.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择左边的合集'**
+  String get downloadsPickCollection;
+
+  /// No description provided for @downloadsPickCollectionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'点选一个合集查看它的剧集下载进度'**
+  String get downloadsPickCollectionHint;
+
+  /// No description provided for @expandSidebar.
+  ///
+  /// In zh, this message translates to:
+  /// **'展开侧栏'**
+  String get expandSidebar;
+
+  /// No description provided for @collapseSidebar.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起侧栏'**
+  String get collapseSidebar;
+
+  /// No description provided for @detailEpisodesTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'剧集'**
+  String get detailEpisodesTab;
+
+  /// No description provided for @detailOverviewTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'简介'**
+  String get detailOverviewTab;
+
+  /// No description provided for @detailSourceTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源'**
+  String get detailSourceTab;
+
+  /// No description provided for @detailNoSynopsis.
+  ///
+  /// In zh, this message translates to:
+  /// **'这部剧还没有简介'**
+  String get detailNoSynopsis;
+
+  /// No description provided for @detailTagsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签'**
+  String get detailTagsTitle;
+
+  /// No description provided for @detailCategoryLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'分类'**
+  String get detailCategoryLabel;
+
+  /// No description provided for @detailStatusLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态'**
+  String get detailStatusLabel;
+
+  /// No description provided for @detailOnlineLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'上线'**
+  String get detailOnlineLabel;
+
+  /// No description provided for @detailHeatLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'热度'**
+  String get detailHeatLabel;
+
+  /// No description provided for @detailViewsLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放'**
+  String get detailViewsLabel;
+
+  /// No description provided for @closeBehaviorTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭窗口时'**
+  String get closeBehaviorTitle;
+
+  /// No description provided for @closeBehaviorExit.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出应用'**
+  String get closeBehaviorExit;
+
+  /// No description provided for @closeBehaviorTray.
+  ///
+  /// In zh, this message translates to:
+  /// **'最小化到托盘'**
+  String get closeBehaviorTray;
+
+  /// No description provided for @closeBehaviorAsk.
+  ///
+  /// In zh, this message translates to:
+  /// **'每次询问'**
+  String get closeBehaviorAsk;
+
+  /// No description provided for @windowStateHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'窗口大小与位置会自动记住'**
+  String get windowStateHint;
+
+  /// No description provided for @themeSettingsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'外观'**
+  String get themeSettingsTitle;
+
+  /// No description provided for @themeModeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'明暗模式'**
+  String get themeModeTitle;
+
+  /// No description provided for @themeColorTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题色'**
+  String get themeColorTitle;
+
+  /// No description provided for @themeColorHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'选一个种子色，深浅两套主题都会由它推导'**
+  String get themeColorHint;
+
+  /// No description provided for @themeDynamicTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统取色'**
+  String get themeDynamicTitle;
+
+  /// No description provided for @themeDynamicHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用系统的壁纸主色（Android 12+ / macOS 14+）'**
+  String get themeDynamicHint;
+
+  /// No description provided for @themeOledTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'OLED 纯黑'**
+  String get themeOledTitle;
+
+  /// No description provided for @themeOledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'深色模式下把背景压到纯黑，OLED 屏更省电'**
+  String get themeOledHint;
+
+  /// No description provided for @themeFontTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'字体'**
+  String get themeFontTitle;
+
+  /// No description provided for @themeSystemFontTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用系统字体'**
+  String get themeSystemFontTitle;
+
+  /// No description provided for @themeSystemFontHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭后使用内置中文字体，字形更统一'**
+  String get themeSystemFontHint;
+
   /// No description provided for @appearanceTheme.
   ///
   /// In zh, this message translates to:

@@ -13,7 +13,9 @@ import 'package:hoshi/ui/features/settings/views/settings_screen.dart';
 import 'package:hoshi/ui/features/downloads/controllers/downloads_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({
@@ -316,13 +318,179 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     ),
   ];
 
-  Widget _collection(DownloadCollection collection) {
+  /// 宽窗口主从布局。
+  ///
+  /// 左列固定 360：合集列表（标题 + 进度摘要）。右列是选中合集的剧集
+  /// 明细，没有选中时提示从左侧选一部。
+  ///
+  /// 复用 `_expanded` 作为「当前选中」：这样手机上「展开」与桌面上
+  /// 「选中」是同一个状态，切窗口尺寸时不会丢失上下文。
+  Widget _masterDetail(
+    double width,
+    List<DownloadCollection> collections,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final selectedId = _controller.expanded.length == 1
+        ? _controller.expanded.first
+        : null;
+    final selected = collections
+        .where((collection) => collection.drama.id == selectedId)
+        .firstOrNull;
+    final masterWidth = (Md3Spacing.detailPaneWidth + Md3Spacing.xl).clamp(
+      300.0,
+      420.0,
+    );
+    // 主从区域整体受页面留白与最大宽度约束：在 1600 宽下不把两栏拉散。
+    final inset = Md3Spacing.contentInset(
+      width,
+      maxWidth: Md3Spacing.wideMaxWidth,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(width: inset),
+        SizedBox(
+          width: masterWidth,
+          child: ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              0,
+              Md3Spacing.xs,
+              Md3Spacing.sm,
+              Md3Spacing.xl,
+            ),
+            itemCount: collections.length,
+            itemBuilder: (context, index) {
+              final collection = collections[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: Md3Spacing.sm),
+                child: _collection(
+                  collection,
+                  selected: collection.drama.id == selectedId,
+                  compact: true,
+                ),
+              );
+            },
+          ),
+        ),
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+        Expanded(
+          child: selected == null
+              ? EmptyState(
+                  title: l10n.downloadsPickCollection,
+                  message: l10n.downloadsPickCollectionHint,
+                  icon: Icons.download_done_rounded,
+                  compact: true,
+                )
+              : _collectionDetail(selected, width, inset),
+        ),
+        SizedBox(width: inset),
+      ],
+    );
+  }
+
+  /// 右列：选中合集的标题栏 + 剧集列表。
+  Widget _collectionDetail(
+    DownloadCollection collection,
+    double width,
+    double inset,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            Md3Spacing.md,
+            inset,
+            Md3Spacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      collection.drama.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Md3Type.titleMedium,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: Md3Spacing.xxs),
+                    Text(
+                      l10n.collectionDownloadedRatio(
+                        collection.completed,
+                        collection.jobs.length,
+                        storageSize(collection.bytes, l10n),
+                      ),
+                      style: TextStyle(
+                        fontSize: Md3Type.bodySmall,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: l10n.collectionActions(collection.drama.title),
+                onPressed: _controller.busy
+                    ? null
+                    : () => _collectionActions(collection),
+                icon: const Icon(Icons.more_horiz_rounded),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              Md3Spacing.sm,
+              inset,
+              Md3Spacing.xl,
+            ),
+            itemCount: collection.jobs.length,
+            itemBuilder: (context, index) =>
+                _episode(collection.jobs[index]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _collection(
+    DownloadCollection collection, {
+    bool selected = false,
+    bool compact = false,
+  }) {
     final count = collection.jobs
         .where((job) => _controller.selected.contains(job.id))
         .length;
     final expanded = _controller.expanded.contains(collection.drama.id);
+    final highlighted = compact && selected;
+    final colors = Theme.of(context).colorScheme;
     return Card(
+      color: highlighted ? colors.secondaryContainer : null,
       child: ListTile(
+        selected: highlighted,
+        contentPadding: compact
+            ? const EdgeInsets.fromLTRB(
+                Md3Spacing.md,
+                Md3Spacing.xs,
+                Md3Spacing.xs,
+                Md3Spacing.xs,
+              )
+            : null,
         leading: _controller.selecting
             ? Checkbox(
                 tristate: true,
@@ -335,7 +503,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ? null
                     : (_) => _select(collection.jobs),
               )
-            : Icon(expanded ? Icons.folder_open_rounded : Icons.folder_rounded),
+            : Icon(
+                expanded
+                    ? Icons.folder_open_rounded
+                    : Icons.folder_rounded,
+                color: highlighted ? colors.onSecondaryContainer : null,
+              ),
         title: Text(
           collection.drama.title,
           maxLines: 2,
@@ -943,34 +1116,62 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             child: _televisionToolbar(collections),
           )
         else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _search,
-              onChanged: _controller.setQuery,
-              decoration: InputDecoration(
-                hintText: l10n.downloadsSearchHint,
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: l10n.clearSearch,
-                        onPressed: () {
-                          _search.clear();
-                          _controller.setQuery('');
-                        },
-                        icon: const Icon(Icons.close_rounded),
-                      ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // 搜索框属于整页头部：与主体共用「居中的内容宽度」，
+              // 而不是只加留白——1600 宽下只加 32 留白仍会横跨全屏。
+              final inset = Md3Spacing.contentInset(
+                constraints.maxWidth,
+                maxWidth: Md3Spacing.wideMaxWidth,
+              );
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  inset,
+                  Md3Spacing.sm,
+                  inset,
+                  Md3Spacing.sm,
+                ),
+                child: TextField(
+                  controller: _search,
+                  onChanged: _controller.setQuery,
+                  decoration: InputDecoration(
+                    hintText: l10n.downloadsSearchHint,
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: l10n.clearSearch,
+                            onPressed: () {
+                              _search.clear();
+                              _controller.setQuery('');
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = Md3Spacing.contentInset(
+              constraints.maxWidth,
+              maxWidth: Md3Spacing.wideMaxWidth,
+            );
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                inset,
+                Md3Spacing.xs,
+                inset,
+                Md3Spacing.xs,
               ),
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-          child: Text(
-            '${l10n.downloadsSummary(collections.length, collections.fold<int>(0, (sum, c) => sum + c.jobs.length))}'
-            '${_controller.filter == 'archived' ? l10n.downloadsArchivedFilterHint : ''}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+              child: Text(
+                '${l10n.downloadsSummary(collections.length, collections.fold<int>(0, (sum, c) => sum + c.jobs.length))}'
+                '${_controller.filter == 'archived' ? l10n.downloadsArchivedFilterHint : ''}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            );
+          },
         ),
         if (_controller.updater.busy || _controller.busy)
           const LinearProgressIndicator(minHeight: 2),
@@ -1064,13 +1265,33 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         _ => const SizedBox.shrink(),
                       },
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                  itemCount: rows.length,
-                  itemBuilder: (_, index) => switch (rows[index]) {
-                    DownloadCollection collection => _collection(collection),
-                    DownloadJob job => _episode(job),
-                    _ => const SizedBox.shrink(),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 宽窗口走主从：左列合集，右列当前合集的剧集明细。
+                    // 手机上仍是「合集 + 行内展开」，因为竖屏放不下两列。
+                    if (Md3WindowClass.usesTwoPane(constraints.maxWidth)) {
+                      return _masterDetail(constraints.maxWidth, collections);
+                    }
+                    final inset = Md3Spacing.contentInset(
+                      constraints.maxWidth,
+                      maxWidth: Md3Spacing.contentMaxWidth,
+                    );
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        inset,
+                        Md3Spacing.xs,
+                        inset,
+                        Md3Spacing.xl,
+                      ),
+                      itemCount: rows.length,
+                      itemBuilder: (_, index) => switch (rows[index]) {
+                        DownloadCollection collection => _collection(
+                          collection,
+                        ),
+                        DownloadJob job => _episode(job),
+                        _ => const SizedBox.shrink(),
+                      },
+                    );
                   },
                 ),
         ),

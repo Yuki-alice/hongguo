@@ -33,6 +33,14 @@ class LocalSnapshot {
     'autoExport',
     'exportPosters',
     'forceLogin',
+    // 桌面窗口状态：设备级设置，不随用户档案切换。
+    'windowBounds',
+    'closeBehavior',
+    // 主题个性化。
+    'themeSeed',
+    'useDynamicColor',
+    'oledEnhance',
+    'useSystemFont',
   };
   final SharedPreferences preferences;
   Map<String, Object> _values = {};
@@ -77,6 +85,9 @@ class LocalSnapshot {
         'autoExport',
         'exportPosters',
         'forceLogin',
+        'useDynamicColor',
+        'oledEnhance',
+        'useSystemFont',
       }.contains(entry.key.split('.').last);
       if (!owns(entry.key) ||
           (boolean ? entry.value is! bool : entry.value is! String)) {

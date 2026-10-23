@@ -11,6 +11,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class BatchDownloadScreen extends StatefulWidget {
   const BatchDownloadScreen({
@@ -81,7 +82,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
                 )
               : Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1000),
+                    constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
                     child: Column(
                       children: [
                         if (_batch.busy)

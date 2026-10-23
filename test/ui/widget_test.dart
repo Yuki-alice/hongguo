@@ -3,6 +3,7 @@ import 'package:hoshi/main.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/app_build.dart';
 import 'package:hoshi/domain/follow_state.dart';
+import 'package:hoshi/ui/core/episode_grid.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,10 +81,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('继续播放 · 第 $episode 集'), findsOneWidget);
         for (final number in [1, 2]) {
-          final button = tester.widget<RemoteEpisodeButton>(
+          // 非电视模式用 EpisodeButton（电视仍用 RemoteEpisodeButton），
+          // 两者都有 current 语义，按语义断言而不是绑死类型。
+          final button = tester.widget(
             find.byKey(ValueKey('episode-$number')),
           );
-          expect(button.current, number == episode);
+          final current = switch (button) {
+            RemoteEpisodeButton(:final current) => current,
+            EpisodeButton(:final current) => current,
+            _ => fail('未知的选集按钮类型 ${button.runtimeType}'),
+          };
+          expect(current, number == episode);
         }
       }
       await local.clearHistory();

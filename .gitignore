@@ -68,3 +68,11 @@ macos/Flutter/ephemeral/
 
 # 工具缓存与工作区记忆，非项目源码
 .workbuddy/
+
+# 截图输出（scripts/capture_screens.py 生成，供人工比对，不入库）
+test/ui/shell/captures/
+# golden 比对失败时的差异图，同样是本地产物
+test/ui/shell/failures/
+
+# AI 工作区状态
+.zcode/

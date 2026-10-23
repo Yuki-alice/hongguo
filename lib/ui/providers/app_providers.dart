@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:hoshi/data/app_contract.dart';
@@ -95,6 +95,56 @@ final televisionProvider = Provider<bool>((ref) {
 final themeModeProvider = Provider<String>((ref) {
   ref.watch(storeRevisionProvider);
   return ref.watch(storeProvider)?.themeMode ?? 'system';
+});
+
+/// 主题个性化偏好的快照。
+///
+/// 合成一个对象而不是三个 provider：主题只需要重建一次，拆开会让
+/// `MaterialApp` 在改一个选项时重建三次。
+@immutable
+class ThemePreferences {
+  const ThemePreferences({
+    this.seed,
+    this.dynamic = false,
+    this.oled = false,
+    this.useSystemFont = true,
+  });
+
+  /// 种子色（ARGB 十六进制字符串），null 表示品牌默认色。
+  final String? seed;
+  final bool dynamic;
+  final bool oled;
+  final bool useSystemFont;
+
+  Color? get seedColor {
+    final value = seed;
+    if (value == null || value.length != 8) return null;
+    final parsed = int.tryParse(value, radix: 16);
+    return parsed == null ? null : Color(parsed);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ThemePreferences &&
+      other.seed == seed &&
+      other.dynamic == dynamic &&
+      other.oled == oled &&
+      other.useSystemFont == useSystemFont;
+
+  @override
+  int get hashCode => Object.hash(seed, dynamic, oled, useSystemFont);
+}
+
+final themePreferencesProvider = Provider<ThemePreferences>((ref) {
+  ref.watch(storeRevisionProvider);
+  final store = ref.watch(storeProvider);
+  if (store == null) return const ThemePreferences();
+  return ThemePreferences(
+    seed: store.themeSeed,
+    dynamic: store.useDynamicColor,
+    oled: store.oledEnhance,
+    useSystemFont: store.useSystemFont,
+  );
 });
 
 /// 供 go_router 的 `refreshListenable` 使用的桥接。

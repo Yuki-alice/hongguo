@@ -12,6 +12,7 @@ import 'package:hoshi/domain/catalog_sort.dart';
 import 'package:hoshi/domain/follow_state.dart';
 import 'package:hoshi/domain/hongguo_series.dart';
 import 'package:hoshi/domain/lan_sync_models.dart';
+import 'package:hoshi/domain/window_bounds.dart';
 
 part 'local_store_sync.dart';
 
@@ -246,6 +247,72 @@ class LocalStore extends ChangeNotifier {
     return {'light', 'dark', 'system'}.contains(value) ? value! : 'system';
   }
 
+  /// 主题种子色（ARGB）。null 表示使用品牌默认色。
+  ///
+  /// 存成字符串而不是 int：`SharedPreferences` 的本地快照只接受字符串
+  /// 与布尔值（见 `LocalSnapshot._validate`）。
+  String? get themeSeed {
+    if (_configurationError != null) return null;
+    final value = _string('themeSeed');
+    if (value == null || !RegExp(r'^[0-9a-fA-F]{8}$').hasMatch(value)) {
+      return null;
+    }
+    return value.toLowerCase();
+  }
+
+  Future<void> setThemeSeed(String? value) =>
+      value == null ? _remove('themeSeed') : _setting('themeSeed', value);
+
+  /// 是否跟随系统取色（Android 12+ / macOS 14+）。
+  bool get useDynamicColor =>
+      _configurationError == null && (_bool('useDynamicColor') ?? false);
+
+  Future<void> setUseDynamicColor(bool value) =>
+      _setting('useDynamicColor', value);
+
+  /// OLED 纯黑：深色模式下背景与表面压到 #000。
+  bool get oledEnhance =>
+      _configurationError == null && (_bool('oledEnhance') ?? false);
+
+  Future<void> setOledEnhance(bool value) => _setting('oledEnhance', value);
+
+  /// 是否使用系统字体（关闭时用内置中文字体）。
+  bool get useSystemFont =>
+      _configurationError == null && (_bool('useSystemFont') ?? true);
+
+  Future<void> setUseSystemFont(bool value) =>
+      _setting('useSystemFont', value);
+
+  /// 窗口边界（桌面端）。
+  ///
+  /// 与用户档案无关——同一台机器上的窗口大小是设备属性，不是账号属性，
+  /// 因此不走 `_key()` 的档案命名空间。
+  WindowBounds? get windowBounds {
+    if (_configurationError != null) return null;
+    final raw = _string('windowBounds');
+    if (raw == null) return null;
+    try {
+      return WindowBounds.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw) as Map),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setWindowBounds(WindowBounds value) =>
+      _setting('windowBounds', jsonEncode(value.toJson()));
+
+  /// 关闭窗口的行为。默认「每次询问」，不擅自替用户决定。
+  CloseBehavior get closeBehavior {
+    if (_configurationError != null) return CloseBehavior.ask;
+    return CloseBehavior.values.asNameMap()[_string('closeBehavior')] ??
+        CloseBehavior.ask;
+  }
+
+  Future<void> setCloseBehavior(CloseBehavior value) =>
+      _setting('closeBehavior', value.name);
+
   bool get autoExport => !locked && (_bool('autoExport') ?? false);
   bool get exportPosters => !locked && (_bool('exportPosters') ?? false);
   String get source {
@@ -395,6 +462,16 @@ class LocalStore extends ChangeNotifier {
       if (admin) _requireAdmin();
       if (locked || epoch != _epoch) throw StateError('当前用户已变更，请重试');
       await _commit({key: value});
+      _notify();
+    });
+  }
+
+  /// 删除一个设置项。
+  Future<void> _remove(String key) {
+    final epoch = _epoch;
+    return _queue(() async {
+      if (locked || epoch != _epoch) throw StateError('当前用户已变更，请重试');
+      await _commit(const {}, remove: [key]);
       _notify();
     });
   }
@@ -865,6 +942,10 @@ class LocalStore extends ChangeNotifier {
       'profiles': _profiles.map((profile) => profile.toJson()).toList(),
       'displayMode': displayMode,
       'themeMode': themeMode,
+      'themeSeed': themeSeed,
+      'useDynamicColor': useDynamicColor,
+      'oledEnhance': oledEnhance,
+      'useSystemFont': useSystemFont,
       'autoExport': autoExport,
       'exportPosters': exportPosters,
       'forceLogin': forceLogin,
@@ -922,6 +1003,11 @@ class LocalStore extends ChangeNotifier {
     }
     if (data.containsKey('forceLogin') && data['forceLogin'] is! bool) {
       throw const FormatException('备份登录设置无效');
+    }
+    if (data.containsKey('themeSeed') &&
+        data['themeSeed'] != null &&
+        !RegExp(r'^[0-9a-fA-F]{8}$').hasMatch('${data['themeSeed']}')) {
+      throw const FormatException('备份主题色无效');
     }
     final libraries = data['libraries'] as Map;
     for (final profile in profiles) {
@@ -992,6 +1078,12 @@ class LocalStore extends ChangeNotifier {
           ? data['displayMode'] as String
           : 'auto',
       'themeMode': data['themeMode'] as String? ?? themeMode,
+      if (data['themeSeed'] != null) 'themeSeed': '${data['themeSeed']}',
+      'useDynamicColor': data['useDynamicColor'] == true,
+      'oledEnhance': data['oledEnhance'] == true,
+      'useSystemFont': data['useSystemFont'] is bool
+          ? data['useSystemFont'] as bool
+          : true,
       'autoExport': data['autoExport'] == true,
       'exportPosters': data['exportPosters'] == true,
       'forceLogin': data['forceLogin'] is bool

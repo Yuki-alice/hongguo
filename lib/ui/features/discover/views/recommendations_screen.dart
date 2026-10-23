@@ -11,6 +11,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/player/views/playback_launch_screen.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class RecommendationsScreen extends StatefulWidget {
   const RecommendationsScreen({
@@ -190,18 +191,16 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     if (AppLayout.isTelevision(context)) {
-                      final columns = ((constraints.maxWidth - 36) / 150)
-                          .floor()
-                          .clamp(1, 8);
-                      final tileWidth =
-                          (constraints.maxWidth - 36 - (columns - 1) * 14) /
-                          columns;
+                      final grid = remoteGridLayout(
+                        context,
+                        constraints.maxWidth,
+                      );
                       return RemoteGrid(
                         key: widget.gridKey,
                         itemKeys: _items.map((item) => item.id).toList(),
-                        columns: columns,
-                        itemExtent:
-                            DramaTile.extentFor(context, tileWidth - 14) + 14,
+                        columns: grid.columns,
+                        spacing: Md3Grid.spacing,
+                        itemExtent: grid.itemExtent,
                         controller: _scroll,
                         padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
                         onExitLeft: widget.onExitLeft,
@@ -243,6 +242,12 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         },
                       );
                     }
+                    // 与目录页同一套宽度策略：留白由 contentInset 给出，
+                    // 顶部不再叠一份额外间距，两个 feed 的首行位置对齐。
+                    final padding = Md3Spacing.contentInset(
+                      constraints.maxWidth,
+                      maxWidth: Md3Spacing.wideMaxWidth,
+                    );
                     return RefreshIndicator(
                       onRefresh: () => _load(force: true),
                       child: CustomScrollView(
@@ -250,11 +255,16 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           SliverPadding(
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.fromLTRB(
+                              padding,
+                              0,
+                              padding,
+                              Md3Spacing.lg,
+                            ),
                             sliver: SliverGrid(
                               gridDelegate: dramaGridDelegate(
                                 context,
-                                constraints.maxWidth - 32,
+                                constraints.maxWidth - 2 * padding,
                               ),
                               delegate: SliverChildBuilderDelegate((
                                 context,

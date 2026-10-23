@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/domain/source_status.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/sources/controllers/sources_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 String sourceTimestamp(DateTime? value, AppLocalizations l10n) {
   if (value == null) return l10n.sourceNoRecord;
@@ -130,63 +132,111 @@ class _SourcesScreenState extends State<SourcesScreen> {
             ),
           ],
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: RefreshIndicator(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            // 宽窗口双列：站源卡片是高信息量的独立单元，单列在 1000 以上
+            // 会留下大片横向空白。用 Wrap 而不是 GridView：每张卡的高度
+            // 随诊断信息展开而变，固定行高会截断内容。
+            // 双列只在「宽窗口且真有两个以上源」时启用：只有一张卡片
+            // 时按半宽摆放会让页面比单列更空。
+            final columns =
+                Md3WindowClass.usesTwoPane(constraints.maxWidth) &&
+                    sources.length > 1
+                ? 2
+                : 1;
+            final inset = Md3Spacing.pageInset(constraints.maxWidth);
+            final available = constraints.maxWidth - inset * 2;
+            final cardWidth =
+                (available - (columns - 1) * Md3Spacing.md) / columns;
+            return RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
+                padding: EdgeInsets.fromLTRB(
+                  inset,
+                  Md3Spacing.lg,
+                  inset,
+                  Md3Spacing.lg + bottomInset,
+                ),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: Md3Spacing.lg),
                     child: Text(l10n.sourcesIntro),
                   ),
                   if (sources.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(l10n.sourcesEmpty),
+                    EmptyState(
+                      title: l10n.sourcesEmpty,
+                      icon: Icons.dns_outlined,
                     ),
                   for (final group in SourceGroup.fromSources(sources))
                     if (group.id == 'huangguo')
-                      Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: ExpansionTile(
-                          key: const PageStorageKey('source-group-huangguo'),
-                          initiallyExpanded: group.sources.any(
-                            (source) => source.id == widget.initialSource,
-                          ),
-                          leading: const Icon(Icons.hub_outlined),
-                          title: Text(l10n.sourceHuangguoGroup),
-                          subtitle: Text(
-                            l10n.sourceGroupSummary(
-                              group.sources.length,
-                              group.sources.fold<int>(
-                                0,
-                                (count, source) =>
-                                    count +
-                                    (_controller.statusOf(source.id)?.count ??
-                                        0),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: Md3Spacing.md),
+                        child: Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: ExpansionTile(
+                            key: const PageStorageKey(
+                              'source-group-huangguo',
+                            ),
+                            initiallyExpanded: group.sources.any(
+                              (source) => source.id == widget.initialSource,
+                            ),
+                            leading: const Icon(Icons.hub_outlined),
+                            title: Text(l10n.sourceHuangguoGroup),
+                            subtitle: Text(
+                              l10n.sourceGroupSummary(
+                                group.sources.length,
+                                group.sources.fold<int>(
+                                  0,
+                                  (count, source) =>
+                                      count +
+                                      (_controller.statusOf(source.id)?.count ??
+                                          0),
+                                ),
                               ),
                             ),
+                            childrenPadding: const EdgeInsets.all(
+                              Md3Spacing.sm,
+                            ),
+                            children: [
+                              _sourceWrap(group.sources, cardWidth, columns),
+                            ],
                           ),
-                          childrenPadding: const EdgeInsets.all(8),
-                          children: [
-                            for (final source in group.sources)
-                              _sourceCard(source),
-                          ],
                         ),
                       )
                     else
-                      for (final source in group.sources) _sourceCard(source),
+                      _sourceWrap(group.sources, cardWidth, columns),
                 ],
               ),
-            ),
-          ),
+            );
+          },
         ),
       );
     },
   );
+
+  /// 把一组站源排成 1 或 2 列。
+  Widget _sourceWrap(List<SourceSite> sources, double width, int columns) {
+    if (columns == 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final source in sources)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Md3Spacing.md),
+              child: _sourceCard(source),
+            ),
+        ],
+      );
+    }
+    return Wrap(
+      spacing: Md3Spacing.md,
+      runSpacing: Md3Spacing.md,
+      children: [
+        for (final source in sources)
+          SizedBox(width: width, child: _sourceCard(source)),
+      ],
+    );
+  }
 
   Widget _sourceCard(SourceSite source) {
     final l10n = AppLocalizations.of(context);

@@ -1,3 +1,8 @@
+// 重集成套件：单个文件 10–30 秒，且不在桌面视觉改造面上，默认套件跳过（见根目录 dart_test.yaml）。
+// 需要时：flutter test --tags slow --run-skipped
+@Tags(['slow'])
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -395,6 +400,9 @@ void main() {
         await directory.delete(recursive: true);
       }
     },
+    // `env`：依赖宿主机有 ffmpeg/ffprobe。标成 tag 而不只靠 skip，是因为
+    // CI 的全量跑用 `--run-skipped`，光靠 skip 挡不住。
+    tags: 'env',
     skip: available ? false : 'requires ffmpeg and ffprobe',
     timeout: const Timeout(Duration(minutes: 3)),
   );

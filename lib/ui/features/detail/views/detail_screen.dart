@@ -12,14 +12,16 @@ import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/features/detail/controllers/detail_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/episode_browser.dart';
+import 'package:hoshi/ui/core/episode_grid.dart';
+import 'package:hoshi/ui/features/detail/widgets/cover_backdrop.dart';
 import 'package:hoshi/domain/follow_state.dart';
 import 'package:hoshi/domain/hongguo_series.dart';
 
@@ -274,8 +276,15 @@ class _DetailScreenState extends State<DetailScreen> {
             Navigator.of(context).maybePop(),
       },
       child: Scaffold(
+        // 桌面端用透明 AppBar 叠在模糊封面上，标题由页面正文承担；
+        // 移动端保持不透明，避免小屏上文字压在海报上看不清。
+        extendBodyBehindAppBar: !television && MediaQuery.sizeOf(context).width >= Md3WindowClass.expanded,
         appBar: AppBar(
           toolbarHeight: television ? 64 : null,
+          backgroundColor: MediaQuery.sizeOf(context).width >= Md3WindowClass.expanded
+              ? Colors.transparent
+              : null,
+          scrolledUnderElevation: 0,
           title: Text(drama.title, overflow: TextOverflow.ellipsis),
           actions: [
             RefreshAction(
@@ -290,7 +299,7 @@ class _DetailScreenState extends State<DetailScreen> {
           bottom: false,
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+              constraints: const BoxConstraints(maxWidth: Md3Spacing.wideMaxWidth),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   if (!allowed) {
@@ -299,42 +308,59 @@ class _DetailScreenState extends State<DetailScreen> {
                       message: l10n.detailNoAccessHint,
                     );
                   }
-                  if (television || constraints.maxWidth >= 960) {
-                    return Row(
+                  final wide =
+                      television ||
+                      constraints.maxWidth >= Md3WindowClass.expanded;
+                  final immersive =
+                      !television &&
+                      MediaQuery.sizeOf(context).width >=
+                          Md3WindowClass.expanded;
+                  if (wide) {
+                    final panes = Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(
-                          width: (constraints.maxWidth * .34).clamp(
-                            250.0,
-                            360.0,
-                          ),
+                          // 桌面端左栏固定宽度：剧集信息量与封面尺寸都稳定，
+                          // 不会随窗口变宽而把右栏挤窄。
+                          width: Md3Spacing.detailPaneWidth,
                           child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(20),
+                            padding: EdgeInsets.fromLTRB(
+                              Md3Spacing.xl,
+                              MediaQuery.sizeOf(context).width >=
+                                      Md3WindowClass.expanded
+                                  ? MediaQuery.paddingOf(context).top +
+                                        kToolbarHeight
+                                  : Md3Spacing.xl,
+                              Md3Spacing.xl,
+                              Md3Spacing.xl,
+                            ),
                             child: _overview(drama),
                           ),
                         ),
                         const VerticalDivider(width: 1),
                         Expanded(
-                          child:
-                              _controller.loading ||
-                                  _controller.error != null ||
-                                  episodes.isEmpty
-                              ? _episodeStatus()
-                              : Column(
-                                  children: [
-                                    _seriesSelector(drama),
-                                    Expanded(
-                                      child: EpisodeBrowser(
-                                        episodes: episodes,
-                                        currentNumber: watched?.episode,
-                                        onExitDown: () =>
-                                            _playFocus.requestFocus(),
-                                        onSelected: (index) => _play(index),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          child: _wideTabs(
+                            drama: drama,
+                            episodes: episodes,
+                            watchedEpisode: watched?.episode,
+                          ),
                         ),
+                      ],
+                    );
+                    if (!immersive) return panes;
+                    // 沉浸头：模糊封面铺在顶部，内容整体叠在其上。
+                    return Stack(
+                      children: [
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: CoverBackdrop(
+                            drama: drama,
+                            repository: widget.repository,
+                          ),
+                        ),
+                        panes,
                       ],
                     );
                   }
@@ -404,7 +430,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                 index,
                               ) {
                                 final episode = visible[index];
-                                return RemoteEpisodeButton(
+                                // 手机 / 桌面用带 hover 的 EpisodeButton；
+                                // 电视分支在上面已经提前返回，不会走到这里。
+                                return EpisodeButton(
                                   key: ValueKey('episode-${episode.number}'),
                                   number: episode.number,
                                   vip: episode.vip,
@@ -430,9 +458,18 @@ class _DetailScreenState extends State<DetailScreen> {
             child: Center(
               heightFactor: 1,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
+                // 与上方内容区同宽：改造前这里是硬编码 1000，而内容区
+                // 是 1200，宽窗口下两者边缘对不齐。
+                constraints: const BoxConstraints(
+                  maxWidth: Md3Spacing.wideMaxWidth,
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  padding: const EdgeInsets.fromLTRB(
+                    Md3Spacing.xl,
+                    Md3Spacing.sm,
+                    Md3Spacing.xl,
+                    Md3Spacing.md,
+                  ),
                   child: Row(
                     children: [
                       if (widget.repository.supportsDownloads &&
@@ -488,6 +525,190 @@ class _DetailScreenState extends State<DetailScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// 宽屏右栏：剧集 / 简介 / 来源 三个 Tab。
+  ///
+  /// 左栏放「这部剧是什么」（封面、标题、收藏、简介摘要），右栏放
+  /// 「能做什么」——剧集是主操作，所以默认停在剧集页。
+  Widget _wideTabs({
+    required Drama drama,
+    required List<Episode> episodes,
+    required int? watchedEpisode,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final tabs = DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          // Tab 栏占满右栏宽度、三个标签均分。
+          //
+          // 非滚动模式会按可用宽度等分，正好填满宽栏；可滚动模式按内容
+          // 宽度收缩，在 700px 右栏里只剩不到 200px 的一条。
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: colors.outlineVariant),
+              ),
+            ),
+            child: TabBar(
+              isScrollable: false,
+              dividerHeight: 0,
+              labelStyle: TextStyle(
+                fontSize: Md3Type.labelLarge,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: Md3Type.labelLarge,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: [
+                Tab(
+                  key: const ValueKey('detail-tab-episodes'),
+                  text: l10n.detailEpisodesTab,
+                ),
+                Tab(
+                  key: const ValueKey('detail-tab-overview'),
+                  text: l10n.detailOverviewTab,
+                ),
+                Tab(
+                  key: const ValueKey('detail-tab-source'),
+                  text: l10n.detailSourceTab,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _episodesPane(episodes, watchedEpisode),
+                _infoPane(drama),
+                _sourcePane(drama),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return tabs;
+  }
+
+  Widget _episodesPane(List<Episode> episodes, int? watchedEpisode) {
+    if (_controller.loading ||
+        _controller.error != null ||
+        episodes.isEmpty) {
+      return _episodeStatus();
+    }
+    return Column(
+      children: [
+        _seriesSelector(_controller.currentDrama),
+        Expanded(
+          child: EpisodeBrowser(
+            episodes: episodes,
+            currentNumber: watchedEpisode,
+            onExitDown: () => _playFocus.requestFocus(),
+            onSelected: (index) => _play(index),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 「简介」Tab：只放长文本类信息，避免和左栏重复。
+  Widget _infoPane(Drama drama) {
+    final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(Md3Spacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (drama.description.isEmpty)
+            EmptyState(
+              title: l10n.detailNoSynopsis,
+              icon: Icons.article_outlined,
+              compact: true,
+            )
+          else
+            SelectableText(
+              drama.description,
+              style: TextStyle(
+                fontSize: Md3Type.bodyLarge,
+                height: 1.7,
+                color: colors.onSurface,
+              ),
+            ),
+          if (drama.tags.isNotEmpty) ...[
+            const SizedBox(height: Md3Spacing.xl),
+            Text(
+              l10n.detailTagsTitle,
+              style: TextStyle(
+                fontSize: Md3Type.labelLarge,
+                fontWeight: FontWeight.w700,
+                color: colors.primary,
+              ),
+            ),
+            const SizedBox(height: Md3Spacing.sm),
+            Wrap(
+              spacing: Md3Spacing.sm,
+              runSpacing: Md3Spacing.sm,
+              children: [
+                for (final tag in drama.tags)
+                  Chip(label: Text(tag)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 「来源」Tab：站源与统计信息。
+  Widget _sourcePane(Drama drama) {
+    final l10n = AppLocalizations.of(context);
+    final site = SourceSite.byId(drama.source);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(Md3Spacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailInfoRow(label: l10n.detailSourceTab, value: site.name),
+          if (site.description.isNotEmpty)
+            _DetailInfoRow(label: '', value: site.description),
+          if (drama.category.isNotEmpty)
+            _DetailInfoRow(
+              label: l10n.detailCategoryLabel,
+              value: drama.category,
+            ),
+          if (drama.releaseStatus.isNotEmpty &&
+              drama.releaseStatus != 'unknown')
+            _DetailInfoRow(
+              label: l10n.detailStatusLabel,
+              value: drama.releaseLabel,
+            ),
+          if (drama.onlineDate.isNotEmpty)
+            _DetailInfoRow(
+              label: l10n.detailOnlineLabel,
+              value: drama.onlineDate,
+            ),
+          if (drama.heat.isNotEmpty)
+            _DetailInfoRow(label: l10n.detailHeatLabel, value: drama.heat),
+          if (drama.views.isNotEmpty)
+            _DetailInfoRow(label: l10n.detailViewsLabel, value: drama.views),
+          const SizedBox(height: Md3Spacing.xl),
+          if (widget.repository.supportsSourceManagement)
+            OutlinedButton.icon(
+              onPressed: () => context.push(
+                AppRoutes.sourcesOf(drama.source),
+                extra: drama,
+              ),
+              icon: const Icon(Icons.troubleshoot_rounded),
+              label: Text(l10n.sourceDiagnostics),
+            ),
+        ],
       ),
     );
   }
@@ -618,22 +839,25 @@ class _DetailScreenState extends State<DetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 92,
-              height: 138,
-              child: DramaCover(drama: drama, repository: widget.repository),
+              width: 108,
+              height: 162,
+              child: DramaCover(
+                drama: drama,
+                repository: widget.repository,
+                radius: Md3Shape.cardRadius,
+                heroTag: 'cover-${drama.id}',
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    drama.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  DetailHeadline(
+                    title: drama.title,
+                    width: MediaQuery.sizeOf(context).width,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: Md3Spacing.sm),
                   Text(
                     meta.join(' · '),
                     style: TextStyle(
@@ -892,6 +1116,48 @@ class _DetailScreenState extends State<DetailScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// 详情页「来源」Tab 的一行信息。
+class _DetailInfoRow extends StatelessWidget {
+  const _DetailInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Md3Spacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (label.isNotEmpty)
+            SizedBox(
+              width: 88,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: Md3Type.bodyMedium,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: TextStyle(
+                fontSize: Md3Type.bodyMedium,
+                color: colors.onSurface,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

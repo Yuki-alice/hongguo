@@ -142,12 +142,15 @@ void main() {
       );
       expect(find.byType(TextField), findsNothing);
       final coverTop = tester.getTopLeft(find.byType(DramaCover).first).dy;
-      expect(coverTop, lessThan(150));
+      // 折叠头 120 + 分类栏 ~52：留出余量，但绝不允许内容被推到半屏以下。
+      expect(coverTop, lessThan(240));
       final switcher = find.byKey(const ValueKey('source-switch'));
       final rankings = find.byKey(const ValueKey('open-rankings'));
+      // 大标题在 flexibleSpace 里、动作在工具栏行上，因此标题**低于**图标
+      // （Kazumi 首页就是这个层次）。两者同高说明折叠头没生效。
       expect(
         tester.getCenter(switcher).dy,
-        closeTo(tester.getCenter(rankings).dy, 2),
+        greaterThan(tester.getCenter(rankings).dy),
       );
       await tester.tap(find.byKey(const ValueKey('toggle-search')));
       await tester.pumpAndSettle();
@@ -202,6 +205,9 @@ void main() {
       expect(find.text('cloudfront · old-short'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
+    // `env`：这条要 `--dart-define=ALL_SOURCES=true` 才有意义。标成 tag
+    // 而不是只靠 skip，是因为 CI 的全量跑用 `--run-skipped`，光靠 skip 挡不住。
+    tags: 'env',
     skip: !allSourcesEnabled,
   );
 

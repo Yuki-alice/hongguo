@@ -9,6 +9,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 
 Future<void> saveUserChange(
   BuildContext context,
@@ -97,88 +98,89 @@ class DramaCover extends StatelessWidget {
     super.key,
     required this.drama,
     required this.repository,
-    this.radius = Md3Shape.medium,
+    this.radius = Md3Shape.posterRadius,
+    this.heroTag,
   });
   final Drama drama;
   final AppRepository repository;
+
+  /// 封面圆角。默认 [Md3Shape.posterRadius]，与卡片外层（`InkWell`、hover
+  /// 描边、按压 morph）同值——两者不同值时桌面悬停会看到一圈错位。
   final double radius;
+
+  /// Hero 标签。给出时封面参与转场。
+  ///
+  /// 只在**同一个 Navigator** 内的两个页面之间生效：详情页挂在根
+  /// Navigator，卡片挂在分支 Navigator，go_router 给每个 Navigator
+  /// 单独装了 `HeroControllerScope`，跨层转场不会触发。因此这里用于
+  /// 详情 → 详情（切季）与榜单 → 详情这类同层跳转。
+  final Object? heroTag;
+
   static const imagesDisabled = bool.fromEnvironment('DISABLE_REMOTE_IMAGES');
+
+  /// 转场途中保持主题与图片不闪白。
+  ///
+  /// 默认 shuttle 会把 `Image` 直接放进 overlay，丢掉 `InheritedTheme`，
+  /// 深色模式下会出现白底闪一下。
+  static Widget heroFlightShuttleBuilder(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection direction,
+    BuildContext fromContext,
+    BuildContext toContext,
+  ) {
+    final hero = direction == HeroFlightDirection.push
+        ? fromContext.widget as Hero
+        : toContext.widget as Hero;
+    final source = direction == HeroFlightDirection.push
+        ? fromContext
+        : toContext;
+    return InheritedTheme.captureAll(
+      source,
+      Material(type: MaterialType.transparency, child: hero.child),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
-    final placeholder = Container(
-      decoration: BoxDecoration(color: colors.surfaceContainerHighest),
-      child: Center(
-        child: Icon(
-          Icons.movie_creation_outlined,
-          size: 40,
-          color: colors.onSurfaceVariant,
-        ),
-      ),
+    // 封面就是一张干净的图：不叠压暗渐变、不把集数与 VIP 烧进画面里。
+    // 这些信息属于卡片文字区（见 [DramaTile]），叠在封面上会让整屏网格
+    // 变成一片「底部发黑的海报」，也把图片本身的可读性打掉。
+    //
+    // 占位是一块中性灰洗色而不是图标：图标会在每张海报未到位时闪出
+    // 一片同形图案，比纯色更吵。用 `onSurface` 叠层而不是容器色——
+    // 内容书架本身带品牌色调，容器色压在上面几乎看不出来，
+    // 海报没加载出来时整张卡片会「只剩文字」。
+    final placeholder = ColoredBox(
+      color: Md3State.layer(colors.surface, colors.onSurface, .10),
     );
-    return ClipRRect(
+    // 占位垫在底下而不是只用在加载中：取图失败时上面只剩一个重试按钮，
+    // 没有这一层的话失败的海报会「透明消失」，整张卡片只剩文字。
+    final cover = ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          placeholder,
-          if (!imagesDisabled && drama.id.isNotEmpty)
-            CachedCoverImage(
-              key: ValueKey('${drama.id}\u0000${drama.cover}'),
-              drama: drama,
-              repository: repository,
-              placeholder: placeholder,
-            ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.center,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: .78),
-                    ],
-                  ),
+      child: imagesDisabled || drama.id.isEmpty
+          ? placeholder
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                placeholder,
+                CachedCoverImage(
+                  key: ValueKey('${drama.id}\u0000${drama.cover}'),
+                  drama: drama,
+                  repository: repository,
+                  placeholder: const SizedBox.shrink(),
                 ),
-              ),
+              ],
             ),
-          ),
-          if (drama.episodes > 0)
-            Positioned(
-              left: 9,
-              bottom: 9,
-              child: Text(
-                l10n.detailTotalEpisodes(drama.episodes),
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          if (drama.vip)
-            Positioned(
-              left: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: colors.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(Md3Shape.small),
-                ),
-                child: Text(
-                  'VIP',
-                  style: TextStyle(
-                    color: colors.onTertiaryContainer,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: .5,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
+    );
+    final tag = heroTag;
+    if (tag == null) return cover;
+    return Hero(
+      tag: tag,
+      transitionOnUserGestures: true,
+      flightShuttleBuilder: heroFlightShuttleBuilder,
+      child: cover,
     );
   }
 }
@@ -330,6 +332,9 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
         File(snapshot.data!),
         fit: BoxFit.cover,
         cacheWidth: 440,
+        // 海报未解码完成时下面垫着同色占位块，因此是硬切而不是淡入：
+        // 这个 Flutter 版本已经移除了 `Image` 的 fadeDuration，
+        // 想要 120ms 淡入得自己写 frameBuilder + AnimationController。
         excludeFromSemantics: true,
         errorBuilder: (_, error, stack) => _failed(snapshot.data),
       );
@@ -355,27 +360,34 @@ class DramaTile extends StatelessWidget {
   final Drama drama;
   final AppRepository repository;
   final VoidCallback onTap;
+
+  /// 标题下方元信息行的备选文字（进度、站点名等）。
   final String? subtitle;
   final FocusNode? focusNode;
   final VoidCallback? onFocus;
+
+  /// 封面右上角的操作按钮；多选态由 [selected] 接管。
   final Widget? actions;
+
+  /// 元信息行优先使用的文字（追剧状态、更新提示）。
   final String? badge;
   final bool? selected;
   final VoidCallback? onMore;
   final VoidCallback? onLongPress;
 
-  /// 标题与副标题使用 M3 语义角色：卡片标题取 titleSmall，副标题取 bodySmall。
+  /// 标题样式：Kazumi 的卡片标题是 14px、w500、letterSpacing 0.3。
   /// 电视遥控场景放大一号，保证远距离可读。
   static TextStyle _titleStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.titleSmall;
     return (base ?? const TextStyle()).copyWith(
       fontSize: AppLayout.isTelevision(context) ? 17 : 14,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w500,
+      letterSpacing: .3,
       height: 1.3,
     );
   }
 
-  static TextStyle _subtitleStyle(BuildContext context) {
+  static TextStyle _metaStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.bodySmall;
     return (base ?? const TextStyle()).copyWith(
       fontSize: AppLayout.isTelevision(context) ? 14 : 12,
@@ -384,109 +396,147 @@ class DramaTile extends StatelessWidget {
     );
   }
 
-  static double titleHeight(BuildContext context) =>
-      MediaQuery.textScalerOf(context).scale(_titleStyle(context).fontSize!) *
-      2.6;
+  /// 标题最多显示几行。
+  ///
+  /// 文字区高度是预留的，实际行数由「可用高度 / 行高」算出来（1–3 行）：
+  /// 短标题不会在卡片下面撑出一条空白，长标题也不会溢出。Kazumi 用
+  /// `TextPainter` 量，这里直接按行高除，省掉每张卡每次布局一个 painter。
+  static const int maxTitleLines = 3;
 
-  static double subtitleHeight(BuildContext context) =>
-      MediaQuery.textScalerOf(
-        context,
-      ).scale(_subtitleStyle(context).fontSize!) *
-      1.3;
+  /// 大字号下标题最多放大到 1.1 倍（Kazumi 同值）。
+  ///
+  /// 网格的列宽与行高不随字号变，放到 1.3 倍时标题会把海报挤没。
+  static const double maxTitleScale = 1.1;
 
-  static double extentFor(BuildContext context, double width) =>
-      (width * 1.5 + 13 + titleHeight(context) + subtitleHeight(context))
+  /// 元信息行高度：一行。只有传了 [subtitle] / [badge] 的页面才预留它。
+  static double metaHeight(BuildContext context) {
+    final style = _metaStyle(context);
+    final line =
+        MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+        (style.height ?? 1.3);
+    return line + 2;
+  }
+
+  /// 卡片总高 = 海报（宽 / [Md3Grid.posterRatio]）+ 文字区
+  /// （[Md3Grid.textReserve]，随字号缩放）+ 可选的一行元信息。
+  ///
+  /// [width] 必须是卡片**实际**会被摆成的宽度（见 [Md3Grid.tileWidth]），
+  /// 两者不一致时行高会差出几个像素。网格、电视遥控列表、首屏骨架屏
+  /// 都从这里取行高，三者必须给同一个 `withMeta`。
+  static double extentFor(
+    BuildContext context,
+    double width, {
+    bool withMeta = false,
+  }) =>
+      (width / Md3Grid.posterRatio +
+              MediaQuery.textScalerOf(context).scale(Md3Grid.textReserve) +
+              (withMeta ? metaHeight(context) : 0))
           .ceilToDouble();
+
+  /// 元信息行的文字。目录页两个都不传，因此那里与 Kazumi 一样只有海报和标题。
+  String? _metaText() {
+    final label = badge;
+    if (label != null && label.isNotEmpty) return label;
+    // 与分类重复的副标题不占行：分类在筛选条里已经给过了。
+    final extra = subtitle;
+    if (extra != null && extra.isNotEmpty && extra != drama.category) {
+      return extra;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final television = AppLayout.isTelevision(context);
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: 2 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              DramaCover(drama: drama, repository: repository),
-              if (badge != null && badge!.isNotEmpty)
-                Positioned(
-                  left: 6,
-                  right: 6,
-                  bottom: 6,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: .72),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        badge!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+    final colors = Theme.of(context).colorScheme;
+    final meta = _metaText();
+    // Kazumi 的卡片就是 `Card(elevation: 0, margin: 0)`：一张海报加标题，
+    // 无阴影、无叠字，层级全靠 surfaceContainerLow 与内容书架底色的明度差。
+    final content = Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: Md3Shape.poster),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AspectRatio(
+            aspectRatio: Md3Grid.posterRatio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                DramaCover(drama: drama, repository: repository),
+                // 封面上只留必要的东西：VIP 标记（关系到能不能播）与
+                // 交互件（多选勾选、「更多」）。集数 / 更新状态这类信息
+                // 一律走标题下方的元信息行，海报不再被压暗。
+                if (drama.vip) const Positioned(left: 6, top: 6, child: _VipChip()),
+                if (actions != null && selected == null)
+                  Positioned(top: 4, right: 4, child: actions!),
+                if (selected != null)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: selected!
+                          ? colors.primary
+                          : Colors.black.withValues(alpha: .64),
+                      child: Icon(
+                        selected!
+                            ? Icons.check_rounded
+                            : Icons.circle_outlined,
+                        size: 22,
+                        color: selected! ? colors.onPrimary : Colors.white,
                       ),
                     ),
                   ),
-                ),
-              if (actions != null && selected == null)
-                Positioned(top: 2, right: 2, child: actions!),
-              if (selected != null)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: selected!
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.black.withValues(alpha: .64),
-                    child: Icon(
-                      selected! ? Icons.check_rounded : Icons.circle_outlined,
-                      size: 22,
-                      color: selected!
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Colors.white,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 9),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: SizedBox(
-            height: titleHeight(context),
-            child: Text(
-              drama.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: _titleStyle(context),
+              ],
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: SizedBox(
-            height: subtitleHeight(context),
-            child: Text(
-              subtitle ?? drama.category,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _subtitleStyle(context),
+          // 文字区只有预留的 [Md3Grid.textReserve] 高，标题在里面按可用
+          // 高度算行数（1–3 行），因此短标题不撑空白、长标题不溢出。
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(5, 3, 5, 1),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final style = _titleStyle(context);
+                  final scaler = MediaQuery.textScalerOf(
+                    context,
+                  ).clamp(maxScaleFactor: maxTitleScale);
+                  final line =
+                      scaler.scale(style.fontSize!) * (style.height ?? 1.3);
+                  final lines = constraints.maxHeight <= 0
+                      ? 1
+                      : (constraints.maxHeight / line).floor().clamp(
+                          1,
+                          maxTitleLines,
+                        );
+                  return Text(
+                    drama.title,
+                    maxLines: lines,
+                    overflow: TextOverflow.ellipsis,
+                    textScaler: scaler,
+                    style: style,
+                  );
+                },
+              ),
             ),
           ),
-        ),
-      ],
+          if (meta != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(5, 0, 5, 3),
+              child: SizedBox(
+                height: metaHeight(context),
+                child: Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _metaStyle(context),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
     if (television) {
       return CallbackShortcuts(
@@ -501,24 +551,149 @@ class DramaTile extends StatelessWidget {
           label: AppLocalizations.of(context).dramaSemantic(
             drama.title,
             drama.episodes,
-            badge == null ? '' : '，$badge',
+            meta == null ? '' : '，$meta',
           ),
           child: content,
         ),
       );
     }
+    return _HoverTile(
+      onTap: onTap,
+      onLongPress: onLongPress ?? onMore,
+      onSecondaryTap: onMore,
+      selected: selected ?? false,
+      // 元信息行不再叠在封面上，因此朗读内容要显式带上它，否则屏幕
+      // 阅读器只能读到标题。
+      semanticLabel: AppLocalizations.of(context).dramaSemantic(
+        drama.title,
+        drama.episodes,
+        meta == null ? '' : '，$meta',
+      ),
+      child: content,
+    );
+  }
+}
+
+/// 海报左上角的 VIP 标记。
+///
+/// Kazumi 的卡片没有任何叠字，这里是一处**刻意偏离**：VIP 决定「能不能播、
+/// 要不要下载试看」，藏进标题行会让人在网格里挑完才发现。
+class _VipChip extends StatelessWidget {
+  const _VipChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer,
+        borderRadius: Md3Shape.chip,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        child: Text(
+          'VIP',
+          style: TextStyle(
+            fontSize: Md3Type.labelSmall,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .3,
+            color: colors.onTertiaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 桌面端卡片的 hover / focus 反馈。
+///
+/// 三件事：
+/// - 鼠标悬停时封面轻微放大并加一圈描边，提示「这是可点的」；
+/// - 键盘 Tab 聚焦时用 2px 主色环，与电视模式的 3px 环区分；
+/// - 按压缩放 0.98，给点击一个物理感。
+///
+/// 全部受 `MediaQuery.disableAnimationsOf` 控制。
+class _HoverTile extends StatefulWidget {
+  const _HoverTile({
+    required this.child,
+    required this.selected,
+    required this.semanticLabel,
+    this.onTap,
+    this.onLongPress,
+    this.onSecondaryTap,
+  });
+
+  final Widget child;
+  final bool selected;
+  final String semanticLabel;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onSecondaryTap;
+
+  @override
+  State<_HoverTile> createState() => _HoverTileState();
+}
+
+class _HoverTileState extends State<_HoverTile> {
+  bool _hovered = false;
+  bool _focused = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final duration = Md3Motion.of(context, Md3Motion.shape);
+    final borderColor = _focused
+        ? colors.primary
+        : _hovered
+        ? colors.outline
+        : Colors.transparent;
+    final scale = _pressed ? .98 : 1.0;
     return Semantics(
       button: true,
-      selected: selected,
-      label: AppLocalizations.of(
-        context,
-      ).dramaSemantic(drama.title, drama.episodes, ''),
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress ?? onMore,
-        onSecondaryTap: onMore,
-        borderRadius: Md3Shape.card,
-        child: content,
+      selected: widget.selected,
+      label: widget.semanticLabel,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() {
+          _hovered = false;
+          _pressed = false;
+        }),
+        child: FocusableActionDetector(
+          onShowFocusHighlight: (value) => setState(() => _focused = value),
+          child: Listener(
+            onPointerDown: (_) => setState(() => _pressed = true),
+            onPointerUp: (_) => setState(() => _pressed = false),
+            onPointerCancel: (_) => setState(() => _pressed = false),
+            child: GestureDetector(
+              onSecondaryTap: widget.onSecondaryTap,
+              child: InkWell(
+                onTap: widget.onTap,
+                onLongPress: widget.onLongPress,
+                borderRadius: Md3Shape.poster,
+                hoverColor: colors.onSurface.withValues(alpha: Md3State.hover),
+                child: AnimatedScale(
+                  scale: scale,
+                  duration: duration,
+                  curve: Md3Motion.standardCurve,
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: Md3Motion.standardCurve,
+                    decoration: BoxDecoration(
+                      borderRadius: Md3Shape.poster,
+                      border: Border.all(
+                        color: borderColor,
+                        width: _focused ? 2 : 1,
+                      ),
+                    ),
+                    child: widget.child,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -541,57 +716,69 @@ class StatusPanel extends StatelessWidget {
   final String? action;
   final Widget? secondaryAction;
   @override
-  Widget build(BuildContext context) => Center(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 56, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          if (message.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          if (onRetry != null) ...[
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              autofocus: AppLayout.isTelevision(context),
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(action ?? AppLocalizations.of(context).retry),
-            ),
-          ],
-          if (secondaryAction != null) ...[
-            const SizedBox(height: 8),
-            secondaryAction!,
-          ],
-        ],
-      ),
+  Widget build(BuildContext context) => EmptyState(
+    title: title,
+    message: message,
+    icon: icon,
+    actions: [
+      if (onRetry != null)
+        FilledButton.icon(
+          autofocus: AppLayout.isTelevision(context),
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(action ?? AppLocalizations.of(context).retry),
+        ),
+      ?secondaryAction,
+    ],
+  );
+}
+
+/// 海报网格的 delegate：列数、间距与行高全部来自 [Md3Grid] 与
+/// [DramaTile.extentFor]，页面不要再自己算列数。
+///
+/// [width] 应当是**已扣除页面留白**的内容宽度（见
+/// [Md3Spacing.contentInset]）；首屏骨架用同一组值算占位，
+/// 数据到位时才不会跳版。
+SliverGridDelegate dramaGridDelegate(
+  BuildContext context,
+  double width, {
+  bool withMeta = false,
+}) {
+  final columns = Md3Grid.columns(width);
+  return SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: columns,
+    mainAxisSpacing: Md3Grid.rowSpacing,
+    crossAxisSpacing: Md3Grid.spacing,
+    mainAxisExtent: DramaTile.extentFor(
+      context,
+      Md3Grid.tileWidth(width, columns),
+      withMeta: withMeta,
     ),
   );
 }
 
-SliverGridDelegate dramaGridDelegate(BuildContext context, double width) {
-  final columns = width < 600 ? 3 : (width / 180).floor().clamp(4, 9);
-  final spacing = width < 600 ? 10.0 : 18.0;
-  final tileWidth = (width - (columns - 1) * spacing) / columns;
-  return SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: columns,
-    mainAxisSpacing: 22,
-    crossAxisSpacing: spacing,
-    mainAxisExtent: DramaTile.extentFor(context, tileWidth),
+/// 电视遥控网格的列数与行高。
+///
+/// 推算与桌面网格同源（[Md3Grid]），差别只在列数封顶 8：遥控焦点左右移动
+/// 的路径必须短，宁可卡片大一些。[width] 是 `RemoteGrid` 的可用宽度，
+/// 内部会扣掉它左右各 18 的内边距；返回的 `itemExtent` 已含一行间距，
+/// 与 `RemoteGrid.spacing` 一起使用。
+({int columns, double itemExtent}) remoteGridLayout(
+  BuildContext context,
+  double width, {
+  bool withMeta = false,
+}) {
+  const inset = 36.0;
+  final columns = Md3Grid.columns(width - inset, min: 1, max: 8);
+  return (
+    columns: columns,
+    itemExtent:
+        DramaTile.extentFor(
+          context,
+          Md3Grid.tileWidth(width - inset, columns),
+          withMeta: withMeta,
+        ) +
+        Md3Grid.spacing,
   );
 }
 

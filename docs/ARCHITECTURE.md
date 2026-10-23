@@ -1,6 +1,7 @@
 # 星（hoshi）架构
 
-> 更新：2026-10-23 · 依据当前代码核实（Core-0～4 全部完成，Go 与 LAN 已物理删除）
+> 更新：2026-10-23 · 依据当前代码核实（Core-0～4 全部完成，Go 与 LAN 已物理删除；
+> 前端完成外壳与桌面布局重构，见 `docs/UI.md`）
 > 本文是唯一权威设计文档。历史设计过程见 `docs/PROGRESS.md`，性能数据见 `docs/PERFORMANCE.md`。
 
 ## 0. 一句话
@@ -131,11 +132,24 @@ lib/
     media/ playback/ video_enhancement/ background_downloads.dart ...
   domain/              纯模型（Drama / RankingBoard / 偏好 / 备份格式）
   ui/
+    shell/             外壳：AppShell / 侧栏 / 窗口 chrome / 托盘 / 窗口状态
     features/<name>/   views / controllers / widgets
     core/ providers/ routing/ theme/
   src/rust/            FRB 生成绑定（勿手改，`ioDirectory` 一处手改）
   l10n/                ARB 模板与生成代码
 ```
+
+**导航结构**：`StatefulShellRoute.indexedStack` 下挂 5 个分支
+（发现 / 追剧 / 历史 / 下载 / 设置），每个分支有独立 Navigator，
+切分支保留滚动与筛选；详情、播放、选集等沉浸页挂在根 Navigator 上。
+导航形态按窗口宽度三选一：<840 底部导航、840–1000 图标轨、
+≥1000 常驻侧栏。电视模式走独立分支，不受宽度体系影响。
+
+**桌面专属**：自绘标题栏（macOS 隐藏系统标题栏 + 红绿灯避让，
+Windows 自绘按钮）、可拖拽标题区、窗口尺寸与位置记忆（含离屏钳制）、
+关闭行为三态（退出 / 最小化到托盘 / 每次询问）、系统托盘。
+
+设计规范与测试约定见 `docs/UI.md`。
 
 **能力矩阵是唯一真相**：`EngineBackedRepository.capabilities` 的当前值：
 

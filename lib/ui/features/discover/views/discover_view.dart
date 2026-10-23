@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 
 import 'package:hoshi/ui/core/app_bottom_navigation.dart';
@@ -15,6 +17,7 @@ import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/home/widgets/saved_library.dart';
 import 'package:hoshi/ui/core/vip_icon.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/skeleton.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
 import 'package:hoshi/ui/features/discover/widgets/catalog_search_header.dart';
@@ -66,6 +69,7 @@ class DiscoverView extends StatefulWidget {
     required this.onCancelSuggestions,
     required this.updatesBusy,
     this.cacheReadError,
+    this.shell = false,
   });
 
   final CatalogController controller;
@@ -111,6 +115,12 @@ class DiscoverView extends StatefulWidget {
   /// 缓存回读失败时的提示，非空时覆盖目录自身错误。
   final String? cacheReadError;
 
+  /// 是否由 `AppShell` 提供导航。
+  ///
+  /// 为真时本页不再渲染侧栏 / 底部导航，只保留 AppBar 与内容区；
+  /// 电视模式忽略此开关，继续使用自己的遥控导航列表。
+  final bool shell;
+
   @override
   State<DiscoverView> createState() => _DiscoverViewState();
 }
@@ -136,6 +146,25 @@ class _DiscoverViewState extends State<DiscoverView> {
       final television = AppLayout.isTelevision(context);
       final width = constraints.maxWidth;
       final desktop = Md3WindowClass.usesRail(width);
+      // 外壳模式：导航由 AppShell 提供，本页只渲染内容与 AppBar。
+      // 电视模式永远走自己的遥控导航，不交给外壳。
+      if (widget.shell && !television) {
+        // 目录页的顶栏是**滚动视图的一部分**（Kazumi 的折叠大标题），
+        // 因此这条分支不往 `Scaffold.appBar` 里放东西——`AppBar` 是固定
+        // 高度、不参与 stretch 的。
+        final header = _usesHeaderSliver;
+        // 内层背景透明：外壳的 `ContentShelf` 负责底色与左侧圆角，
+        // 这里再画一层不透明背景会把圆角盖掉。
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: header ? null : _appBar(context, width, television),
+          body: _body(desktop, television),
+          bottomNavigationBar: widget.selectionMode ? _selectionBar() : null,
+          floatingActionButton: header && !widget.selectionMode
+              ? _scrollToTop()
+              : null,
+        );
+      }
       return Scaffold(
         appBar: _appBar(context, width, television),
         body: Row(
@@ -260,52 +289,294 @@ class _DiscoverViewState extends State<DiscoverView> {
     );
   }
 
-  Widget _catalog({required bool selectionInBody}) {
+  /// 目录页是否走「折叠大标题」形态（Kazumi 首页）。
+  ///
+  /// 推荐位自带一整套 Scaffold + AppBar + 分类栏，塞进同一个滚动视图会
+  /// 出现两条标题栏，因此它保持原来的 Column 形态。
+  bool get _usesHeaderSliver =>
+      widget.shell &&
+      !AppLayout.isTelevision(context) &&
+      widget.tabIndex == 0 &&
+      !controller.showRecommendations;
+
+  /// 折叠头的高度与标题字号区间，照抄 Kazumi `buildSliverAppBar`。
+  static const double headerHeight = 120;
+  static const double titleExpanded = 28;
+  static const double titleCollapsed = 20;
+
+  /// Kazumi 首页形态：顶栏、分类栏、网格在**同一个** `CustomScrollView` 里，
+  /// 于是标题能随滚动从 28/w700 收缩成 20/w500，分类栏跟着内容一起滚走。
+  Widget _catalogScroll() {
+    return RefreshIndicator(
+      onRefresh: widget.onRefreshCatalog,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final padding = Md3Spacing.contentInset(
+            constraints.maxWidth,
+            maxWidth: Md3Spacing.wideMaxWidth,
+          );
+          return CustomScrollView(
+            controller: widget.scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              _headerSliver(context, constraints.maxWidth),
+              if (controller.searchVisible)
+                SliverToBoxAdapter(child: _searchHeader()),
+              SliverToBoxAdapter(child: _filtersRow()),
+              if (controller.loading && controller.items.isNotEmpty)
+                SliverToBoxAdapter(child: _loadBar()),
+              ..._catalogSlivers(
+                controller.visibleItems,
+                constraints.maxWidth - 2 * padding,
+                padding,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 折叠大标题。标题位置就是站源切换器（Kazumi 那里是分类下拉），
+  /// 左右留白与下面的网格取同一个 `contentInset`，首列与标题对齐。
+  Widget _headerSliver(BuildContext context, double width) {
     final l10n = AppLocalizations.of(context);
+    return SliverAppBar(
+      pinned: true,
+      stretch: true,
+      expandedHeight: headerHeight,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleSpacing: 0,
+      centerTitle: false,
+      backgroundColor: Colors.transparent,
+      actions: widget.selectionMode
+          ? _selectionActions(l10n)
+          : [..._catalogActions(l10n, width), ..._moreActions(l10n)],
+      title: widget.selectionMode
+          ? Text(
+              l10n.selectDrama,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : null,
+      flexibleSpace: SafeArea(
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxExtent =
+                headerHeight - MediaQuery.paddingOf(context).top;
+            // t = 0 完全展开，t = 1 收到工具栏高度。
+            final t =
+                1 -
+                ((constraints.maxHeight - kToolbarHeight) /
+                        (maxExtent - kToolbarHeight))
+                    .clamp(0.0, 1.0);
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: Md3Spacing.contentInset(
+                    constraints.maxWidth,
+                    maxWidth: Md3Spacing.wideMaxWidth,
+                  ),
+                  right: 60,
+                  top: Md3Spacing.sm,
+                  bottom: Md3Spacing.sm,
+                ),
+                child: SizedBox(
+                  height: 44,
+                  child: widget.selectionMode
+                      ? const SizedBox.shrink()
+                      : _sourceSwitcher(
+                          context,
+                          fontSize: lerpDouble(titleExpanded, titleCollapsed, t)!,
+                          bold: t < .5,
+                        ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// 分页进度条：4px、淡入淡出，而不是转圈（Kazumi `popular_page.dart`）。
+  Widget _loadBar() => AnimatedOpacity(
+    opacity: controller.loading || controller.loadingMore ? 1 : 0,
+    duration: Md3Motion.standard,
+    child: const LinearProgressIndicator(minHeight: 4),
+  );
+
+  Widget _searchHeader() => CatalogSearchHeader(
+    groupId: controller.group.id,
+    controller: widget.searchController,
+    hint: controller.searchHint,
+    recentSearches: store.recentSearches,
+    suggestions: controller.searchSuggestions
+        ? controller.repository.suggestions
+        : null,
+    onChanged: widget.onSearchChanged,
+    onSearch: widget.onSubmitSearch,
+    onClearRecent: widget.onClearRecentSearches,
+    onCancelSuggestions: widget.onCancelSuggestions,
+  );
+
+  Widget _filtersRow() {
+    final l10n = AppLocalizations.of(context);
+    final television = AppLayout.isTelevision(context);
+    return CatalogFilters(
+      key: ValueKey('filters-${controller.group.id}'),
+      categories: controller.displayCategories,
+      category: controller.displayCategory,
+      error: controller.categoriesError,
+      remoteKey: widget.filtersKey,
+      onExitUp: television && widget.selectionMode
+          ? () => widget.appBarFocus.requestFocus()
+          : null,
+      onExitDown: television
+          ? () => widget.gridKey.currentState?.focusCurrent()
+          : null,
+      onCategory: widget.onChangeCategory,
+      onRetry: widget.onRetryCatalog,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (controller.supportsVipFilter)
+            IconButton(
+              tooltip: store.hideVip ? l10n.vipHide : l10n.vipShow,
+              onPressed: widget.onToggleVip,
+              icon: VipIcon(hidden: store.hideVip),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 回顶按钮。长列表在桌面端只有滚轮和滚动条，缺一个「回到开头」。
+  Widget _scrollToTop() => FloatingActionButton(
+    key: const ValueKey('catalog-scroll-top'),
+    heroTag: null,
+    elevation: 0,
+    onPressed: () {
+      if (!widget.scrollController.hasClients) return;
+      widget.scrollController.animateTo(
+        0,
+        duration: Md3Motion.standardDecelerate,
+        curve: Curves.easeOut,
+      );
+    },
+    child: const Icon(Icons.arrow_upward_rounded),
+  );
+
+  /// 目录内容区的 slivers：骨架 / 错误 / 空态 / 网格 + 分页尾部。
+  ///
+  /// [contentWidth] 与 [padding] 由调用方按同一个 `contentInset` 算出来，
+  /// 骨架屏与真实网格因此列数、行高完全一致。
+  List<Widget> _catalogSlivers(
+    List<Drama> items,
+    double contentWidth,
+    double padding,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    if (controller.loading && controller.items.isEmpty) {
+      final columns = Md3Grid.columns(contentWidth);
+      return [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(padding, 0, padding, Md3Spacing.lg),
+          sliver: SliverToBoxAdapter(
+            child: SkeletonGrid(
+              columns: columns,
+              tileExtent: DramaTile.extentFor(
+                context,
+                Md3Grid.tileWidth(contentWidth, columns),
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+    if (controller.items.isEmpty && controller.error != null) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: StatusPanel(
+            title: l10n.loadFailed,
+            message: controller.error!,
+            onRetry: widget.onRetryCatalog,
+            secondaryAction: controller.repository.supportsSourceManagement
+                ? TextButton(
+                    onPressed: widget.onManageSources,
+                    child: Text(l10n.sourceDiagnostics),
+                  )
+                : null,
+            icon: Icons.wifi_off_rounded,
+          ),
+        ),
+      ];
+    }
+    if (items.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: StatusPanel(
+            title: l10n.noMatchingDramas,
+            message: controller.hideVip
+                ? l10n.searchEmptyHint
+                : store.sources.length > 1
+                ? l10n.sourceEmptyHint
+                : l10n.errorEmptyHint,
+            onRetry: controller.canLoadMore ? widget.onLoadMore : null,
+            action: l10n.loadMore,
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(padding, 0, padding, Md3Spacing.lg),
+        sliver: SliverGrid(
+          gridDelegate: dramaGridDelegate(context, contentWidth),
+          delegate: SliverChildBuilderDelegate(
+            (_, index) => _tile(items[index]),
+            childCount: items.length,
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: Md3Spacing.xl),
+          child: Center(
+            child: controller.loadingMore
+                ? const CircularProgressIndicator()
+                : controller.hasMore
+                ? OutlinedButton.icon(
+                    onPressed: widget.onLoadMore,
+                    icon: const Icon(Icons.expand_more_rounded),
+                    label: Text(l10n.loadMore),
+                  )
+                : Text(
+                    l10n.allCaughtUp,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: Md3Type.bodySmall,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _catalog({required bool selectionInBody}) {
+    if (_usesHeaderSliver) return _catalogScroll();
     final items = controller.visibleItems;
     final television = AppLayout.isTelevision(context);
     return Column(
       children: [
-        if (controller.searchVisible && !television)
-          CatalogSearchHeader(
-            groupId: controller.group.id,
-            controller: widget.searchController,
-            hint: controller.searchHint,
-            recentSearches: store.recentSearches,
-            suggestions: controller.searchSuggestions
-                ? controller.repository.suggestions
-                : null,
-            onChanged: widget.onSearchChanged,
-            onSearch: widget.onSubmitSearch,
-            onClearRecent: widget.onClearRecentSearches,
-            onCancelSuggestions: widget.onCancelSuggestions,
-          ),
-        CatalogFilters(
-          key: ValueKey('filters-${controller.group.id}'),
-          categories: controller.displayCategories,
-          category: controller.displayCategory,
-          error: controller.categoriesError,
-          remoteKey: widget.filtersKey,
-          onExitUp: television && widget.selectionMode
-              ? () => widget.appBarFocus.requestFocus()
-              : null,
-          onExitDown: television
-              ? () => widget.gridKey.currentState?.focusCurrent()
-              : null,
-          onCategory: widget.onChangeCategory,
-          onRetry: widget.onRetryCatalog,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (controller.supportsVipFilter)
-                IconButton(
-                  tooltip: store.hideVip ? l10n.vipHide : l10n.vipShow,
-                  onPressed: widget.onToggleVip,
-                  icon: VipIcon(hidden: store.hideVip),
-                ),
-            ],
-          ),
-        ),
+        if (controller.searchVisible && !television) _searchHeader(),
+        _filtersRow(),
         if (controller.showRecommendations)
           Expanded(
             child: GestureDetector(
@@ -326,8 +597,7 @@ class _DiscoverViewState extends State<DiscoverView> {
             ),
           )
         else ...[
-          if (controller.loading && controller.items.isNotEmpty)
-            const LinearProgressIndicator(minHeight: 2),
+          if (controller.loading && controller.items.isNotEmpty) _loadBar(),
           Expanded(
             child: GestureDetector(
               onHorizontalDragEnd: television
@@ -349,119 +619,47 @@ class _DiscoverViewState extends State<DiscoverView> {
 
   Widget _catalogBody(List<Drama> items, bool television) {
     final l10n = AppLocalizations.of(context);
-    if (controller.loading && controller.items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: Md3Spacing.lg),
-            Text(l10n.loadingDramas),
-          ],
+    if (television) {
+      return LayoutBuilder(
+        builder: (context, constraints) => _televisionGrid(
+          items,
+          constraints.maxWidth,
+          controller: widget.scrollController,
+          footer: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, Md3Spacing.xl),
+            child: Center(
+              child: controller.loadingMore
+                  ? const CircularProgressIndicator()
+                  : controller.hasMore
+                  ? RemoteButton(
+                      label: l10n.loadMore,
+                      icon: Icons.expand_more,
+                      onPressed: widget.onLoadMore,
+                    )
+                  : Text(l10n.allCaughtUp),
+            ),
+          ),
         ),
       );
     }
-    if (controller.items.isEmpty && controller.error != null) {
-      return StatusPanel(
-        title: l10n.loadFailed,
-        message: controller.error!,
-        onRetry: widget.onRetryCatalog,
-        secondaryAction: controller.repository.supportsSourceManagement
-            ? TextButton(
-                onPressed: widget.onManageSources,
-                child: Text(l10n.sourceDiagnostics),
-              )
-            : null,
-        icon: Icons.wifi_off_rounded,
-      );
-    }
-    if (items.isEmpty) {
-      return StatusPanel(
-        title: l10n.noMatchingDramas,
-        message: controller.hideVip
-            ? l10n.searchEmptyHint
-            : store.sources.length > 1
-            ? l10n.sourceEmptyHint
-            : l10n.errorEmptyHint,
-        onRetry: controller.canLoadMore ? widget.onLoadMore : null,
-        action: l10n.loadMore,
-      );
-    }
+    // 内容宽度上限：网格不随窗口无限铺开。留白同时承担居中职责，
+    // 因此不需要额外的 ConstrainedBox 层级。
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (television) {
-          return _televisionGrid(
-            items,
-            constraints.maxWidth,
-            controller: widget.scrollController,
-            footer: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, Md3Spacing.xl),
-              child: Center(
-                child: controller.loadingMore
-                    ? const CircularProgressIndicator()
-                    : controller.hasMore
-                    ? RemoteButton(
-                        label: l10n.loadMore,
-                        icon: Icons.expand_more,
-                        onPressed: widget.onLoadMore,
-                      )
-                    : Text(l10n.allCaughtUp),
-              ),
-            ),
-          );
-        }
-        final padding = constraints.maxWidth < 600
-            ? Md3Spacing.lg
-            : Md3Spacing.xl;
+        final padding = Md3Spacing.contentInset(
+          constraints.maxWidth,
+          maxWidth: Md3Spacing.wideMaxWidth,
+        );
         return RefreshIndicator(
           onRefresh: widget.onRefreshCatalog,
           child: CustomScrollView(
             controller: widget.scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  padding,
-                  0,
-                  padding,
-                  Md3Spacing.lg,
-                ),
-                sliver: SliverGrid(
-                  gridDelegate: dramaGridDelegate(
-                    context,
-                    constraints.maxWidth - 2 * padding,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (_, index) => _tile(items[index]),
-                    childCount: items.length,
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: Md3Spacing.xl),
-                  child: Center(
-                    child: controller.loadingMore
-                        ? const CircularProgressIndicator()
-                        : controller.hasMore
-                        ? OutlinedButton.icon(
-                            onPressed: widget.onLoadMore,
-                            icon: const Icon(Icons.expand_more_rounded),
-                            label: Text(l10n.loadMore),
-                          )
-                        : Text(
-                            l10n.allCaughtUp,
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
+            slivers: _catalogSlivers(
+              items,
+              constraints.maxWidth - 2 * padding,
+              padding,
+            ),
           ),
         );
       },
@@ -469,9 +667,10 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   Widget _tile(Drama drama, {FocusNode? focusNode, VoidCallback? onFocus}) {
-    final following = store.following(drama.id);
     final canSelect =
         store.canDownload && controller.repository.supportsDownloads;
+    // 目录页的卡片与 Kazumi 同形：只有海报和标题。追剧状态属于「追剧」页，
+    // 塞进目录网格会让每张卡多一行灰字、密度掉一档。
     return DramaTile(
       key: ValueKey(drama.id),
       drama: drama,
@@ -490,9 +689,6 @@ class _DiscoverViewState extends State<DiscoverView> {
       selected: widget.selectionMode
           ? widget.selectedDramas.containsKey(drama.id)
           : null,
-      badge: following == null
-          ? null
-          : '${following.status.label}${following.hasUpdates ? ' · ${following.updateLabel}' : ''}',
     );
   }
 
@@ -510,13 +706,13 @@ class _DiscoverViewState extends State<DiscoverView> {
     ScrollController? controller,
     Widget? footer,
   }) {
-    final columns = ((width - 36) / 150).floor().clamp(1, 8);
-    final tileWidth = (width - 36 - (columns - 1) * 14) / columns;
+    final grid = remoteGridLayout(context, width);
     return RemoteGrid(
       key: widget.gridKey,
       itemKeys: items.map((item) => item.id).toList(),
-      columns: columns,
-      itemExtent: DramaTile.extentFor(context, tileWidth - 14) + 14,
+      columns: grid.columns,
+      spacing: Md3Grid.spacing,
+      itemExtent: grid.itemExtent,
       controller: controller,
       footer: footer,
       padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
@@ -530,9 +726,100 @@ class _DiscoverViewState extends State<DiscoverView> {
     );
   }
 
+  /// 多选态的动作。`appBarFocus` 是遥控与 Tab 顺序的入口，不能改名。
+  List<Widget> _selectionActions(AppLocalizations l10n) => [
+    TextButton(
+      key: const ValueKey('clear-catalog-selection'),
+      onPressed: widget.selectedDramas.isEmpty
+          ? null
+          : widget.onClearSelection,
+      child: Text(l10n.clear),
+    ),
+    TextButton(
+      key: const ValueKey('cancel-catalog-selection'),
+      focusNode: widget.appBarFocus,
+      onPressed: widget.onCancelSelection,
+      child: Text(l10n.cancel),
+    ),
+  ];
+
+  /// 目录页（tab 0）的动作区。
+  ///
+  /// Kazumi 首页只有 1–3 个图标，这里保留 5 个：排序、榜单、多选、搜索、
+  /// 刷新都是真实入口，收进溢出菜单会让 4 个测试与鼠标用户一起找不到路。
+  List<Widget> _catalogActions(AppLocalizations l10n, double width) {
+    final colors = Theme.of(context).colorScheme;
+    return [
+      if (!controller.showRecommendations)
+        IconButton(
+          tooltip: l10n.sortAndFilter(
+            catalogSortLabel(store.catalogView.sort, l10n),
+          ),
+          onPressed: widget.onChooseCatalogView,
+          color:
+              store.catalogView.sort != CatalogSort.source ||
+                  store.catalogView.release.isNotEmpty
+              ? colors.primary
+              : null,
+          icon: const Icon(Icons.sort_rounded),
+        ),
+      IconButton(
+        key: const ValueKey('open-rankings'),
+        tooltip: l10n.rankingsTitle,
+        onPressed: store.sources.isEmpty ? null : widget.onOpenRankings,
+        icon: const Icon(Icons.leaderboard_outlined),
+      ),
+      if (!controller.showRecommendations &&
+          store.canDownload &&
+          controller.repository.supportsDownloads)
+        IconButton(
+          key: const ValueKey('select-catalog-dramas'),
+          tooltip: l10n.multiDownload,
+          onPressed: widget.onEnterSelectionMode,
+          icon: const Icon(Icons.checklist_rounded),
+        ),
+      IconButton(
+        key: const ValueKey('toggle-search'),
+        tooltip: controller.searchVisible ? l10n.closeSearch : l10n.search,
+        icon: Icon(
+          controller.searchVisible
+              ? Icons.search_off_rounded
+              : Icons.search_rounded,
+        ),
+        onPressed: widget.onToggleSearch,
+      ),
+      if (!controller.showRecommendations && width >= 400)
+        RefreshAction(
+          key: const ValueKey('catalog-refresh'),
+          loading:
+              controller.loading ||
+              controller.loadingMore ||
+              controller.categoriesLoading ||
+              widget.updatesBusy,
+          tooltip: l10n.refreshLibrary,
+          onPressed: store.sources.isEmpty ? null : widget.onRefreshCatalog,
+        ),
+    ];
+  }
+
+  /// 「更多」菜单：所有页面常驻，条目本身不承载布局职责。
+  List<Widget> _moreActions(AppLocalizations l10n) => [
+    PopupMenuButton<String>(
+      tooltip: l10n.more,
+      onSelected: widget.onMoreMenu,
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'update', child: Text(l10n.refreshLibrary)),
+        PopupMenuItem(value: 'sources', child: Text(l10n.sourceManagement)),
+        PopupMenuItem(value: 'settings', child: Text(l10n.settingsTitle)),
+        PopupMenuItem(value: 'users', child: Text(l10n.userManagement)),
+        PopupMenuItem(value: 'display', child: Text(l10n.displayMode)),
+        PopupMenuItem(value: 'about', child: Text(l10n.about)),
+      ],
+    ),
+  ];
+
   AppBar _appBar(BuildContext context, double width, bool television) {
     final l10n = AppLocalizations.of(context);
-    final colors = Theme.of(context).colorScheme;
     return AppBar(
       toolbarHeight: television ? 64 : null,
       titleSpacing: Md3Spacing.md,
@@ -540,99 +827,25 @@ class _DiscoverViewState extends State<DiscoverView> {
           ? Text(l10n.selectDrama, maxLines: 1, overflow: TextOverflow.ellipsis)
           : widget.tabIndex != 0
           ? const Text(appName)
-          : _sourceSwitcher(context),
-      actions: [
-        if (widget.selectionMode) ...[
-          TextButton(
-            key: const ValueKey('clear-catalog-selection'),
-            onPressed: widget.selectedDramas.isEmpty
-                ? null
-                : widget.onClearSelection,
-            child: Text(l10n.clear),
-          ),
-          TextButton(
-            key: const ValueKey('cancel-catalog-selection'),
-            focusNode: widget.appBarFocus,
-            onPressed: widget.onCancelSelection,
-            child: Text(l10n.cancel),
-          ),
-        ] else ...[
-          if (widget.tabIndex == 0) ...[
-            if (!controller.showRecommendations)
-              IconButton(
-                tooltip: l10n.sortAndFilter(
-                  catalogSortLabel(store.catalogView.sort, l10n),
-                ),
-                onPressed: widget.onChooseCatalogView,
-                color:
-                    store.catalogView.sort != CatalogSort.source ||
-                        store.catalogView.release.isNotEmpty
-                    ? colors.primary
-                    : null,
-                icon: const Icon(Icons.sort_rounded),
-              ),
-            IconButton(
-              key: const ValueKey('open-rankings'),
-              tooltip: l10n.rankingsTitle,
-              onPressed: store.sources.isEmpty ? null : widget.onOpenRankings,
-              icon: const Icon(Icons.leaderboard_outlined),
-            ),
-            if (!controller.showRecommendations &&
-                store.canDownload &&
-                controller.repository.supportsDownloads)
-              IconButton(
-                key: const ValueKey('select-catalog-dramas'),
-                tooltip: l10n.multiDownload,
-                onPressed: widget.onEnterSelectionMode,
-                icon: const Icon(Icons.checklist_rounded),
-              ),
-            IconButton(
-              key: const ValueKey('toggle-search'),
-              tooltip: controller.searchVisible
-                  ? l10n.closeSearch
-                  : l10n.search,
-              icon: Icon(
-                controller.searchVisible
-                    ? Icons.search_off_rounded
-                    : Icons.search_rounded,
-              ),
-              onPressed: widget.onToggleSearch,
-            ),
-          ],
-          if (widget.tabIndex == 0 &&
-              !controller.showRecommendations &&
-              width >= 400)
-            RefreshAction(
-              key: const ValueKey('catalog-refresh'),
-              loading:
-                  controller.loading ||
-                  controller.loadingMore ||
-                  controller.categoriesLoading ||
-                  widget.updatesBusy,
-              tooltip: l10n.refreshLibrary,
-              onPressed: store.sources.isEmpty ? null : widget.onRefreshCatalog,
-            ),
-          PopupMenuButton<String>(
-            tooltip: l10n.more,
-            onSelected: widget.onMoreMenu,
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'update', child: Text(l10n.refreshLibrary)),
-              PopupMenuItem(
-                value: 'sources',
-                child: Text(l10n.sourceManagement),
-              ),
-              PopupMenuItem(value: 'settings', child: Text(l10n.settingsTitle)),
-              PopupMenuItem(value: 'users', child: Text(l10n.userManagement)),
-              PopupMenuItem(value: 'display', child: Text(l10n.displayMode)),
-              PopupMenuItem(value: 'about', child: Text(l10n.about)),
+          : _sourceSwitcher(context, fontSize: Md3Type.titleMedium),
+      actions: widget.selectionMode
+          ? _selectionActions(l10n)
+          : [
+              if (widget.tabIndex == 0) ..._catalogActions(l10n, width),
+              ..._moreActions(l10n),
             ],
-          ),
-        ],
-      ],
     );
   }
 
-  Widget _sourceSwitcher(BuildContext context) {
+  /// 站源切换器，同时充当目录页的**大标题**（Kazumi 那里是分类下拉）。
+  ///
+  /// [fontSize] 与 [bold] 由折叠进度给出：展开时 28/w700，收到工具栏高度
+  /// 时 20/w500。
+  Widget _sourceSwitcher(
+    BuildContext context, {
+    required double fontSize,
+    bool bold = true,
+  }) {
     final l10n = AppLocalizations.of(context);
     final groups = controller.sourceGroups;
     final current = controller.group;
@@ -665,12 +878,14 @@ class _DiscoverViewState extends State<DiscoverView> {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: fontSize,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
-            if (groups.length > 1) const Icon(Icons.expand_more_rounded),
+            if (groups.length > 1)
+              Icon(Icons.expand_more_rounded, size: fontSize),
           ],
         ),
       ),

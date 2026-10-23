@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:async';
 
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +15,9 @@ import 'package:hoshi/data/bundled_plugins.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
 import 'package:hoshi/ui/core/app_layout.dart';
+import 'package:hoshi/ui/core/app_scroll_behavior.dart';
+import 'package:hoshi/ui/shell/desktop_tray.dart';
+import 'package:hoshi/ui/shell/desktop_window.dart';
 import 'package:hoshi/ui/core/app_orientation.dart';
 import 'package:hoshi/ui/core/app_theme.dart';
 import 'package:hoshi/data/local_store.dart';
@@ -61,6 +66,7 @@ class _AppBootstrapState extends State<AppBootstrap>
   LocalStore? _store;
   Object? _error;
   late AppDevice _device = widget.device;
+  bool _desktopInstalled = false;
 
   @override
   void initState() {
@@ -72,10 +78,24 @@ class _AppBootstrapState extends State<AppBootstrap>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(DesktopTray.dispose());
     MediaLibrary.current?.dispose();
     MediaLibrary.current = null;
     _store?.dispose();
     super.dispose();
+  }
+
+  /// 装配桌面窗口与托盘。
+  ///
+  /// 放在 store 就绪之后：窗口尺寸与关闭行为都存在 `LocalStore` 里。
+  /// 只在 macOS / Windows 生效，其他平台直接跳过。
+  Future<void> _installDesktop() async {
+    final store = _store;
+    if (store == null || _desktopInstalled) return;
+    _desktopInstalled = true;
+    final window = await DesktopWindow.install(store);
+    if (window == null) return;
+    await DesktopTray.install(window);
   }
 
   @override
@@ -144,6 +164,7 @@ class _AppBootstrapState extends State<AppBootstrap>
         _repository = repository;
         _store = store;
       });
+      await _installDesktop();
     } catch (failure) {
       if (mounted) setState(() => _error = failure);
     }
@@ -242,6 +263,60 @@ class _AppShell extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final television = ref.watch(televisionProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final themePreferences = ref.watch(themePreferencesProvider);
+    // 系统取色在主色来源上与品牌种子色互斥：用户在设置里打开动态取色时，
+    // 优先用系统墙纸色。
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        final useDynamic =
+            themePreferences.dynamic &&
+            lightDynamic != null &&
+            darkDynamic != null;
+        return _themedApp(
+          ref: ref,
+          router: router,
+          themeMode: themeMode,
+          television: television,
+          version: version,
+          device: device,
+          light: useDynamic
+              ? AppTheme.themeFor(
+                  dynamicScheme: lightDynamic,
+                  oled: false,
+                )
+              : AppTheme.themeFor(seedColor: themePreferences.seedColor),
+          dark: useDynamic
+              ? AppTheme.themeFor(
+                  brightness: Brightness.dark,
+                  dynamicScheme: darkDynamic,
+                  oled: themePreferences.oled,
+                )
+              : AppTheme.themeFor(
+                  brightness: Brightness.dark,
+                  seedColor: themePreferences.seedColor,
+                  oled: themePreferences.oled,
+                ),
+          child: null,
+        );
+      },
+    );
+  }
+
+  /// 实际构建 `MaterialApp.router`。
+  ///
+  /// 拆出来是因为动态取色需要在 `DynamicColorBuilder` 的回调里拿到两套
+  /// 系统色；其余逻辑（本地化、方向、布局、快捷键）只写一份。
+  Widget _themedApp({
+    required WidgetRef ref,
+    required GoRouter router,
+    required String themeMode,
+    required bool television,
+    required String version,
+    required AppDevice device,
+    required ThemeData light,
+    required ThemeData dark,
+    required Widget? child,
+  }) {
     return MaterialApp.router(
       routerConfig: router,
       title: appName,
@@ -249,9 +324,10 @@ class _AppShell extends ConsumerWidget {
       locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: light,
+      darkTheme: dark,
       themeMode: AppTheme.mode(themeMode),
+      scrollBehavior: const AppScrollBehavior(),
       builder: (context, child) {
         AppL10n.current = AppLocalizations.of(context);
         final theme = Theme.of(context);
@@ -266,19 +342,8 @@ class _AppShell extends ConsumerWidget {
                 version: version.isEmpty ? device.version : version,
                 child: Theme(
                   data: television ? televisionTheme(theme) : theme,
-                  child: Shortcuts(
-                    shortcuts: const {
-                      SingleActivator(
-                        LogicalKeyboardKey.select,
-                        includeRepeats: false,
-                      ): ActivateIntent(),
-                      SingleActivator(
-                        LogicalKeyboardKey.gameButtonA,
-                        includeRepeats: false,
-                      ): ActivateIntent(),
-                      SingleActivator(LogicalKeyboardKey.goBack):
-                          DismissIntent(),
-                    },
+                  child: _ShellShortcuts(
+                    television: television,
                     child: FocusTraversalGroup(child: child!),
                   ),
                 ),
@@ -334,4 +399,94 @@ class DuanjuBootstrap extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 全局快捷键。
+///
+/// 电视保留遥控语义（select / gameButtonA / goBack）；桌面补上窗口级
+/// 快捷键：搜索、设置、切换分支。全部走 `Intents` + `Actions`，而不是
+/// 直接改路由，这样被其他路由盖住时不会误触发。
+class _ShellShortcuts extends StatelessWidget {
+  const _ShellShortcuts({required this.television, required this.child});
+
+  final bool television;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Shortcuts(
+    shortcuts: {
+      const SingleActivator(LogicalKeyboardKey.select, includeRepeats: false):
+          const ActivateIntent(),
+      const SingleActivator(
+        LogicalKeyboardKey.gameButtonA,
+        includeRepeats: false,
+      ): const ActivateIntent(),
+      const SingleActivator(LogicalKeyboardKey.goBack): const DismissIntent(),
+      if (!television) ...{
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            const _SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            const _SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.comma, meta: true):
+            const _SettingsIntent(),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true):
+            const _SettingsIntent(),
+        for (var index = 0; index < 4; index++)
+          SingleActivator(
+            LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + index),
+            meta: true,
+          ): _BranchIntent(index),
+      },
+    },
+    child: Actions(
+      actions: {
+        _SearchIntent: CallbackAction<_SearchIntent>(
+          onInvoke: (_) {
+            context.go('/discover');
+            return null;
+          },
+        ),
+        _SettingsIntent: CallbackAction<_SettingsIntent>(
+          onInvoke: (_) {
+            context.go('/settings');
+            return null;
+          },
+        ),
+        _BranchIntent: CallbackAction<_BranchIntent>(
+          onInvoke: (intent) {
+            final shell = _shellOf(context);
+            if (shell != null) {
+              shell.goBranch(
+                intent.index.clamp(0, shell.route.branches.length - 1),
+              );
+            }
+            return null;
+          },
+        ),
+      },
+      child: child,
+    ),
+  );
+
+  /// 找到当前分支外壳。不在外壳内（例如详情页）时返回 null。
+  StatefulNavigationShellState? _shellOf(BuildContext context) {
+    try {
+      return StatefulNavigationShell.of(context);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _SearchIntent extends Intent {
+  const _SearchIntent();
+}
+
+class _SettingsIntent extends Intent {
+  const _SettingsIntent();
+}
+
+class _BranchIntent extends Intent {
+  const _BranchIntent(this.index);
+  final int index;
 }

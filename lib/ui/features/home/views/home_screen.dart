@@ -28,10 +28,22 @@ import 'package:hoshi/ui/core/widgets.dart';
 /// 并集中承接需要 `BuildContext` 的副作用（导航、对话框、提示）。
 /// 具体的浏览逻辑见 `CatalogController`，布局见 `DiscoverView`。
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.repository, required this.store});
+  const HomeScreen({
+    super.key,
+    required this.repository,
+    required this.store,
+    this.tabIndex = 0,
+    this.shell = false,
+  });
 
   final AppRepository repository;
   final LocalStore store;
+
+  /// 当前 tab。由外壳传入时本页不再自己持有 tab 状态。
+  final int tabIndex;
+
+  /// 是否由 `AppShell` 提供导航（桌面 / 平板）。
+  final bool shell;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -44,7 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _scroll = ScrollController();
   final _selectedDramas = <String, Drama>{};
   bool _selectionMode = false;
-  int _tab = 0;
+  int get _tab => widget.shell ? widget.tabIndex : _localTab;
+
+  int _localTab = 0;
   Timer? _cacheRefreshTimer;
   final _changedSources = <String>{};
   bool _refreshingUpdatedCache = false;
@@ -301,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _changeTab(int tab) => setState(() {
-    _tab = tab;
+    _localTab = tab;
     _selectionMode = false;
     _selectedDramas.clear();
   });
@@ -533,6 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
           unawaited(widget.repository.cancelSuggestions()),
       updatesBusy: _updatesBusy,
       cacheReadError: _cacheReadError,
+      shell: widget.shell,
     );
     if (!television && !_selectionMode) return view;
     return PopScope(
@@ -555,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selectionMode) {
       _cancelSelection();
     } else if (_tab != 0) {
-      setState(() => _tab = 0);
+      setState(() => _localTab = 0);
     } else if (_search.text.isNotEmpty) {
       _search.clear();
       _searchChanged('');
