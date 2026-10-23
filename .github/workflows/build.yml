@@ -56,6 +56,21 @@ jobs:
       - name: Test
         run: cargo test --workspace
         working-directory: rust
+      - name: 性能基线（热路径 P95 护栏）
+        # 单次运行只拦「明显退化」（阈值比实测高一个数量级），
+        # 不做跨版本比较——runner 型号变化带来的噪声大于真实劣化。
+        # 基线数据见 docs/PERFORMANCE.md。
+        run: |
+          cargo run --release -p guo-bench -- --json > bench.json
+          python3 ../scripts/check_perf_budget.py bench.json
+          {
+            echo '### 引擎热路径基线'
+            echo ''
+            echo '```'
+            cargo run --release -p guo-bench
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        working-directory: rust
       - name: 依赖方向守卫
         run: |
           # 契约层不得引入运行时依赖（ARCHITECTURE.md §6.3）。

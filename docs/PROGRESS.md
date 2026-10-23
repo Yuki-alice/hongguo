@@ -28,6 +28,73 @@
 | **Core-2 播放与下载** | ✅ 2026-10-21：播放计划、弹幕、下载索引、离线播放（二十三）；暂停/续传（二十四）；旧索引迁移（二十五）；批量控制、封面缓存、重启列表（二十六） |
 | **Core-3 Wasm 源运行时** | ✅ 2026-10-22：7/7 代码源插件化并随包预装（二十七～三十三）；剩 cursor 语义与 P95 基线（不阻塞验收） |
 
+## 第三十五轮：资源设置迁入引擎 + 性能 / 包体基线（2026-10-23）
+
+目标：清掉 Core-4 留下的 `UnsupportedFailure` 占位，并补上 PLAN §4 里
+一直空着的性能验收项。
+
+### 资源设置（Core-4 占位 → 真实实现）
+
+`resourceSettings` / `saveResourceSettings` 原先是 `UnsupportedFailure`。
+现在由引擎承担，capability 打开，设置页入口随之出现（UI 侧无需改动，
+本来就按 capability 渲染）。
+
+| 模块 | 内容 |
+| --- | --- |
+| `engine/settings.rs` | 落盘 `<data>/settings.json`，原子写；损坏回落默认值 |
+| `engine/gate.rs` | 目录请求限流：并发信号量 + 全局最小间隔 |
+| `Scheduler::set_concurrency` | 下载并发运行期可调；缩容只回收空闲许可 |
+
+三个设计判断：
+
+1. **越界值夹取而非报错**。设置页输入框有中间态（清空为 0），报错会让用户
+   卡在无法保存的状态。夹取后返回实际生效值，UI 直接显示。
+2. **间隔在拿到并发许可之后才计算**。否则排队时间会被误当成「已经等过」，
+   限速形同虚设。
+3. **缩容不掐断在途任务**。只回收当前空闲许可，正在跑的任务结束后归还的
+   许可留到下次缩容再回收。
+
+顺带修正 `Scheduler::concurrency()` 的语义：它原先返回
+`gate.available_permits()`（当前空闲数），不是配置值，诊断页会显示错。
+
+### 性能与包体基线
+
+新建 `docs/PERFORMANCE.md` 与两个工具：
+
+| 工具 | 用途 |
+| --- | --- |
+| `rust/crates/bench` | 解析热路径基准（规则加载 / HTML 目录 / 分集 / 内嵌 JSON / 引擎装配） |
+| `scripts/measure_size.py` | 读构建产物报体积，含 APK 内条目拆分 |
+| `scripts/check_perf_budget.py` | CI 护栏，只拦「明显退化」 |
+
+实测（Windows x86_64，release）：
+
+| 项 | P50 | P95 |
+| --- | --- | --- |
+| 规则加载（4 条） | 49.9 µs | 70.7 µs |
+| 目录解析（51 KB HTML） | 2435.7 µs | 2879.3 µs |
+| 分集解析（wangguo） | 1219.0 µs | 1537.5 µs |
+| 引擎装配 | 585.6 µs | 928.7 µs |
+
+**首屏解析链路约 3.1 ms**（装配 + 规则 + 一次目录解析），说明解析不是
+首屏瓶颈，真实耗时由网络主导。
+
+包体：Android APK 32.4 MiB（引擎库 5.1 MiB，占 16%）；Windows 运行目录
+237.2 MiB，其中 `libmpv-2.dll` 独占 116 MiB——这是本地播放的代价。
+
+**内存基线未做**：可用手段要么依赖平台工具、要么需应用内埋点，跨平台不一致。
+已记入 PLAN §10，建议用 `std::alloc` 计数包装器在诊断页暴露。
+
+### 验证
+
+| 项目 | 结果 |
+| --- | --- |
+| `cargo test --workspace` | 64 个套件全通过（新增 settings 5 + gate 3） |
+| `cargo clippy --workspace --all-targets -D warnings` | 零告警 |
+| `flutter test --exclude-tags engine` | 347 通过 / 1 跳过 |
+| 新增 `engine_resource_settings_test.dart` | 5 项端到端用例 |
+| `dart analyze` | 0 error / 0 warning |
+
 ## 第三十四轮：Core-4 收口 —— Go 与 LAN 物理删除（2026-10-22）
 
 目标：兑现 ADR-5c 的最终决定，仓库里只留一套后端。

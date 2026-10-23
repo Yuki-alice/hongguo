@@ -1,0 +1,17 @@
+[package]
+name = "guo-bench"
+description = "引擎热路径基准：规则解析、目录提取、JSON 挖掘"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+guo-rule-engine = { path = "../rule-engine" }
+guo-source-api = { path = "../source-api" }
+guo-engine-core = { path = "../engine" }
+serde_json.workspace = true
+
+[[bin]]
+name = "guo-bench"
+path = "src/main.rs"
