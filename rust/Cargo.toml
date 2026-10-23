@@ -36,3 +36,21 @@ codegen-units = 1
 # 必须保持 unwind：flutter_rust_bridge 依赖 catch_unwind 把 Rust panic 转成 Dart 异常。
 # abort 模式下任何一处 expect 都会直接终止 Flutter 进程，且无法上报。
 panic = "unwind"
+# 发布产物不需要调试符号：strip 后引擎动态库体积显著下降。
+debug = false
+strip = "debuginfo"
+
+[profile.dev]
+# 默认的 `debug = 2` 会在 Windows 上为每个编译单元生成几百 MB 的 .pdb，
+# 且每次改代码产生新哈希就多一份——实测积累到 28 GB / 436 个文件。
+# `line-tables-only` 保留行号（backtrace 仍有文件名与行号），丢掉变量与类型
+# 信息，体积降一个数量级。需要完整调试信息时临时加 `--config profile.dev.debug=2`。
+debug = "line-tables-only"
+# 增量编译对本仓库收益有限（单次全量约 3-5 分钟），但会在 target/debug 下
+# 留下大量中间产物。关闭后 target 增长主要只来自 deps。
+incremental = false
+
+[profile.test]
+# 测试进程同样不需要完整符号；用例失败时的 panic 位置靠行号表就够。
+debug = "line-tables-only"
+
