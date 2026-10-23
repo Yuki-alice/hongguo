@@ -21,8 +21,8 @@ UI 据此隐藏入口。
 lib/
   main.dart            启动装配
   app_build.dart       站源门控（ALL_SOURCES）与应用名
-  data/                仓库、本地存储、媒体 / LAN / 播放 / 画质增强
-  domain/              剧集、榜单、LAN、偏好等纯模型
+  data/                仓库、本地存储、媒体 / 播放 / 画质增强
+  domain/              剧集、榜单、偏好、备份格式等纯模型
   ui/
     features/<name>/   页面级 feature：views / controllers / widgets
     core/              跨 feature 的布局、主题、通用控件
@@ -35,10 +35,12 @@ rust/
   bridge/              只做 FRB 边界，实现在 crates/*
   crates/              source-api（零 IO 契约）/ runtime / rule-engine /
                        plugin-host / plugin-wasm / host / media / source-*
-  rules/               随包分发的声明式站源（JSON）
+  rules/               随包分发的声明式站源（9 条 JSON）
+  examples/plugins/    官方 Wasm 插件源码（7 个，各自独立 workspace）
   rust-toolchain.toml  钉住工具链版本与交付目标（crate 目录内还有一份镜像）
-docs/                  架构、审计、进度、POC、交接记录
-scripts/               Windows 构建冒烟（唯一的 CLI 之外工具）
+assets/bundled_plugins/  随包预装的官方插件包（7 个 zip + index.json）
+docs/                  架构、计划、进度、性能基线、插件边界
+scripts/               性能护栏 / 体积测量 / Windows 冒烟（共 3 个）
 hook/build.dart        native-assets 构建钩子：flutter build/test 时自动编译引擎
 ```
 
@@ -137,8 +139,10 @@ CI 每次都是全新工作区，不受影响。
 
 ## 更多文档
 
-- `docs/ARCHITECTURE.md` — 引擎与插件系统设计（唯一权威设计基线）
-- `docs/AUDIT.md` — 对照目标架构的现状审计
-- `docs/PROGRESS.md` — 每轮落地内容与验证数据
-- `docs/HANDOFF.md` — Flutter 技术栈迁移的过程交接记录
-- `docs/PLUGIN-BOUNDARY.md` — 应用仓库与插件仓库的边界、插件包契约与迁移清单
+| 文档 | 内容 |
+| --- | --- |
+| `docs/ARCHITECTURE.md` | **唯一权威设计文档**：分层、15 crate、插件契约、运行时管线、FRB 边界 |
+| `docs/PLAN.md` | 路线图：Core-0～4 已完成，下一阶段 P0～P4 与质量门槛 |
+| `docs/PERFORMANCE.md` | 解析热路径、包体、内存基线与 CI 护栏 |
+| `docs/PLUGIN-BOUNDARY.md` | 应用仓库 / 插件仓库边界、包契约、迁移清单与验收 |
+| `docs/PROGRESS.md` | 历史记录：按轮次记每一轮做了什么、修了什么、验证数据 |
