@@ -4,6 +4,7 @@ library;
 
 import 'dart:io';
 
+import 'package:hoshi/data/bundled_plugins.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/src/rust/api.dart' as rust;
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,10 @@ import '../support/engine_setup.dart';
 /// 这里用仓库里的真实产物 `assets/bundled_plugins/*.zip`，与 App 启动时
 /// 走的是同一份字节。
 void main() {
+  // rootBundle 需要 ServicesBinding：这条用例读的是真实资源包，
+  // 不是自己拼的文件路径。
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory dataDir;
 
   setUpAll(() {
@@ -78,6 +83,26 @@ void main() {
     expect(yaguo.supports('catalog'), isTrue);
     expect(yaguo.supports('categories'), isTrue);
     expect(yaguo.supports('resolve'), isTrue);
+  });
+
+  test('资源包里的随包插件能被 BundledPlugins.load 读到', () async {
+    // 这条用例守的是**资源路径**，不是引擎预装：
+    // `index.json` 的 `path` 是仓库布局（`plugins/<id>/<file>`），而 Flutter
+    // 打包只会平铺 `assets/bundled_plugins/` 下的文件。两者不一致时
+    // `BundledPlugins.load` 会静默返回空列表，App 里 7 个代码源全部消失，
+    // 但日志只有一行 warn——上线前极易漏掉。
+    //
+    // 这里用真实的 rootBundle（测试会加载本仓库的 assets），而不是自己拼
+    // File 路径，才能真正覆盖打包后的布局。
+    final warnings = <String>[];
+    final packages = await BundledPlugins.load(warn: warnings.add);
+
+    expect(warnings, isEmpty, reason: '资源读取不应告警：${warnings.join('; ')}');
+    expect(packages, hasLength(7), reason: '随包插件应有 7 个');
+    for (final package in packages) {
+      expect(package.archive, isNotEmpty, reason: package.name);
+      expect(package.name, isNot(contains('plugins/')), reason: '应命中平铺布局');
+    }
   });
 
   test('诊断页能看到预装结果', () async {

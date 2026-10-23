@@ -46,11 +46,35 @@ class BundledPlugins {
           ),
         );
       } on Object catch (error) {
-        warn?.call('随包插件 $path 读取失败：$error');
+        // 索引里的 `path` 是**仓库布局**（`plugins/<id>/<file>`），而
+        // `pubspec.yaml` 只声明了 `assets/bundled_plugins/` 目录，Flutter
+        // 打包时会把该目录下的文件平铺进资源包。因此完整 path 必然找不到，
+        // 回退到文件名。
+        final fallback = _fileName(path);
+        if (fallback == path) {
+          warn?.call('随包插件 $path 读取失败：$error');
+          continue;
+        }
+        try {
+          final data = await assets.load('$_root/$fallback');
+          loaded.add(
+            rust.BundledPlugin(
+              name: fallback,
+              indexJson: indexText,
+              archive: data.buffer.asUint8List(),
+            ),
+          );
+        } on Object catch (fallbackError) {
+          warn?.call('随包插件 $path 读取失败：$fallbackError');
+        }
       }
     }
     return loaded;
   }
+
+  /// 取路径的最后一段，用于匹配平铺的资源布局。
+  static String _fileName(String path) =>
+      path.substring(path.lastIndexOf('/') + 1);
 
   /// 从索引里取出所有 `path` 字段。解析失败按「没有插件」处理。
   ///
