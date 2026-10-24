@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:hoshi/data/plugin_repository.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/rule_card.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
+import 'package:hoshi/ui/core/app_page.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
@@ -51,7 +53,6 @@ class _PluginsScreenState extends State<PluginsScreen> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final colors = Theme.of(context).colorScheme;
         final query = _query.trim().toLowerCase();
         final updates = _controller.installed
             .where(_controller.hasUpdate)
@@ -77,82 +78,79 @@ class _PluginsScreenState extends State<PluginsScreen> {
               const SizedBox(width: 8),
             ],
           ),
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  _intro(l10n),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _search,
-                    onChanged: (value) => setState(() => _query = value),
-                    decoration: InputDecoration(
-                      hintText: l10n.pluginsSearchHint,
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: query.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: l10n.clearSearch,
-                              onPressed: () {
-                                _search.clear();
-                                setState(() => _query = '');
-                              },
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                      border: const OutlineInputBorder(),
-                    ),
+          body: AppPage(
+            vertical: 12,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                _intro(l10n),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _search,
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                    hintText: l10n.pluginsSearchHint,
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: query.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: l10n.clearSearch,
+                            onPressed: () {
+                              _search.clear();
+                              setState(() => _query = '');
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    border: const OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      FilterChip(
-                        label: Text(
-                          l10n.pluginsAllCount(_controller.installed.length),
-                        ),
-                        selected: !_updatesOnly,
-                        onSelected: (_) => setState(() => _updatesOnly = false),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilterChip(
+                      label: Text(
+                        l10n.pluginsAllCount(_controller.installed.length),
                       ),
-                      FilterChip(
-                        label: Text(l10n.pluginsUpdatesCount(updates)),
-                        selected: _updatesOnly,
-                        onSelected: (value) =>
-                            setState(() => _updatesOnly = value),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (installed.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text(
-                        query.isEmpty && !_updatesOnly
-                            ? l10n.pluginsEmpty
-                            : l10n.pluginsNoMatch,
-                        style: TextStyle(color: colors.onSurfaceVariant),
-                      ),
-                    )
-                  else
-                    for (final entry in installed) _installedCard(entry, l10n),
-                  const SizedBox(height: 24),
-                  _repoSection(l10n),
-                  if (_controller.available.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      l10n.pluginsAvailable,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      selected: !_updatesOnly,
+                      onSelected: (_) => setState(() => _updatesOnly = false),
                     ),
-                    const SizedBox(height: 8),
-                    for (final entry in _controller.available)
-                      _availableCard(entry, l10n),
+                    FilterChip(
+                      label: Text(l10n.pluginsUpdatesCount(updates)),
+                      selected: _updatesOnly,
+                      onSelected: (value) =>
+                          setState(() => _updatesOnly = value),
+                    ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                if (installed.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: EmptyState(
+                      compact: true,
+                      title: query.isEmpty && !_updatesOnly
+                          ? l10n.pluginsEmpty
+                          : l10n.pluginsNoMatch,
+                    ),
+                  )
+                else
+                  for (final entry in installed) _installedCard(entry, l10n),
+                const SizedBox(height: 24),
+                _repoSection(l10n),
+                if (_controller.available.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    l10n.pluginsAvailable,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final entry in _controller.available)
+                    _availableCard(entry, l10n),
                 ],
-              ),
+              ],
             ),
           ),
         );
@@ -170,7 +168,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: colors.primaryContainer,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(Md3Shape.extraLargeIncreased),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +271,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppLoadingIndicator(size: 20),
                 ),
             ],
           ),
@@ -328,7 +326,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
               padding: EdgeInsets.all(12),
               child: SizedBox.square(
                 dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppLoadingIndicator(size: 20),
               ),
             )
           : Row(
@@ -338,19 +336,19 @@ class _PluginsScreenState extends State<PluginsScreen> {
                   value: entry.enabled,
                   onChanged: (value) => _controller.setEnabled(entry.id, value),
                 ),
-                PopupMenuButton<String>(
-                  tooltip: l10n.more,
-                  onSelected: (value) {
-                    if (value == 'uninstall') {
-                      _confirmUninstall(entry, l10n);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'uninstall',
-                      child: Text(l10n.pluginsUninstall),
+                AppMenuButton(
+                  menuChildren: [
+                    AppMenuItem(
+                      label: l10n.pluginsUninstall,
+                      destructive: true,
+                      onPressed: () => _confirmUninstall(entry, l10n),
                     ),
                   ],
+                  builder: (context, toggle, open) => IconButton(
+                    tooltip: l10n.more,
+                    onPressed: toggle,
+                    icon: const Icon(Icons.more_vert_rounded),
+                  ),
                 ),
               ],
             ),
@@ -390,7 +388,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
               padding: EdgeInsets.all(12),
               child: SizedBox.square(
                 dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppLoadingIndicator(size: 20),
               ),
             )
           : TextButton(

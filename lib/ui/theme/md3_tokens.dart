@@ -34,6 +34,9 @@ abstract final class Md3Spacing {
   /// 媒体网格类页面的最大宽度。
   static const double wideMaxWidth = 1440;
 
+  /// 「我的」页 bento 磁贴区的最大宽度（参照应用 `my_space_view`）。
+  static const double bentoMaxWidth = 1120;
+
   /// 让内容在 [maxWidth] 内居中所需的左右留白。
   ///
   /// 留白取「页面标准留白」与「居中所需留白」的较大值：窗口窄时用标准
@@ -266,6 +269,43 @@ abstract final class Md3Surface {
 
   /// 叠在视频画面上的提示条底色：必须自带不透明度，不随主题变化。
   static const Color videoBanner = Color(0xE6322424);
+}
+
+/// 播放器覆盖层令牌。
+///
+/// 播放器是「恒暗孤岛」：控件不随主题明暗漂移，一律白前景 + 黑底状态层，
+/// 强调色仍取主题 primary。透明度集中在这里，播放器页面不再散写
+/// `Colors.black.withValues(alpha: …)`。
+abstract final class Md3PlayerOverlay {
+  /// 顶 / 底 scrim 渐变的实端（另一端是 transparent）。
+  static const Color scrim = Colors.black45;
+
+  /// 图标按钮的胶囊底（顶栏按钮、紧凑「更多」）。
+  static const Color pillBackground = Color(0x5C000000);
+
+  /// 工具钮常态底。
+  static const Color toolBackground = Color(0x38000000);
+
+  /// 工具钮描边。
+  static const Color toolBorder = Color(0x14FFFFFF);
+
+  /// 工具钮前景。
+  static const Color toolForeground = Color(0xEBFFFFFF);
+
+  /// 工具钮禁用前景。
+  static const Color toolDisabledForeground = Color(0x5CFFFFFF);
+
+  /// 文字类控件的前景（弹幕开关等）。
+  static const Color textForeground = Color(0xDBFFFFFF);
+
+  /// 手势反馈条、竖排音量面板的底。
+  static const Color panelBackground = Color(0xE0000000);
+
+  /// 全屏加载遮罩。
+  static const Color overlay = Color(0xC7000000);
+
+  /// 全屏错误遮罩（更深一档）。
+  static const Color overlayStrong = Color(0xE6000000);
 }
 
 /// M3 高度与表面色调。

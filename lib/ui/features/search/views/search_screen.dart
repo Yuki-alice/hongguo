@@ -7,6 +7,7 @@ import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/adaptive_sheet.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
@@ -323,9 +324,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// 按分类筛选：参照应用用筛选面板，我们用底部分段列表。
   Future<void> _showCategoryFilter(List<String> categories) async {
-    final picked = await showModalBottomSheet<String>(
+    final picked = await showAdaptiveSheet<String>(
       context: context,
-      showDragHandle: true,
       builder: (context) => SafeArea(
         child: ListView(
           shrinkWrap: true,
@@ -429,113 +429,43 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _resultGrid(List<Drama> items, double width) {
-    // 列数照参照应用：按 180px 一张推，至少 2 列。
+    // 列数照参照应用：按 180px 一张推，至少 2 列。间距、海报比例与卡片
+    // 复用 [DramaTile]，与目录 / 追剧网格同一套视觉（圆角 12、比例 0.65、
+    // hover 描边），不再维护第二张搜索卡。
     final columns = math.max(2, (width / 180).floor());
-    final cardWidth = (width - (columns - 1) * 12) / columns;
-    const coverRatio = .7;
-    const titleHeight = 40.0;
-    const metaHeight = 20.0;
+    final tileWidth = Md3Grid.tileWidth(width, columns);
     return SliverGrid.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 20,
-        mainAxisExtent:
-            cardWidth / coverRatio + titleHeight + metaHeight + 10 + 4,
+        crossAxisSpacing: Md3Grid.spacing,
+        mainAxisSpacing: Md3Grid.rowSpacing,
+        mainAxisExtent: DramaTile.extentFor(context, tileWidth, withMeta: true),
       ),
       itemCount: items.length,
-      itemBuilder: (context, index) =>
-          _SearchResultCard(
-            drama: items[index],
-            repository: widget.repository,
-            store: widget.store,
+      itemBuilder: (context, index) {
+        final drama = items[index];
+        final year = drama.onlineDate.length >= 4
+            ? drama.onlineDate.substring(0, 4)
+            : '';
+        final meta = [
+          if (drama.episodes > 0) '${drama.episodes} 集',
+          if (year.isNotEmpty) year,
+        ].join(' · ');
+        return DramaTile(
+          drama: drama,
+          repository: widget.repository,
+          subtitle: meta.isEmpty ? null : meta,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => DetailScreen(
+                drama: drama,
+                repository: widget.repository,
+                store: widget.store,
+              ),
+            ),
           ),
-    );
-  }
-}
-
-/// 搜索结果卡：0.7 封面 + 两行标题 + 一行元信息。
-class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({
-    required this.drama,
-    required this.repository,
-    required this.store,
-  });
-
-  final Drama drama;
-  final AppRepository repository;
-  final LocalStore store;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final titleStyle = TextStyle(
-      fontSize: Md3Type.titleSmall,
-      fontWeight: FontWeight.w600,
-      height: 1.4,
-      color: theme.colorScheme.onSurface,
-    );
-    final metaStyle = TextStyle(
-      fontSize: Md3Type.labelMedium,
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-    final year = drama.onlineDate.length >= 4
-        ? drama.onlineDate.substring(0, 4)
-        : '';
-    final meta = [
-      if (drama.episodes > 0) '${drama.episodes} 集',
-      if (year.isNotEmpty) year,
-    ].join(' · ');
-
-    return Material(
-      type: MaterialType.transparency,
-      clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(Md3Shape.large),
-      child: InkWell(
-        onTap: () => _open(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(Md3Shape.large),
-              child: AspectRatio(
-                aspectRatio: .7,
-                child: DramaCover(
-                  drama: drama,
-                  repository: repository,
-                  heroTag: 'cover-${drama.id}',
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 40,
-              child: Text(
-                drama.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: titleStyle,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              meta,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: metaStyle,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _open(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            DetailScreen(drama: drama, repository: repository, store: store),
-      ),
+        );
+      },
     );
   }
 }

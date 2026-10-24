@@ -9,3 +9,5 @@ analyzer:
     - windows/**
     - ios/**
     - macos/**
+    # 参照项目（只读对照用，不参与构建与分析）。
+    - reference/**

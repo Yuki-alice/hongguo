@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/episode_browser.dart';
 import 'package:hoshi/domain/playback_preferences.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
@@ -57,10 +59,31 @@ class PlayerMenu extends StatefulWidget {
   State<PlayerMenu> createState() => _PlayerMenuState();
 }
 
-class _PlayerMenuState extends State<PlayerMenu> {
+class _PlayerMenuState extends State<PlayerMenu> with TickerProviderStateMixin {
   AppLocalizations get l10n => AppLocalizations.of(context);
   bool _busy = false;
   String? _error;
+
+  /// 面板内的分段切换：菜单从哪个分区打开就停在哪一档，打开后可以在
+  /// 档位之间直接滑动切换，不必退回控制栏重新选。选中指示的连续插值
+  /// 由 [ConnectedTabs] 完成。
+  late final TabController _tabs =
+      TabController(
+        length: PlayerMenuSection.values.length,
+        vsync: this,
+        initialIndex: widget.section.index,
+      )..addListener(() {
+        if (_tabs.indexIsChanging) return;
+        setState(() {});
+      });
+
+  PlayerMenuSection get _section => PlayerMenuSection.values[_tabs.index];
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -82,7 +105,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
     final size = MediaQuery.sizeOf(context);
     final landscape = size.width > size.height;
     final colors = Theme.of(context).colorScheme;
-    final title = switch (widget.section) {
+    final sectionTitle = switch (_section) {
       PlayerMenuSection.episodes => l10n.episodeTotal(widget.episodes.length),
       PlayerMenuSection.speed => l10n.playbackSpeed,
       PlayerMenuSection.quality => l10n.clarity,
@@ -99,13 +122,18 @@ class _PlayerMenuState extends State<PlayerMenu> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 4, 4),
+              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    child: ConnectedTabs(
+                      labels: [
+                        l10n.detailEpisodesTab,
+                        l10n.playbackSpeed,
+                        l10n.clarity,
+                        l10n.playbackSettings,
+                      ],
+                      controller: _tabs,
                     ),
                   ),
                   IconButton(
@@ -129,7 +157,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
                 ),
               ),
             Expanded(
-              child: widget.section == PlayerMenuSection.episodes
+              child: _section == PlayerMenuSection.episodes
                   ? PlayerEpisodeGrid(
                       episodes: widget.episodes,
                       currentIndex: widget.currentIndex,
@@ -138,7 +166,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
                     )
                   : SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
-                      child: _settings(),
+                      child: _settings(title: sectionTitle),
                     ),
             ),
           ],
@@ -147,9 +175,9 @@ class _PlayerMenuState extends State<PlayerMenu> {
     );
   }
 
-  Widget _settings() {
+  Widget _settings({required String title}) {
     final preferences = widget.preferences;
-    final all = widget.section == PlayerMenuSection.settings;
+    final all = _section == PlayerMenuSection.settings;
     final colors = Theme.of(context).colorScheme;
     final helperStyle = TextStyle(
       fontSize: 13,
@@ -163,7 +191,16 @@ class _PlayerMenuState extends State<PlayerMenu> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (all || widget.section == PlayerMenuSection.speed) ...[
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: Md3Type.titleSmall,
+            fontWeight: FontWeight.w700,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (all || _section == PlayerMenuSection.speed) ...[
           Text(l10n.speed),
           const SizedBox(height: 8),
           Wrap(
@@ -187,7 +224,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
           ),
           const SizedBox(height: 20),
         ],
-        if (all || widget.section == PlayerMenuSection.quality) ...[
+        if (all || _section == PlayerMenuSection.quality) ...[
           Text(l10n.clarity),
           const SizedBox(height: 8),
           Text(
@@ -230,7 +267,7 @@ class _PlayerMenuState extends State<PlayerMenu> {
             ),
           const SizedBox(height: 20),
         ],
-        if ((all || widget.section == PlayerMenuSection.quality) &&
+        if ((all || _section == PlayerMenuSection.quality) &&
             widget.enhancement != null)
           VideoEnhancementSettings(
             controller: widget.enhancement!,

@@ -34,7 +34,7 @@ class MyScreen extends StatelessWidget {
       builder: (context, constraints) {
         final inset = Md3Spacing.contentInset(
           constraints.maxWidth,
-          maxWidth: 1120,
+          maxWidth: Md3Spacing.bentoMaxWidth,
         );
         final wide =
             constraints.maxWidth - inset * 2 >= 840 &&
@@ -49,7 +49,9 @@ class MyScreen extends StatelessWidget {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1120),
+              constraints: const BoxConstraints(
+                maxWidth: Md3Spacing.bentoMaxWidth,
+              ),
               child: wide
                   ? _WideLayout(store: store, l10n: l10n)
                   : _CompactLayout(store: store, l10n: l10n),
@@ -289,7 +291,9 @@ class _StatsPanel extends StatelessWidget {
     final foreground = compact ? colors.onPrimaryContainer : colors.onSurface;
     return Material(
       color: compact ? colors.primaryContainer : colors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(compact ? 28 : 48),
+      borderRadius: BorderRadius.circular(
+        compact ? Md3Shape.extraLarge : Md3Shape.extraExtraLarge,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
@@ -464,7 +468,9 @@ class _RulesTile extends StatelessWidget {
                     height: 32,
                     decoration: BoxDecoration(
                       color: colors.onPrimary,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        Md3Shape.largeIncreased,
+                      ),
                     ),
                     child: Icon(
                       Icons.arrow_forward_rounded,
@@ -771,7 +777,9 @@ class _ExpressiveActionState extends State<_ExpressiveAction> {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: widget.color,
-            borderRadius: _pressed ? BorderRadius.circular(16) : widget.radius,
+            borderRadius: _pressed
+                ? BorderRadius.circular(Md3Shape.pressedRadius)
+                : widget.radius,
           ),
           child: Material(
             type: MaterialType.transparency,
@@ -793,9 +801,7 @@ class _ExpressiveActionState extends State<_ExpressiveAction> {
               child: IconTheme.merge(
                 data: IconThemeData(color: widget.foreground),
                 child: DefaultTextStyle.merge(
-                  style: TextStyle(
-                    color: widget.foreground,
-                  ),
+                  style: TextStyle(color: widget.foreground),
                   child: widget.child,
                 ),
               ),

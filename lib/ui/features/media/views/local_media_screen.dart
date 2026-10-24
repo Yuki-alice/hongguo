@@ -13,6 +13,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/media/controllers/local_media_controller.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/settings/views/settings_screen.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
@@ -262,14 +263,13 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
               ),
             Expanded(
               child: _controller.loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: AppLoadingIndicator())
                   : items.isEmpty
-                  ? Center(
-                      child: Text(
-                        _controller.merged
-                            ? l10n.mergeProductsEmpty
-                            : l10n.noExportedMedia,
-                      ),
+                  ? EmptyState(
+                      icon: Icons.video_library_outlined,
+                      title: _controller.merged
+                          ? l10n.mergeProductsEmpty
+                          : l10n.noExportedMedia,
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),

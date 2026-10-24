@@ -6,6 +6,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/ui/features/settings/controllers/resource_settings_controller.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class DownloadPreferencesScreen extends StatelessWidget {
@@ -177,7 +178,7 @@ class _ResourceSettingsScreenState extends State<ResourceSettingsScreen> {
               )
             : _controller.settings == null
             ? _controller.error == null
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: AppLoadingIndicator())
                   : StatusPanel(
                       title: l10n.settingsReadFailed,
                       message: _controller.error!,

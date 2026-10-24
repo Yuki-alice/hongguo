@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'package:hoshi/ui/features/player/widgets/player_interactions.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/widgets.dart';
@@ -262,7 +263,7 @@ class _PlayerControlsState extends State<PlayerControls> {
             ),
             if (state.buffering && widget.enabled)
               const IgnorePointer(
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: AppLoadingIndicator(size: 36)),
               ),
             IgnorePointer(
               ignoring: !visible,
@@ -388,7 +389,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     padding: const EdgeInsets.symmetric(horizontal: 2),
     child: DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .36),
+        color: Md3PlayerOverlay.pillBackground,
         borderRadius: Md3Shape.pill,
       ),
       child: IconButton(
@@ -629,13 +630,15 @@ class _PlayerControlsState extends State<PlayerControls> {
     final enabled = onPressed != null;
     final foreground = selected
         ? scheme.primary
-        : Colors.white.withValues(alpha: enabled ? .92 : .36);
+        : enabled
+        ? Md3PlayerOverlay.toolForeground
+        : Md3PlayerOverlay.toolDisabledForeground;
     final background = selected
         ? scheme.primary.withValues(alpha: .20)
-        : Colors.black.withValues(alpha: .22);
+        : Md3PlayerOverlay.toolBackground;
     final border = selected
         ? scheme.primary.withValues(alpha: .62)
-        : Colors.white.withValues(alpha: .08);
+        : Md3PlayerOverlay.toolBorder;
     final targetWidth = visualWidth < 40 ? 48.0 : visualWidth + 8;
     return Tooltip(
       message: tooltip,
@@ -722,7 +725,7 @@ class _PlayerControlsState extends State<PlayerControls> {
               fontWeight: FontWeight.w800,
               color: widget.danmakuEnabled
                   ? Theme.of(context).colorScheme.primary
-                  : Colors.white.withValues(alpha: .86),
+                  : Md3PlayerOverlay.textForeground,
             ),
           ),
   );
@@ -799,7 +802,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     padding: const EdgeInsets.symmetric(horizontal: 2),
     child: DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .36),
+        color: Md3PlayerOverlay.pillBackground,
         borderRadius: Md3Shape.pill,
       ),
       child: PopupMenuButton<String>(
@@ -843,7 +846,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                     bottom: widget.fullscreen ? 88 : 74,
                   ),
                   child: Material(
-                    color: Colors.black.withValues(alpha: .88),
+                    color: Md3PlayerOverlay.panelBackground,
                     borderRadius: Md3Shape.pill,
                     child: SizedBox(
                       width: 62,

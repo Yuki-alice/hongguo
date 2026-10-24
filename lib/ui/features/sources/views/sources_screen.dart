@@ -297,31 +297,36 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   onPressed: pending ? null : () => _run(source, 'cancel'),
                   child: Text(l10n.sourceStop),
                 ),
-              PopupMenuButton<String>(
-                tooltip: l10n.sourceMoreActions(source.name),
+              AppMenuButton(
                 enabled: enabled,
-                onSelected: (operation) => _run(source, operation),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'more',
-                    enabled: status?.hasMore ?? true,
-                    child: Text(l10n.sourceLoadMore),
+                menuChildren: [
+                  AppMenuItem(
+                    label: l10n.sourceLoadMore,
+                    onPressed: (status?.hasMore ?? true)
+                        ? () => _run(source, 'more')
+                        : null,
                   ),
-                  PopupMenuItem(
-                    value: 'metadata',
-                    child: Text(l10n.sourceFillMetadata),
+                  AppMenuItem(
+                    label: l10n.sourceFillMetadata,
+                    onPressed: () => _run(source, 'metadata'),
                   ),
                   if (source.id == 'huangdou')
-                    PopupMenuItem(
-                      value: 'vipMetadata',
-                      enabled: (status?.unknownVip ?? 0) > 0,
-                      child: Text(l10n.sourceFillVip(status?.unknownVip ?? 0)),
+                    AppMenuItem(
+                      label: l10n.sourceFillVip(status?.unknownVip ?? 0),
+                      onPressed: (status?.unknownVip ?? 0) > 0
+                          ? () => _run(source, 'vipMetadata')
+                          : null,
                     ),
-                  PopupMenuItem(
-                    value: 'checkCatalog',
-                    child: Text(l10n.sourceCheckCatalog),
+                  AppMenuItem(
+                    label: l10n.sourceCheckCatalog,
+                    onPressed: () => _run(source, 'checkCatalog'),
                   ),
                 ],
+                builder: (context, toggle, open) => IconButton(
+                  tooltip: l10n.sourceMoreActions(source.name),
+                  onPressed: toggle,
+                  icon: const Icon(Icons.more_vert_rounded),
+                ),
               ),
             ],
           ),

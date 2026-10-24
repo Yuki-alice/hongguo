@@ -57,7 +57,9 @@ class RuleCard extends StatelessWidget {
             color: selected
                 ? colors.secondaryContainer
                 : colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(selected ? 20 : 28),
+            borderRadius: BorderRadius.circular(
+              selected ? Md3Shape.largeIncreased : Md3Shape.extraLarge,
+            ),
             border: Border.all(
               color: selected ? colors.secondary : Colors.transparent,
               width: 2,
@@ -65,7 +67,9 @@ class RuleCard extends StatelessWidget {
           ),
           child: Material(
             type: MaterialType.transparency,
-            borderRadius: BorderRadius.circular(selected ? 18 : 26),
+            borderRadius: BorderRadius.circular(
+              selected ? Md3Shape.largeIncreased - 2 : Md3Shape.extraLarge - 2,
+            ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onTap,
@@ -127,11 +131,7 @@ class RuleCard extends StatelessWidget {
                               ],
                               if (tags.isNotEmpty) ...[
                                 const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: tags,
-                                ),
+                                Wrap(spacing: 6, runSpacing: 6, children: tags),
                               ],
                               if (caption != null) ...[
                                 const SizedBox(height: 6),

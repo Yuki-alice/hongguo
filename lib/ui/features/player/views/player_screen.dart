@@ -28,6 +28,7 @@ import 'package:hoshi/ui/features/player/widgets/player_controls.dart';
 import 'package:hoshi/ui/features/player/widgets/player_interactions.dart';
 import 'package:hoshi/ui/features/player/widgets/player_menu.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
@@ -1383,14 +1384,14 @@ class _PlayerScreenState extends State<PlayerScreen>
                 ),
               if (_playback.loading && !hideOverlayForPictureInPicture)
                 const IgnorePointer(
-                  child: ColoredBox(color: Color(0xC7000000)),
+                  child: ColoredBox(color: Md3PlayerOverlay.overlay),
                 ),
               if (_playback.loading && !hideOverlayForPictureInPicture)
                 Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(),
+                      const AppLoadingIndicator(),
                       const SizedBox(height: 16),
                       Text(
                         _playback.loadingMessage,
@@ -1403,7 +1404,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               // 盖住，用户只能停在错误页。只有中间的 StatusPanel 可点。
               if (_playback.error != null && !hideOverlayForPictureInPicture)
                 const IgnorePointer(
-                  child: ColoredBox(color: Color(0xE6000000)),
+                  child: ColoredBox(color: Md3PlayerOverlay.overlayStrong),
                 ),
               if (_playback.error != null && !hideOverlayForPictureInPicture)
                 Center(

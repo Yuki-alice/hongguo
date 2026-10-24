@@ -337,6 +337,7 @@ class _AppShell extends ConsumerWidget {
                 child: Theme(
                   data: theme,
                   child: _ShellShortcuts(
+                    router: router,
                     child: FocusTraversalGroup(child: child!),
                   ),
                 ),
@@ -399,7 +400,12 @@ class DuanjuBootstrap extends StatelessWidget {
 /// 桌面窗口级快捷键：搜索、设置、切换分支。全部走 `Intents` + `Actions`，
 /// 而不是直接改路由，这样被其他路由盖住时不会误触发。
 class _ShellShortcuts extends StatelessWidget {
-  const _ShellShortcuts({required this.child});
+  const _ShellShortcuts({required this.router, required this.child});
+
+  /// 本组件挂在 `MaterialApp.builder` 里，位于 Navigator **上方**：
+  /// `context.go` / `StatefulNavigationShell.of` 这类向上查找在这里
+  /// 永远落空，所以导航一律走注入的 [router] 对象。
+  final GoRouter router;
 
   final Widget child;
 
@@ -421,36 +427,45 @@ class _ShellShortcuts extends StatelessWidget {
           const _SettingsIntent(),
       const SingleActivator(LogicalKeyboardKey.comma, control: true):
           const _SettingsIntent(),
-      for (var index = 0; index < 4; index++)
+      // 分支切换与搜索/设置一致：macOS 用 ⌘，Windows/Linux 补 Ctrl——
+      // 只绑 meta 时 Windows 上要按 Win+数字，会撞系统任务栏快捷键。
+      for (var index = 0; index < 4; index++) ...{
         SingleActivator(
           LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + index),
           meta: true,
         ): _BranchIntent(
           index,
         ),
+        SingleActivator(
+          LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + index),
+          control: true,
+        ): _BranchIntent(
+          index,
+        ),
+      },
     },
     child: Actions(
       actions: {
         _SearchIntent: CallbackAction<_SearchIntent>(
           onInvoke: (_) {
-            context.go('/discover');
+            router.go('/discover');
             return null;
           },
         ),
         _SettingsIntent: CallbackAction<_SettingsIntent>(
           onInvoke: (_) {
-            context.go('/settings');
+            router.go('/settings');
             return null;
           },
         ),
         _BranchIntent: CallbackAction<_BranchIntent>(
           onInvoke: (intent) {
-            final shell = _shellOf(context);
-            if (shell != null) {
-              shell.goBranch(
-                intent.index.clamp(0, shell.route.branches.length - 1),
-              );
-            }
+            final navigator = appNavigatorKey.currentState;
+            if (navigator == null) return null;
+            final shell = StatefulNavigationShell.of(navigator.context);
+            shell.goBranch(
+              intent.index.clamp(0, shell.route.branches.length - 1),
+            );
             return null;
           },
         ),
@@ -458,15 +473,6 @@ class _ShellShortcuts extends StatelessWidget {
       child: child,
     ),
   );
-
-  /// 找到当前分支外壳。不在外壳内（例如详情页）时返回 null。
-  StatefulNavigationShellState? _shellOf(BuildContext context) {
-    try {
-      return StatefulNavigationShell.of(context);
-    } catch (_) {
-      return null;
-    }
-  }
 }
 
 class _SearchIntent extends Intent {

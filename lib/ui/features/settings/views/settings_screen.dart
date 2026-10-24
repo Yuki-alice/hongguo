@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/app_theme.dart';
+import 'package:hoshi/ui/core/app_page.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/split_list.dart';
@@ -582,46 +583,33 @@ class _CategoryList extends StatelessWidget {
   final bool embedded;
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.symmetric(vertical: Md3Spacing.md),
-    children: [
-      Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              Md3Spacing.lg,
-              0,
-              Md3Spacing.lg,
-              Md3Spacing.xl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (embedded)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 8,
-                      bottom: Md3Spacing.sm,
-                    ),
-                    child: SizedBox(
-                      height: 64,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          section.title,
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                      ),
+  Widget build(BuildContext context) => AppPage(
+    vertical: Md3Spacing.md,
+    child: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: Md3Spacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (embedded)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, bottom: Md3Spacing.sm),
+                child: SizedBox(
+                  height: 64,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      section.title,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ),
-                ...section.children,
-              ],
-            ),
-          ),
+                ),
+              ),
+            ...section.children,
+          ],
         ),
       ),
-    ],
+    ),
   );
 }
 

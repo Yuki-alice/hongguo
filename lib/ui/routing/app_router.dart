@@ -243,7 +243,7 @@ GoRouter buildAppRouter(
           routes: [
             GoRoute(
               path: AppRoutes.discover,
-              builder: (context, state) => _home(ref, tabIndex: 0, shell: true),
+              builder: (context, state) => _home(ref, tabIndex: 0),
             ),
           ],
         ),
@@ -268,7 +268,7 @@ GoRouter buildAppRouter(
           routes: [
             GoRoute(
               path: AppRoutes.follows,
-              builder: (context, state) => _home(ref, tabIndex: 1, shell: true),
+              builder: (context, state) => _home(ref, tabIndex: 1),
             ),
           ],
         ),
@@ -562,7 +562,7 @@ String? _redirect(Ref ref, GoRouterState state) {
 /// 5 个分支共用 `HomeScreen`：它按 `tabIndex` 渲染目录 / 追剧 / 历史，
 /// 下载分支是独立页面。这样切分支时 `CatalogController` 只创建一次，
 /// 目录数据与筛选不会因为换 tab 而重取。
-Widget _home(Ref ref, {required int tabIndex, required bool shell}) {
+Widget _home(Ref ref, {required int tabIndex}) {
   final store = ref.watch(storeProvider);
   if (store == null) return const DuanjuBootstrap();
   return HomeScreen(
@@ -570,7 +570,6 @@ Widget _home(Ref ref, {required int tabIndex, required bool shell}) {
     repository: ref.read(repositoryProvider),
     store: store,
     tabIndex: tabIndex,
-    shell: shell,
   );
 }
 

@@ -9,6 +9,8 @@ import 'package:hoshi/domain/ranking_models.dart';
 import 'package:hoshi/ui/features/rankings/controllers/rankings_controller.dart';
 import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class RankingsScreen extends StatefulWidget {
@@ -100,28 +102,48 @@ class _RankingsScreenState extends State<RankingsScreen> {
           .toList();
       return Scaffold(
         appBar: AppBar(
-          title: PopupMenuButton<SourceGroup>(
-            tooltip: l10n.switchRankingSource,
+          title: AppMenuButton(
             enabled: groups.length > 1,
-            onSelected: (group) => _select(
-              _controller.boards.firstWhere(
-                (board) => board.groupId == group.id,
-              ),
-            ),
-            itemBuilder: (_) => [
+            menuChildren: [
               for (final group in groups)
-                PopupMenuItem(value: group, child: Text(group.name)),
-            ],
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _controller.board == null
-                      ? l10n.rankingsTitle
-                      : '${SourceSite.byId(_controller.board!.source).groupName}${l10n.rankingsTitle}',
+                AppMenuItem(
+                  label: group.name,
+                  selected: _controller.board?.groupId == group.id,
+                  onPressed: () => _select(
+                    _controller.boards.firstWhere(
+                      (board) => board.groupId == group.id,
+                    ),
+                  ),
                 ),
-                if (groups.length > 1) const Icon(Icons.expand_more_rounded),
-              ],
+            ],
+            builder: (context, toggle, open) => Tooltip(
+              message: l10n.switchRankingSource,
+              child: InkWell(
+                onTap: toggle,
+                borderRadius: BorderRadius.circular(Md3Shape.small),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Md3Spacing.xs,
+                    vertical: Md3Spacing.xxs,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _controller.board == null
+                            ? l10n.rankingsTitle
+                            : '${SourceSite.byId(_controller.board!.source).groupName}${l10n.rankingsTitle}',
+                      ),
+                      if (groups.length > 1)
+                        AnimatedRotation(
+                          turns: open ? .5 : 0,
+                          duration: Md3Motion.of(context, Md3Motion.standard),
+                          child: const Icon(Icons.expand_more_rounded),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           actions: [
@@ -197,7 +219,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const CircularProgressIndicator(),
+                            const AppLoadingIndicator(),
                             if (_controller.board?.source == 'hongguo') ...[
                               const SizedBox(height: 16),
                               Text(l10n.rankingsLoadingHint),
@@ -260,7 +282,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                                     child: _controller.more
                                         ? const Padding(
                                             padding: EdgeInsets.all(16),
-                                            child: CircularProgressIndicator(),
+                                            child: AppLoadingIndicator(),
                                           )
                                         : _controller.hasMore
                                         ? OutlinedButton(

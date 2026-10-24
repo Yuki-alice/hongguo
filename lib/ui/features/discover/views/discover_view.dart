@@ -2,9 +2,6 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
-import 'package:hoshi/ui/core/app_bottom_navigation.dart';
-import 'package:hoshi/ui/shell/app_sidebar.dart'
-    show AppRail, shellDestinations;
 import 'package:hoshi/ui/core/catalog_filters.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/app_build.dart';
@@ -14,7 +11,9 @@ import 'package:hoshi/ui/features/discover/views/recommendations_screen.dart';
 import 'package:hoshi/ui/features/home/widgets/saved_library.dart';
 import 'package:hoshi/ui/core/vip_icon.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/skeleton.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
 import 'package:hoshi/ui/features/discover/widgets/catalog_selection_bar.dart';
@@ -35,7 +34,6 @@ class DiscoverView extends StatefulWidget {
     required this.maxSelection,
     required this.appBarFocus,
     required this.selectionFocus,
-    required this.onChangeTab,
     required this.onCancelSelection,
     required this.onClearSelection,
     required this.onEnterSelectionMode,
@@ -56,7 +54,6 @@ class DiscoverView extends StatefulWidget {
     required this.onToggleVip,
     required this.onMoreMenu,
     this.cacheReadError,
-    this.shell = false,
   });
 
   final CatalogController controller;
@@ -69,7 +66,6 @@ class DiscoverView extends StatefulWidget {
   final FocusNode appBarFocus;
   final FocusNode selectionFocus;
 
-  final ValueChanged<int> onChangeTab;
   final VoidCallback onCancelSelection;
   final VoidCallback onClearSelection;
   final VoidCallback onEnterSelectionMode;
@@ -93,11 +89,6 @@ class DiscoverView extends StatefulWidget {
   /// 缓存回读失败时的提示，非空时覆盖目录自身错误。
   final String? cacheReadError;
 
-  /// 是否由 `AppShell` 提供导航。
-  ///
-  /// 为真时本页不再渲染侧栏 / 底部导航，只保留 AppBar 与内容区。
-  final bool shell;
-
   @override
   State<DiscoverView> createState() => _DiscoverViewState();
 }
@@ -110,88 +101,30 @@ class _DiscoverViewState extends State<DiscoverView> {
   /// 宿主转发给它。
   final _recommendationsKey = GlobalKey<RecommendationsSliversState>();
 
-  /// 非外壳路径（直接构造本页的场景）的目的地。
-  ///
-  /// 与 `shellDestinations` 保持同一套四个目的地：发现 / 榜单 / 追剧 / 我的。
-  List<(int, IconData, IconData, String)> _destinations(
-    AppLocalizations l10n,
-  ) => [
-    (0, Icons.explore_outlined, Icons.explore_rounded, l10n.discoverTitle),
-    (
-      1,
-      Icons.leaderboard_outlined,
-      Icons.leaderboard_rounded,
-      l10n.rankingsTitle,
-    ),
-    (2, Icons.bookmark_border_rounded, Icons.bookmark_rounded, l10n.follows),
-    (3, Icons.person_outline_rounded, Icons.person_rounded, l10n.mySpaceTitle),
-  ];
-
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final l10n = AppLocalizations.of(context);
       final width = constraints.maxWidth;
       final desktop = Md3WindowClass.usesRail(width);
-      // 外壳模式：导航由 AppShell 提供，本页只渲染内容与 AppBar。
-      if (widget.shell) {
-        // 目录页的顶栏是**滚动视图的一部分**（Kazumi 的折叠大标题），
-        // 因此这条分支不往 `Scaffold.appBar` 里放东西——`AppBar` 是固定
-        // 高度、不参与 stretch 的。
-        final header = _usesHeaderSliver;
-        // 内层背景透明：外壳的 `ContentShelf` 负责底色与左侧圆角，
-        // 这里再画一层不透明背景会把圆角盖掉。
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: header ? null : _appBar(context),
-          body: _body(desktop),
-          bottomNavigationBar: widget.selectionMode ? _selectionBar() : null,
-          floatingActionButton: header && !widget.selectionMode
-              ? _scrollToTop()
-              : null,
-        );
-      }
+      // 目录页的顶栏是**滚动视图的一部分**（Kazumi 的折叠大标题），
+      // 因此不往 `Scaffold.appBar` 里放东西——`AppBar` 是固定
+      // 高度、不参与 stretch 的。追剧页同样不放：页面自带「我的追剧」
+      // 标题与搜索框，「星」这层标题栏纯属重复；只有万一处于多选态
+      // 时才保留 AppBar 承载它的操作。
+      final header = _usesHeaderSliver;
+      final showAppBar = !header && widget.selectionMode;
+      // 内层背景透明：外壳的 `ContentShelf` 负责底色与左侧圆角，
+      // 这里再画一层不透明背景会把圆角盖掉。
       return Scaffold(
-        appBar: _appBar(context),
-        body: Row(
-          children: [
-            if (desktop) ...[
-              _rail(context),
-              const VerticalDivider(width: 1, thickness: 1),
-            ],
-            Expanded(child: _body(desktop)),
-          ],
-        ),
-        bottomNavigationBar: desktop
-            ? null
-            : widget.selectionMode
-            ? _selectionBar()
-            : AppBottomNavigation(
-                selectedIndex: widget.tabIndex,
-                onDestinationSelected: widget.onChangeTab,
-                destinations: [
-                  for (final entry in _destinations(l10n))
-                    NavigationDestination(
-                      icon: Icon(entry.$2),
-                      selectedIcon: Icon(entry.$3),
-                      label: entry.$4,
-                    ),
-                ],
-              ),
+        backgroundColor: Colors.transparent,
+        appBar: showAppBar ? _appBar(context) : null,
+        body: _body(desktop),
+        bottomNavigationBar: widget.selectionMode ? _selectionBar() : null,
+        floatingActionButton: header && !widget.selectionMode
+            ? _scrollToTop()
+            : null,
       );
     },
-  );
-
-  /// 非外壳路径的桌面 rail。
-  ///
-  /// 直接复用外壳的 [AppRail]，而不是再画一条 `groupAlignment: -.8` 的
-  /// 私有 rail：两条 rail 一旦分叉，就会在「直接构造本页」的场景里
-  /// 看到与主界面不同的导航（旧版这里还挂着一个播放器 logo）。
-  Widget _rail(BuildContext context) => AppRail(
-    destinations: shellDestinations(context, canDownload: store.canDownload),
-    selectedIndex: widget.tabIndex,
-    onSelected: widget.onChangeTab,
-    onSearch: widget.onToggleSearch,
   );
 
   Widget _body(bool desktop) {
@@ -206,17 +139,22 @@ class _DiscoverViewState extends State<DiscoverView> {
       return _catalog(selectionInBody: desktop);
     }
     // tabIndex 1 是追剧。历史与下载在 S1 之后是「我的」的下级全屏页，
-    // 不再经过这里。
-    return SavedLibrary(
-      key: ValueKey('saved-tab-${widget.tabIndex}'),
-      repository: controller.repository,
-      store: store,
-      history: false,
-      onOpen: (drama) => widget.onOpenDrama(drama),
-      onContinue: (drama) => widget.onOpenDrama(drama, resume: true),
-      onDownload: controller.repository.supportsDownloads && store.canDownload
-          ? (drama) => widget.onOpenDrama(drama, download: true)
-          : null,
+    // 不再经过这里。页面不再有 AppBar，移动端用 SafeArea 补状态栏
+    // 顶部内边距（桌面窗口无系统内边距，此处是空操作）。
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: SavedLibrary(
+        key: ValueKey('saved-tab-${widget.tabIndex}'),
+        repository: controller.repository,
+        store: store,
+        history: false,
+        onOpen: (drama) => widget.onOpenDrama(drama),
+        onContinue: (drama) => widget.onOpenDrama(drama, resume: true),
+        onDownload: controller.repository.supportsDownloads && store.canDownload
+            ? (drama) => widget.onOpenDrama(drama, download: true)
+            : null,
+      ),
     );
   }
 
@@ -224,7 +162,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   ///
   /// 推荐流也走这条分支：它现在只产出 slivers，与目录共用同一个
   /// `CustomScrollView`，因此不再需要单独的 Scaffold + AppBar。
-  bool get _usesHeaderSliver => widget.shell && widget.tabIndex == 0;
+  bool get _usesHeaderSliver => widget.tabIndex == 0;
 
   /// 折叠头的高度与标题字号区间，照抄 Kazumi `buildSliverAppBar`。
   static const double headerHeight = Md3HomeHeader.height;
@@ -467,7 +405,7 @@ class _DiscoverViewState extends State<DiscoverView> {
           padding: const EdgeInsets.only(bottom: Md3Spacing.xl),
           child: Center(
             child: controller.loadingMore
-                ? const CircularProgressIndicator()
+                ? const AppLoadingIndicator(size: 24)
                 : controller.hasMore
                 ? OutlinedButton.icon(
                     onPressed: widget.onLoadMore,
@@ -629,30 +567,54 @@ class _DiscoverViewState extends State<DiscoverView> {
   /// 收在这里。菜单项带 key，测试仍可按 `open-rankings` /
   /// `select-catalog-dramas` 定位（它们从 IconButton 变成了菜单项）。
   List<Widget> _moreActions(AppLocalizations l10n) => [
-    PopupMenuButton<String>(
+    AppMenuButton(
       key: const ValueKey('catalog-more'),
-      tooltip: l10n.more,
-      onSelected: widget.onMoreMenu,
-      itemBuilder: (_) => [
+      menuChildren: [
         if (!controller.showRecommendations &&
             store.canDownload &&
             controller.repository.supportsDownloads)
-          PopupMenuItem(value: 'select', child: Text(l10n.multiDownload)),
-        PopupMenuItem(value: 'rankings', child: Text(l10n.rankingsTitle)),
-        if (controller.supportsVipFilter)
-          CheckedPopupMenuItem(
-            value: 'vip',
-            key: const ValueKey('catalog-vip'),
-            checked: !store.hideVip,
-            child: Text(l10n.vipShow),
+          AppMenuItem(
+            label: l10n.multiDownload,
+            onPressed: () => widget.onMoreMenu('select'),
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem(value: 'update', child: Text(l10n.refreshLibrary)),
-        PopupMenuItem(value: 'sources', child: Text(l10n.sourceManagement)),
-        PopupMenuItem(value: 'settings', child: Text(l10n.settingsTitle)),
-        PopupMenuItem(value: 'users', child: Text(l10n.userManagement)),
-        PopupMenuItem(value: 'about', child: Text(l10n.about)),
+        AppMenuItem(
+          label: l10n.rankingsTitle,
+          onPressed: () => widget.onMoreMenu('rankings'),
+        ),
+        if (controller.supportsVipFilter)
+          AppMenuItem(
+            key: const ValueKey('catalog-vip'),
+            label: l10n.vipShow,
+            selected: !store.hideVip,
+            onPressed: () => widget.onMoreMenu('vip'),
+          ),
+        const AppMenuDivider(),
+        AppMenuItem(
+          label: l10n.refreshLibrary,
+          onPressed: () => widget.onMoreMenu('update'),
+        ),
+        AppMenuItem(
+          label: l10n.sourceManagement,
+          onPressed: () => widget.onMoreMenu('sources'),
+        ),
+        AppMenuItem(
+          label: l10n.settingsTitle,
+          onPressed: () => widget.onMoreMenu('settings'),
+        ),
+        AppMenuItem(
+          label: l10n.userManagement,
+          onPressed: () => widget.onMoreMenu('users'),
+        ),
+        AppMenuItem(
+          label: l10n.about,
+          onPressed: () => widget.onMoreMenu('about'),
+        ),
       ],
+      builder: (context, toggle, open) => IconButton(
+        tooltip: l10n.more,
+        onPressed: toggle,
+        icon: const Icon(Icons.more_vert_rounded),
+      ),
     ),
   ];
 
@@ -688,7 +650,6 @@ class _DiscoverViewState extends State<DiscoverView> {
     required double fontSize,
     bool bold = true,
   }) {
-    final l10n = AppLocalizations.of(context);
     final categories = controller.displayCategories;
     final current = controller.displayCategory;
     final groups = controller.sourceGroups;
@@ -702,52 +663,36 @@ class _DiscoverViewState extends State<DiscoverView> {
         ? group.name
         : currentCategory.name;
 
-    return PopupMenuButton<String>(
+    return AppMenuButton(
       key: const ValueKey('source-switch'),
-      tooltip: l10n.switchSource,
       // 参照应用的菜单上限 240×350：分类多时靠滚动而不是撑满屏。
-      constraints: const BoxConstraints(maxWidth: 240, maxHeight: 350),
-      onSelected: (value) {
-        // 站源项带 `group:` 前缀，避免与分类 id 撞名。
-        if (value.startsWith('group:')) {
-          final target = groups.firstWhere(
-            (entry) => entry.id == value.substring(6),
-            orElse: () => group,
-          );
-          widget.onChangeGroup(target);
-        } else {
-          widget.onChangeCategory(value);
-        }
-      },
-      itemBuilder: (_) => [
+      maxSize: const Size(240, 350),
+      menuChildren: [
         for (final category in categories)
-          PopupMenuItem(
-            value: category.id,
-            child: Row(
-              children: [
-                Expanded(child: Text(category.name)),
-                if (category.id == current)
-                  const Icon(Icons.check_rounded, size: 20),
-              ],
-            ),
+          AppMenuItem(
+            label: category.name,
+            selected: category.id == current,
+            onPressed: () => widget.onChangeCategory(category.id),
           ),
-        if (groups.length > 1) const PopupMenuDivider(),
+        if (groups.length > 1) const AppMenuDivider(),
         if (groups.length > 1)
           for (final entry in groups)
-            PopupMenuItem(
-              value: 'group:${entry.id}',
-              child: Row(
-                children: [
-                  Expanded(child: Text(entry.name)),
-                  if (entry.id == group.id)
-                    const Icon(Icons.check_rounded, size: 20),
-                ],
-              ),
+            AppMenuItem(
+              label: entry.name,
+              selected: entry.id == group.id,
+              onPressed: () {
+                final target = groups.firstWhere(
+                  (candidate) => candidate.id == entry.id,
+                  orElse: () => group,
+                );
+                widget.onChangeGroup(target);
+              },
             ),
       ],
       // 结构照 `popular_page.dart` 的 builder：InkWell(radius 8) 包一行
       // 「文字 + 4px 间隙 + 跟随字号的下拉箭头」。
-      child: InkWell(
+      builder: (context, toggle, open) => InkWell(
+        onTap: toggle,
         borderRadius: BorderRadius.circular(Md3Shape.small),
         child: SizedBox(
           height: 48,
@@ -767,10 +712,14 @@ class _DiscoverViewState extends State<DiscoverView> {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: fontSize,
-                color: Theme.of(context).iconTheme.color,
+              AnimatedRotation(
+                turns: open ? .5 : 0,
+                duration: Md3Motion.of(context, Md3Motion.standard),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: fontSize,
+                  color: Theme.of(context).iconTheme.color,
+                ),
               ),
             ],
           ),
@@ -784,47 +733,47 @@ class _DiscoverViewState extends State<DiscoverView> {
     required double fontSize,
     bool bold = true,
   }) {
-    final l10n = AppLocalizations.of(context);
     final groups = controller.sourceGroups;
     final current = controller.group;
-    return PopupMenuButton<SourceGroup>(
+    return AppMenuButton(
       key: const ValueKey('source-switch'),
-      tooltip: l10n.switchSource,
       enabled: groups.length > 1,
-      onSelected: widget.onChangeGroup,
-      itemBuilder: (_) => [
+      menuChildren: [
         for (final group in groups)
-          PopupMenuItem(
-            value: group,
-            child: Row(
-              children: [
-                Expanded(child: Text(group.name)),
-                if (group.id == current.id)
-                  const Icon(Icons.check_rounded, size: 20),
-              ],
-            ),
+          AppMenuItem(
+            label: group.name,
+            selected: group.id == current.id,
+            onPressed: () => widget.onChangeGroup(group),
           ),
       ],
-      child: SizedBox(
-        height: 48,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                current.name,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: fontSize,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+      builder: (context, toggle, open) => InkWell(
+        onTap: toggle,
+        borderRadius: BorderRadius.circular(Md3Shape.small),
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  current.name,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: fontSize,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-            if (groups.length > 1)
-              Icon(Icons.expand_more_rounded, size: fontSize),
-          ],
+              if (groups.length > 1)
+                AnimatedRotation(
+                  turns: open ? .5 : 0,
+                  duration: Md3Motion.of(context, Md3Motion.standard),
+                  child: Icon(Icons.expand_more_rounded, size: fontSize),
+                ),
+            ],
+          ),
         ),
       ),
     );

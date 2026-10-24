@@ -9,6 +9,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class MergeQueueScreen extends StatefulWidget {
@@ -195,7 +196,7 @@ class _MergeQueueScreenState extends State<MergeQueueScreen> {
                 message: l10n.reopenMergeQueue,
               )
             : _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AppLoadingIndicator())
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

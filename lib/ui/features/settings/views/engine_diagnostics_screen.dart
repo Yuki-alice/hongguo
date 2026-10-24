@@ -6,6 +6,7 @@ import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/data/engine_repository.dart';
 import 'package:hoshi/data/repository_capabilities.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 引擎诊断页。
@@ -84,7 +85,7 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
 
   Widget _buildBody(ThemeData theme, AppLocalizations l10n) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppLoadingIndicator());
     }
     final error = _error;
     if (error != null) {

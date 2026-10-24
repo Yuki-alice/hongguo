@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/app_bottom_navigation.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 外壳的一个导航目的地。
@@ -15,7 +14,7 @@ class ShellDestination {
     this.badge = 0,
   });
 
-  /// 稳定标识，用于 key（`rail-nav-<id>`、`bottom-nav-<index>`）。
+  /// 稳定标识，用于 key（`rail-nav-<id>`、`bottom-nav-<id>`）。
   final String id;
   final IconData icon;
   final IconData selectedIcon;
@@ -146,8 +145,9 @@ class AppRail extends StatelessWidget {
 
 /// 底部导航（竖屏）。
 ///
-/// 复用既有的 [AppBottomNavigation]：它的 key 约定（`bottom-nav-<index>`）
-/// 被 5 个测试文件依赖。
+/// 直接使用官方 [NavigationBar]：样式由主题的 `navigationBarTheme` 统一
+/// 提供（80 高、stadium 指示器、选中 w700），不再自绘。角标用 [Badge]
+/// 挂在图标上，key 约定为 `bottom-nav-<id>`。
 class AppBottomBar extends StatelessWidget {
   const AppBottomBar({
     super.key,
@@ -161,18 +161,29 @@ class AppBottomBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => AppBottomNavigation(
+  Widget build(BuildContext context) => NavigationBar(
     selectedIndex: selectedIndex,
     onDestinationSelected: onSelected,
     destinations: [
       for (final destination in destinations)
         NavigationDestination(
-          icon: Icon(destination.icon),
-          selectedIcon: Icon(destination.selectedIcon),
+          icon: _icon(destination, selected: false),
+          selectedIcon: _icon(destination, selected: true),
           label: destination.label,
         ),
     ],
   );
+
+  Widget _icon(ShellDestination destination, {required bool selected}) {
+    final icon = Icon(
+      selected ? destination.selectedIcon : destination.icon,
+      key: ValueKey(
+        'bottom-nav-${destination.id}${selected ? '-selected' : ''}',
+      ),
+    );
+    if (destination.badge <= 0) return icon;
+    return Badge.count(count: destination.badge, child: icon);
+  }
 }
 
 /// 内容「书架」。

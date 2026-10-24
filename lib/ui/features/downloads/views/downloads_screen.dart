@@ -12,6 +12,7 @@ import 'package:hoshi/ui/features/downloads/controllers/downloads_controller.dar
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
+import 'package:hoshi/ui/core/adaptive_sheet.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
@@ -34,11 +35,11 @@ class DownloadsScreen extends StatefulWidget {
 }
 
 class _DownloadsScreenState extends State<DownloadsScreen> {
-  /// 每行「更多」菜单的 key：右键与菜单按钮共用同一个弹出位置。
-  final _menuKeys = <String, GlobalKey<PopupMenuButtonState<String>>>{};
+  /// 每行「更多」菜单的外置控制器：右键与菜单按钮共用同一个弹出位置。
+  final _menuControllers = <String, MenuController>{};
 
-  GlobalKey<PopupMenuButtonState<String>> _menuKeyFor(String id) =>
-      _menuKeys.putIfAbsent(id, GlobalKey<PopupMenuButtonState<String>>.new);
+  MenuController _menuControllerFor(String id) =>
+      _menuControllers.putIfAbsent(id, MenuController.new);
 
   AppLocalizations get l10n => AppLocalizations.of(context);
   final _search = TextEditingController();
@@ -294,23 +295,29 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         icon: const Icon(Icons.video_library_outlined),
       ),
     ],
-    PopupMenuButton<String>(
+    AppMenuButton(
       key: const ValueKey('download-queue-actions'),
-      tooltip: l10n.queueActions,
       enabled: !_controller.busy,
-      onSelected: (value) {
-        if (value == 'refresh') {
-          _refresh();
-        } else {
-          _batch(value, _controller.jobs);
-        }
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem(value: 'pause', child: Text(l10n.pauseAll)),
-        PopupMenuItem(value: 'resume', child: Text(l10n.resumeAll)),
-        PopupMenuItem(value: 'archive', child: Text(l10n.archiveCompleted)),
-        PopupMenuItem(value: 'refresh', child: Text(l10n.refreshRecords)),
+      menuChildren: [
+        AppMenuItem(
+          label: l10n.pauseAll,
+          onPressed: () => _batch('pause', _controller.jobs),
+        ),
+        AppMenuItem(
+          label: l10n.resumeAll,
+          onPressed: () => _batch('resume', _controller.jobs),
+        ),
+        AppMenuItem(
+          label: l10n.archiveCompleted,
+          onPressed: () => _batch('archive', _controller.jobs),
+        ),
+        AppMenuItem(label: l10n.refreshRecords, onPressed: _refresh),
       ],
+      builder: (context, toggle, open) => IconButton(
+        tooltip: l10n.queueActions,
+        onPressed: toggle,
+        icon: const Icon(Icons.more_vert_rounded),
+      ),
     ),
   ];
 
@@ -471,13 +478,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final expanded = _controller.expanded.contains(collection.drama.id);
     final highlighted = compact && selected;
     final colors = Theme.of(context).colorScheme;
-    final menuKey = _menuKeyFor('collection-${collection.drama.id}');
+    final menuController = _menuControllerFor(
+      'collection-${collection.drama.id}',
+    );
     return TonalCard(
       color: highlighted ? colors.secondaryContainer : null,
       child: GestureDetector(
-        onSecondaryTap: _controller.busy
-            ? null
-            : () => menuKey.currentState?.showButtonMenu(),
+        onSecondaryTap: _controller.busy ? null : () => menuController.open(),
         child: ListTile(
           selected: highlighted,
           contentPadding: compact
@@ -516,45 +523,49 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             '${collection.failed > 0 ? l10n.collectionFailed(collection.failed) : ''}',
           ),
           onTap: () => _controller.toggleExpanded(collection.drama.id),
-          trailing: PopupMenuButton<String>(
-            key: menuKey,
-            tooltip: l10n.collectionActions(collection.drama.title),
+          trailing: AppMenuButton(
+            key: ValueKey('collection-menu-${collection.drama.id}'),
+            controller: menuController,
             enabled: !_controller.busy,
-            onSelected: (value) {
-              if (value == 'update') {
-                _update(collection.drama);
-              } else if (value == 'select') {
-                _select(collection.jobs);
-              } else {
-                _batch(value, collection.jobs);
-              }
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'update',
-                enabled: !_controller.updater.busy,
-                child: Text(l10n.updateCollectionFull),
+            menuChildren: [
+              AppMenuItem(
+                label: l10n.updateCollectionFull,
+                onPressed: _controller.updater.busy
+                    ? null
+                    : () => _update(collection.drama),
               ),
-              PopupMenuItem(
-                value: 'select',
-                child: Text(l10n.selectCollection),
+              AppMenuItem(
+                label: l10n.selectCollection,
+                onPressed: () => _select(collection.jobs),
               ),
-              PopupMenuItem(value: 'pause', child: Text(l10n.pauseCollection)),
-              PopupMenuItem(
-                value: 'resume',
-                child: Text(l10n.resumeCollection),
+              AppMenuItem(
+                label: l10n.pauseCollection,
+                onPressed: () => _batch('pause', collection.jobs),
               ),
-              PopupMenuItem(
-                value: 'archive',
-                child: Text(l10n.archiveCompleted),
+              AppMenuItem(
+                label: l10n.resumeCollection,
+                onPressed: () => _batch('resume', collection.jobs),
+              ),
+              AppMenuItem(
+                label: l10n.archiveCompleted,
+                onPressed: () => _batch('archive', collection.jobs),
               ),
               if (_controller.filter == 'archived')
-                PopupMenuItem(value: 'restore', child: Text(l10n.restoreList)),
-              PopupMenuItem(
-                value: 'remove',
-                child: Text(l10n.removeCollection),
+                AppMenuItem(
+                  label: l10n.restoreList,
+                  onPressed: () => _batch('restore', collection.jobs),
+                ),
+              AppMenuItem(
+                label: l10n.removeCollection,
+                destructive: true,
+                onPressed: () => _batch('remove', collection.jobs),
               ),
             ],
+            builder: (context, toggle, open) => IconButton(
+              tooltip: l10n.collectionActions(collection.drama.title),
+              onPressed: toggle,
+              icon: const Icon(Icons.more_vert_rounded),
+            ),
           ),
         ),
       ),
@@ -562,7 +573,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 
   Future<void> _collectionActions(DownloadCollection collection) async {
-    final value = await showModalBottomSheet<String>(
+    final value = await showAdaptiveSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -621,9 +632,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           GestureDetector(
             onSecondaryTap: _controller.busy
                 ? null
-                : () => _menuKeyFor(
-                    'job-${job.id}',
-                  ).currentState?.showButtonMenu(),
+                : () => _menuControllerFor('job-${job.id}').open(),
             child: ListTile(
               leading: _controller.selecting
                   ? Checkbox(
@@ -679,51 +688,49 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                               ),
                             ),
                           ),
-                        PopupMenuButton<String>(
-                          key: _menuKeyFor('job-${job.id}'),
+                        AppMenuButton(
+                          key: ValueKey('job-menu-${job.id}'),
+                          controller: _menuControllerFor('job-${job.id}'),
                           enabled: !_controller.busy,
-                          tooltip: l10n.episodeActions,
-                          onSelected: (value) {
-                            if (value == 'play') {
-                              _play(job);
-                            } else {
-                              _batch(value, [job]);
-                            }
-                          },
-                          itemBuilder: (_) => [
+                          menuChildren: [
                             if (job.completed)
-                              PopupMenuItem(
-                                value: 'play',
-                                child: Text(l10n.localPlayback),
+                              AppMenuItem(
+                                label: l10n.localPlayback,
+                                onPressed: () => _play(job),
                               ),
                             if (job.active)
-                              PopupMenuItem(
-                                value: 'pause',
-                                child: Text(l10n.pause),
+                              AppMenuItem(
+                                label: l10n.pause,
+                                onPressed: () => _batch('pause', [job]),
                               ),
                             if (job.resumable)
-                              PopupMenuItem(
-                                value: 'resume',
-                                child: Text(l10n.resumeRetry),
+                              AppMenuItem(
+                                label: l10n.resumeRetry,
+                                onPressed: () => _batch('resume', [job]),
                               ),
                             if (job.completed)
-                              PopupMenuItem(
-                                value: job.archived ? 'restore' : 'archive',
-                                child: Text(
-                                  job.archived
-                                      ? l10n.restoreTask
-                                      : l10n.cleanupTaskKeep,
+                              AppMenuItem(
+                                label: job.archived
+                                    ? l10n.restoreTask
+                                    : l10n.cleanupTaskKeep,
+                                onPressed: () => _batch(
+                                  job.archived ? 'restore' : 'archive',
+                                  [job],
                                 ),
                               ),
-                            PopupMenuItem(
-                              value: 'remove',
-                              child: Text(
-                                job.completed
-                                    ? l10n.deleteVideo
-                                    : l10n.cancelDownload,
-                              ),
+                            AppMenuItem(
+                              label: job.completed
+                                  ? l10n.deleteVideo
+                                  : l10n.cancelDownload,
+                              destructive: true,
+                              onPressed: () => _batch('remove', [job]),
                             ),
                           ],
+                          builder: (context, toggle, open) => IconButton(
+                            tooltip: l10n.episodeActions,
+                            onPressed: toggle,
+                            icon: const Icon(Icons.more_vert_rounded),
+                          ),
                         ),
                       ],
                     ),
@@ -906,7 +913,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           ),
         Expanded(
           child: _controller.loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: AppLoadingIndicator())
               : _controller.error != null && _controller.jobs.isEmpty
               ? StatusPanel(
                   title: l10n.noReadDownloads,

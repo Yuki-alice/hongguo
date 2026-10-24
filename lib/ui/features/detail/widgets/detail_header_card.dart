@@ -4,6 +4,7 @@ import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 详情页头部信息卡（参照应用的 `BangumiInfoCardV`）。
@@ -116,7 +117,7 @@ class DetailHeaderCard extends StatelessWidget {
                           child: Center(
                             child: SizedBox.square(
                               dimension: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: AppLoadingIndicator(size: 20),
                             ),
                           ),
                         ),

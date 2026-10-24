@@ -33,17 +33,13 @@ class HomeScreen extends StatefulWidget {
     required this.repository,
     required this.store,
     this.tabIndex = 0,
-    this.shell = false,
   });
 
   final AppRepository repository;
   final LocalStore store;
 
-  /// 当前 tab。由外壳传入时本页不再自己持有 tab 状态。
+  /// 当前 tab，由外壳分支传入。
   final int tabIndex;
-
-  /// 是否由 `AppShell` 提供导航（桌面 / 平板）。
-  final bool shell;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -55,9 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final _scroll = ScrollController();
   final _selectedDramas = <String, Drama>{};
   bool _selectionMode = false;
-  int get _tab => widget.shell ? widget.tabIndex : _localTab;
+  int get _tab => widget.tabIndex;
 
-  int _localTab = 0;
   Timer? _cacheRefreshTimer;
   final _changedSources = <String>{};
   bool _refreshingUpdatedCache = false;
@@ -257,12 +252,6 @@ class _HomeScreenState extends State<HomeScreen> {
     context.push(AppRoutes.search);
   }
 
-  void _changeTab(int tab) => setState(() {
-    _localTab = tab;
-    _selectionMode = false;
-    _selectedDramas.clear();
-  });
-
   void _cancelSelection() => setState(() {
     _selectionMode = false;
     _selectedDramas.clear();
@@ -435,7 +424,6 @@ class _HomeScreenState extends State<HomeScreen> {
       maxSelection: BatchDownloads.maxDramas,
       appBarFocus: _appBarFocus,
       selectionFocus: _selectionFocus,
-      onChangeTab: _changeTab,
       onCancelSelection: _cancelSelection,
       onClearSelection: _clearSelection,
       onEnterSelectionMode: _enterSelectionMode,
@@ -456,7 +444,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onToggleVip: _toggleVip,
       onMoreMenu: (value) => unawaited(_moreMenu(value)),
       cacheReadError: _cacheReadError,
-      shell: widget.shell,
     );
     if (!_selectionMode) return view;
     return PopScope(

@@ -9,6 +9,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 推荐流：作为目录 `CustomScrollView` 的一组 sliver 存在。
@@ -239,7 +240,7 @@ class RecommendationsSliversState extends State<RecommendationsSlivers> {
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.all(Md3Spacing.xxl),
-                    child: CircularProgressIndicator(),
+                    child: AppLoadingIndicator(),
                   ),
                 ),
               )
@@ -297,7 +298,7 @@ class RecommendationsSliversState extends State<RecommendationsSlivers> {
                   ),
                   child: Center(
                     child: _more
-                        ? const CircularProgressIndicator()
+                        ? const AppLoadingIndicator(size: 24)
                         : _hasMore
                         ? OutlinedButton.icon(
                             onPressed: () => _load(more: true),

@@ -134,6 +134,41 @@ abstract final class AppTheme {
       canvasColor: scheme.surface,
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
+      // 文字层级：在 M3 默认之上固定字重梯度——标题一律 w600（参照应用的
+      // 页面大标题语言），标签 w500。页面需要变体时 copyWith，不再写死
+      // 字号字重；未列出的角色保持 M3 默认。
+      textTheme: TextTheme(
+        headlineMedium: TextStyle(
+          fontSize: Md3Type.headlineMedium,
+          height: 1.22,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          fontSize: Md3Type.headlineSmall,
+          height: 1.22,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          fontSize: Md3Type.titleLarge,
+          height: 1.27,
+          fontWeight: FontWeight.w600,
+        ),
+        labelLarge: TextStyle(
+          fontSize: Md3Type.labelLarge,
+          fontWeight: FontWeight.w500,
+          letterSpacing: .1,
+        ),
+        labelMedium: TextStyle(
+          fontSize: Md3Type.labelMedium,
+          fontWeight: FontWeight.w500,
+          letterSpacing: .2,
+        ),
+        labelSmall: TextStyle(
+          fontSize: Md3Type.labelSmall,
+          fontWeight: FontWeight.w500,
+          letterSpacing: .2,
+        ),
+      ),
       // 桌面滚动条：常显、细、圆角，hover 时加深。Flutter 默认滚动条只在
       // 滚动时闪一下，鼠标用户很难发现内容还能继续滚。
       scrollbarTheme: ScrollbarThemeData(
@@ -346,7 +381,60 @@ abstract final class AppTheme {
         ),
         shape: RoundedRectangleBorder(borderRadius: Md3Shape.chip),
       ),
+      // Tab：选中 w700 主色、未选中 w500 次级，指标取 label 宽——与详情页
+      // 沉浸头的 tab 条共用这套默认，页面只在必要时微调。
+      tabBarTheme: TabBarThemeData(
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        labelStyle: const TextStyle(
+          fontSize: Md3Type.titleSmall,
+          fontWeight: FontWeight.w700,
+          letterSpacing: .1,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: Md3Type.titleSmall,
+          fontWeight: FontWeight.w500,
+          letterSpacing: .1,
+        ),
+        indicatorColor: scheme.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+      ),
+      // 搜索框：无阴影的填充胶囊，样式唯一出口在这里，页面不再内联。
+      searchBarTheme: SearchBarThemeData(
+        backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+        elevation: const WidgetStatePropertyAll(0),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: Md3Shape.pill),
+        ),
+        textStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: Md3Type.bodyLarge, color: scheme.onSurface),
+        ),
+        hintStyle: WidgetStatePropertyAll(
+          TextStyle(
+            fontSize: Md3Type.bodyLarge,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: Md3Spacing.lg),
+        ),
+        constraints: const BoxConstraints(minHeight: 56),
+      ),
+      // 卡片内嵌的展开项不要自带上下分隔线：外层 TonalCard 已经给了边界。
+      expansionTileTheme: const ExpansionTileThemeData(
+        shape: Border(),
+        collapsedShape: Border(),
+      ),
+      // 零阴影 FAB：层级靠容器色差表达，与卡片语言一致。
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+      ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
+        // 启用 2024 新版指示器外观（M3 Expressive 前置开关，参照应用同款）。
+        year2023: false,
         color: scheme.primary,
         linearTrackColor: scheme.surfaceContainerHighest,
         circularTrackColor: scheme.surfaceContainerHighest,
@@ -364,6 +452,8 @@ abstract final class AppTheme {
         ),
       ),
       sliderTheme: SliderThemeData(
+        // 新版滑块外观（M3 Expressive 前置开关，参照应用同款）。
+        year2023: false,
         activeTrackColor: scheme.primary,
         inactiveTrackColor: scheme.surfaceContainerHighest,
         thumbColor: scheme.primary,

@@ -13,6 +13,8 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/adaptive_sheet.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/detail/controllers/detail_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
@@ -430,13 +432,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                       constraints.maxWidth,
                                       episodes,
                                     ),
-                                    mainAxisExtent: math.max(
-                                      54,
-                                      MediaQuery.textScalerOf(
-                                            context,
-                                          ).scale(20) +
-                                          30,
-                                    ),
+                                    mainAxisExtent: _episodeExtent(),
                                     crossAxisSpacing: 10,
                                     mainAxisSpacing: 10,
                                   ),
@@ -504,30 +500,21 @@ class _DetailScreenState extends State<DetailScreen> {
                         const SizedBox(width: 12),
                       ],
                       Expanded(
-                        child: FilledButton.icon(
+                        child: StateActionButton(
                           key: const ValueKey('start-play'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 52),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
+                          label: watched != null && episodes.isNotEmpty
+                              ? l10n.detailResumeEpisode(
+                                  episodes[resumeIndex].number,
+                                )
+                              : l10n.detailPlayNow,
+                          icon: Icons.play_arrow_rounded,
+                          minimumSize: const Size(0, 52),
                           onPressed:
                               !allowed ||
                                   _controller.loading ||
                                   episodes.isEmpty
                               ? null
                               : () => _play(resumeIndex, resume: true),
-                          icon: const Icon(Icons.play_arrow_rounded, size: 26),
-                          label: Text(
-                            watched != null && episodes.isNotEmpty
-                                ? l10n.detailResumeEpisode(
-                                    episodes[resumeIndex].number,
-                                  )
-                                : l10n.detailPlayNow,
-                            textAlign: TextAlign.center,
-                          ),
                         ),
                       ),
                     ],
@@ -815,11 +802,8 @@ class _DetailScreenState extends State<DetailScreen> {
   /// 详情页只保留「剧集 / 简介」两个 Tab；站源是低频信息，放在 AppBar
   /// 动作里，用弹层承担，避免为一块只读信息单独占一个 Tab。
   Future<void> _showSourceSheet(Drama drama) {
-    return showModalBottomSheet<void>(
+    return showAdaptiveSheet<void>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (context) => _DetailSourceSheet(
         drama: drama,
         repository: widget.repository,
@@ -862,7 +846,7 @@ class _DetailScreenState extends State<DetailScreen> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
+          child: AppLoadingIndicator(),
         ),
       );
     }
@@ -912,10 +896,10 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 Text(expanded ? l10n.detailCollapse : l10n.detailExpand),
                 const SizedBox(width: 2),
-                Icon(
-                  expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.expand_more_rounded,
+                AnimatedRotation(
+                  turns: expanded ? -.5 : 0,
+                  duration: Md3Motion.of(context, Md3Motion.standard),
+                  child: const Icon(Icons.expand_more_rounded),
                 ),
               ],
             ),
@@ -936,10 +920,7 @@ class _DetailScreenState extends State<DetailScreen> {
       final viewport = RenderAbstractViewport.maybeOf(render);
       if (viewport == null) return;
       final start = viewport.getOffsetToReveal(render, 0).offset;
-      final extent = math.max(
-        54,
-        MediaQuery.textScalerOf(context).scale(20) + 30,
-      );
+      final extent = _episodeExtent();
       final columns = _episodeColumns(render.size.width, episodes);
       final target =
           start +
@@ -953,6 +934,10 @@ class _DetailScreenState extends State<DetailScreen> {
       );
     });
   }
+
+  /// 选集单元的行高：不小于 54，大字号随文字缩放。
+  double _episodeExtent() =>
+      math.max(54, MediaQuery.textScalerOf(context).scale(20) + 30);
 
   int _episodeColumns(double width, List<Episode> episodes) {
     final digits = episodes.fold<int>(
@@ -1199,65 +1184,71 @@ class _DetailScreenState extends State<DetailScreen> {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        PopupMenuButton<String>(
+        AppMenuButton(
           key: const ValueKey('follow-status'),
-          tooltip: l10n.detailFollowStatus,
-          onSelected: (value) async {
-            if (!_controller.allowed) return;
-            if (value == 'remove') {
-              await saveUserChange(
-                context,
-                () => widget.store.toggleFavorite(drama),
-              );
-            } else {
-              final status = FollowStatus.values.firstWhere(
-                (status) => status.name == value,
-              );
-              await saveUserChange(
-                context,
-                () => widget.store.setFollowStatus(drama, status),
-              );
-            }
-          },
-          itemBuilder: (_) => [
+          menuChildren: [
             for (final status in FollowStatus.values)
-              CheckedPopupMenuItem(
-                value: status.name,
-                checked: state?.status == status,
-                child: Text(_followStatusLabel(status, l10n)),
+              AppMenuItem(
+                label: _followStatusLabel(status, l10n),
+                selected: state?.status == status,
+                onPressed: () async {
+                  if (!_controller.allowed) return;
+                  await saveUserChange(
+                    context,
+                    () => widget.store.setFollowStatus(drama, status),
+                  );
+                },
               ),
             if (state != null)
-              PopupMenuItem(value: 'remove', child: Text(l10n.detailUnfollow)),
+              AppMenuItem(
+                label: l10n.detailUnfollow,
+                destructive: true,
+                onPressed: () async {
+                  if (!_controller.allowed) return;
+                  await saveUserChange(
+                    context,
+                    () => widget.store.toggleFavorite(drama),
+                  );
+                },
+              ),
           ],
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: state == null
-                  ? Theme.of(context).colorScheme.surfaceContainerHighest
-                  : Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: Md3Shape.card,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  state?.status == FollowStatus.watched
-                      ? Icons.check_circle_outline
-                      : state == null
-                      ? Icons.bookmark_add_outlined
-                      : Icons.bookmark_rounded,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  state == null
-                      ? l10n.detailFollow
-                      : _followStatusLabel(state.status, l10n),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.expand_more_rounded, size: 18),
-              ],
+          builder: (context, toggle, open) => InkWell(
+            onTap: toggle,
+            borderRadius: Md3Shape.card,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: state == null
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    : Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: Md3Shape.card,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    state?.status == FollowStatus.watched
+                        ? Icons.check_circle_outline
+                        : state == null
+                        ? Icons.bookmark_add_outlined
+                        : Icons.bookmark_rounded,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    state == null
+                        ? l10n.detailFollow
+                        : _followStatusLabel(state.status, l10n),
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: open ? .5 : 0,
+                    duration: Md3Motion.of(context, Md3Motion.standard),
+                    child: const Icon(Icons.expand_more_rounded, size: 18),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

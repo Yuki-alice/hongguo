@@ -265,9 +265,11 @@ class AppMenuButton extends StatelessWidget {
     this.enabled = true,
     this.animated = false,
     this.maxSize,
+    this.controller,
   });
 
-  final Widget Function(BuildContext context, VoidCallback? toggle) builder;
+  final Widget Function(BuildContext context, VoidCallback? toggle, bool open)
+  builder;
   final List<Widget> menuChildren;
   final bool enabled;
 
@@ -275,6 +277,10 @@ class AppMenuButton extends StatelessWidget {
   final bool animated;
 
   final Size? maxSize;
+
+  /// 外部持有 [MenuController]，供右键等非按钮触发的打开场景
+  /// （列表项 `onSecondaryTap` → `controller.open()`）。
+  final MenuController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +290,7 @@ class AppMenuButton extends StatelessWidget {
         style: _itemStyle.merge(MenuButtonTheme.of(context).style),
       ),
       child: MenuAnchor(
+        controller: controller,
         consumeOutsideTap: true,
         animated: animated && !reduceMotion,
         style: maxSize == null
@@ -295,10 +302,25 @@ class AppMenuButton extends StatelessWidget {
           enabled && menuChildren.isNotEmpty
               ? () => controller.isOpen ? controller.close() : controller.open()
               : null,
+          controller.isOpen,
         ),
       ),
     );
   }
+}
+
+/// 菜单分隔线。
+///
+/// `MenuAnchor` 体系没有专门的 divider 组件，这里统一样式：上下 4px、
+/// 两端 8px 缩进，与菜单条目的内边距对齐。
+class AppMenuDivider extends StatelessWidget {
+  const AppMenuDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 4),
+    child: Divider(height: 1, indent: 8, endIndent: 8),
+  );
 }
 
 const _itemStyle = ButtonStyle(

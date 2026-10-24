@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:hoshi/domain/catalog_sort.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/adaptive_sheet.dart';
 import 'package:hoshi/ui/core/l10n_labels.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -21,11 +22,8 @@ Future<CatalogView?> chooseCatalogView(
       builder: (context) => _CatalogViewDialog(current: current),
     );
   }
-  return showModalBottomSheet<CatalogView>(
+  return showAdaptiveSheet<CatalogView>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    useSafeArea: true,
     builder: (context) => _CatalogViewSheet(current: current),
   );
 }

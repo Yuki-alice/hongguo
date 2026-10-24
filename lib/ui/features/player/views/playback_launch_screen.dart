@@ -11,6 +11,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 
 Future<void> openPlaybackDirectly(
   BuildContext context, {
@@ -224,7 +225,7 @@ class _PlaybackLaunchScreenState extends State<PlaybackLaunchScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(),
+                    const AppLoadingIndicator(),
                     const SizedBox(height: 16),
                     Text(l10n.enteringPlayback),
                   ],

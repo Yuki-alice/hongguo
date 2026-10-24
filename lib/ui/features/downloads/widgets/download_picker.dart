@@ -4,6 +4,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/domain/download_preferences.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/episode_browser.dart';
+import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class DownloadSelection {
@@ -247,7 +248,7 @@ class _DownloadPickerState extends State<DownloadPicker> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppLoadingIndicator(size: 20),
                         )
                       : const Icon(Icons.download_rounded),
                   label: Text(
