@@ -12,6 +12,7 @@ import 'package:hoshi/ui/core/empty_state.dart' show ShapeBadgePainter;
 import 'package:hoshi/ui/core/split_list.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 「我的」页。
 ///
@@ -43,7 +44,7 @@ class MyScreen extends StatelessWidget {
           key: const PageStorageKey('my-space'),
           padding: EdgeInsets.fromLTRB(
             inset,
-            Md3Spacing.md,
+            Md3Spacing.md + WindowSafeArea.top,
             inset,
             Md3Spacing.xxl,
           ),

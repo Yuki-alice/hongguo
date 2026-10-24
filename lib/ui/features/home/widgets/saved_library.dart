@@ -10,6 +10,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class SavedLibrary extends StatefulWidget {
   const SavedLibrary({
@@ -147,7 +148,8 @@ class _SavedLibraryState extends State<SavedLibrary> {
           .firstOrNull;
       final header = [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+          // 作为 tab 内容渲染时外层没有 AppBar，自己让开交通灯。
+          padding: EdgeInsets.fromLTRB(20, 12 + WindowSafeArea.top, 12, 8),
           child: Row(
             children: [
               Expanded(

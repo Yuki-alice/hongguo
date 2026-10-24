@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 外壳的一个导航目的地。
 @immutable
@@ -100,7 +101,9 @@ class AppRail extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: Md3Spacing.md),
+            // 让开 macOS 红绿灯：搜索 FAB 是整个应用最左上角的控件，
+            // 不加这一条会被交通灯压住。
+            padding: EdgeInsets.only(top: Md3Spacing.md + WindowSafeArea.top),
             child: FloatingActionButton(
               key: const ValueKey('rail-search'),
               elevation: 0,

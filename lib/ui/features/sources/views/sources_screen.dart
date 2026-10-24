@@ -14,6 +14,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/sources/controllers/sources_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 String sourceTimestamp(DateTime? value, AppLocalizations l10n) {
   if (value == null) return l10n.sourceNoRecord;
@@ -121,7 +122,7 @@ class _SourcesScreenState extends State<SourcesScreen> {
           ? viewPaddingBottom
           : paddingBottom;
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(l10n.sourcesTitle),
           actions: [
             IconButton(

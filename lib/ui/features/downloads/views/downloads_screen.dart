@@ -16,6 +16,7 @@ import 'package:hoshi/ui/core/adaptive_sheet.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({
@@ -970,7 +971,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             Navigator.of(context).maybePop(),
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(title), actions: actions),
+        appBar: DesktopAppBar(title: Text(title), actions: actions),
         body: SafeArea(top: false, child: body),
       ),
     );

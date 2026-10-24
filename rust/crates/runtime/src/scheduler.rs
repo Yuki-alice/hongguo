@@ -309,6 +309,36 @@ impl Scheduler {
         revision
     }
 
+    /// 原子认领一个排队中的任务：把它标记为 Running 并返回 id。
+    ///
+    /// 引擎的下载 worker 用它抢任务——多个 worker 并发调用时，
+    /// 同一个任务只会被认领一次；没有排队任务时返回 `None`，worker 据此退出。
+    pub fn claim_next(&self) -> Option<String> {
+        let mut jobs = self.jobs.lock().expect("jobs lock");
+        let id = jobs
+            .iter()
+            .find(|(_, job)| job.state == JobState::Queued)
+            .map(|(id, _)| id.clone())?;
+        if let Some(job) = jobs.get_mut(&id) {
+            job.state = JobState::Running;
+            job.error.clear();
+            let revision = self.revision.fetch_add(1, Ordering::SeqCst) + 1;
+            job.revision = revision;
+        }
+        self.persist(&jobs);
+        Some(id)
+    }
+
+    /// 当前排队中的任务数（决定要补多少个 worker）。
+    pub fn queued_count(&self) -> usize {
+        self.jobs
+            .lock()
+            .expect("jobs lock")
+            .values()
+            .filter(|job| job.state == JobState::Queued)
+            .count()
+    }
+
     /// 执行一个已登记的任务。
     pub async fn run(&self, env: &SourceEnv, id: &str) -> Result<DownloadOutcome, SourceError> {
         let job = self

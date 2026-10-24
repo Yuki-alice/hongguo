@@ -8,6 +8,7 @@ import 'package:hoshi/data/repository_capabilities.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 引擎诊断页。
 ///
@@ -68,7 +69,7 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: DesktopAppBar(
         title: Text(l10n.engineDiagnosticsTitle),
         actions: [
           IconButton(

@@ -35,6 +35,8 @@ class LocalSnapshot {
     // 桌面窗口状态：设备级设置，不随用户档案切换。
     'windowBounds',
     'closeBehavior',
+    // 下载归档：引擎任务全局，归档旗标也是设备级。
+    'archivedDownloads',
     // 主题个性化。
     'themeSeed',
     'useDynamicColor',

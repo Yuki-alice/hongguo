@@ -24,6 +24,7 @@ pub use bundled::{
 pub use cancel::{CancellationRegistry, RequestTicket};
 pub use cover::{CoverCache, CoverResult};
 pub use engine::{current, initialize, require, BuiltinSources, Engine, EngineConfig};
+pub use engine::pump_downloads;
 pub use error::{timeout_error, EngineError, EngineErrorKind};
 pub use events::{DownloadEvent, EventBus};
 pub use gate::RequestGate;

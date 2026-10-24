@@ -253,6 +253,10 @@ pub fn media_from_wit(media: Media) -> guo_source_api::Media {
         key_iv: media.key_iv,
         cookies: media.cookies,
         origin: media.origin,
+        // WIT v2 契约没有 CENC 密钥与画质字段；需要时按 v3 扩展 WIT。
+        cenc_key: String::new(),
+        quality: 0,
+        qualities: Vec::new(),
     }
 }
 

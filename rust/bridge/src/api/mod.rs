@@ -501,6 +501,7 @@ async fn media_inner(
         video_url: chapter.video_url.clone(),
         page_url: chapter.page_url.clone(),
         referer: chapter.referer.clone(),
+        vip: chapter.vip,
         ..Default::default()
     };
     let media = run(source_id, &ticket.request_id, "resolve", async {
@@ -516,6 +517,9 @@ async fn media_inner(
         key_iv: media.key_iv,
         cookies: media.cookies,
         origin: media.origin,
+        cenc_key: media.cenc_key,
+        quality: media.quality,
+        qualities: media.qualities,
     })
 }
 
@@ -615,7 +619,7 @@ pub async fn fetch_danmaku(
     chapter: ChapterInput,
     start_ms: i64,
     request_id: String,
-) -> Result<Vec<DanmakuItem>, EngineFailure> {
+) -> Result<DanmakuPageResult, EngineFailure> {
     let (source, env) = prepare(&source_id)?;
     let target = Chapter {
         id: chapter.id,
@@ -624,21 +628,36 @@ pub async fn fetch_danmaku(
         video_url: chapter.video_url,
         page_url: chapter.page_url,
         referer: chapter.referer,
+        vip: chapter.vip,
         ..Default::default()
     };
     let page = run(&source_id, &request_id, "danmaku", async {
         source.danmaku(&env, &target, start_ms).await
     })
     .await?;
-    Ok(page
-        .items
-        .into_iter()
-        .map(|item| DanmakuItem {
-            time_ms: item.time_ms,
-            text: item.text,
-            color: item.color,
-        })
-        .collect())
+    Ok(DanmakuPageResult {
+        items: page
+            .items
+            .into_iter()
+            .map(|item| DanmakuItem {
+                time_ms: item.time_ms,
+                text: item.text,
+                color: item.color,
+            })
+            .collect(),
+        // 服务端的真实分段游标（30s 或 60s 都有）。调用方必须用它推进窗口，
+        // 自己按固定 60s 估算会整段跳过 30s 分段里的弹幕。
+        end_ms: page.end_ms,
+        has_more: page.has_more,
+    })
+}
+
+/// 弹幕一页：条目 + 服务端窗口游标。
+pub struct DanmakuPageResult {
+    pub items: Vec<DanmakuItem>,
+    /// 本段结束时间（毫秒），下一次请求从这里开始。
+    pub end_ms: i64,
+    pub has_more: bool,
 }
 
 /// 找出同一部剧的其它季。
@@ -799,6 +818,10 @@ pub struct DownloadSnapshot {
 }
 
 /// 登记一个下载任务。
+///
+/// 登记即由引擎 worker 接管执行（见 `guo_engine_core::pump_downloads`）；
+/// Dart 不再需要也不应该再等 `run_download`——那会把「加入下载」
+/// 卡到整集下完。`run_download` 保留给诊断与单测。
 pub fn enqueue_download(request: DownloadRequest) -> Result<u64, EngineFailure> {
     let engine = engine()?;
     let mut job = Job::new(request.id, request.target, request.url);
@@ -812,7 +835,9 @@ pub fn enqueue_download(request: DownloadRequest) -> Result<u64, EngineFailure> 
     job.segments = request.segments;
     job.key_uri = request.key_uri;
     job.key_iv = request.key_iv;
-    Ok(engine.enqueue_download(job))
+    let revision = engine.enqueue_download(job);
+    guo_engine_core::pump_downloads(&engine);
+    Ok(revision)
 }
 
 /// 下载登记参数。
@@ -932,6 +957,10 @@ pub fn control_download(command: String, id: String) -> Result<bool, EngineFailu
     let handled = engine.scheduler().control(&command, &id);
     if handled {
         engine.broadcast_job(&id);
+        // resume / retry 会把任务放回队列，需要补 worker 把它跑起来。
+        if command == "resume" || command == "retry" {
+            guo_engine_core::pump_downloads(&engine);
+        }
     }
     Ok(handled)
 }
@@ -945,6 +974,9 @@ pub fn control_downloads(command: String, ids: Vec<String>) -> Result<u32, Engin
             handled += 1;
             engine.broadcast_job(&id);
         }
+    }
+    if handled > 0 && (command == "resume" || command == "retry") {
+        guo_engine_core::pump_downloads(&engine);
     }
     Ok(handled)
 }
@@ -993,6 +1025,9 @@ pub fn control_download_batch(
         engine.broadcast_job(&id);
         completed.push(id);
     }
+    if !completed.is_empty() && (command == "resume" || command == "retry") {
+        guo_engine_core::pump_downloads(&engine);
+    }
     Ok(DownloadBatchOutcome {
         completed,
         failures,
@@ -1025,6 +1060,8 @@ pub struct ChapterInput {
     pub video_url: String,
     pub page_url: String,
     pub referer: String,
+    /// 是否 VIP 分集（试看 / 付费标记）。
+    pub vip: bool,
 }
 
 /// 取流结果。
@@ -1040,6 +1077,12 @@ pub struct MediaResult {
     pub cookies: String,
     /// 播放请求必须携带的 `Origin`（部分 CDN 会校验来源）。
     pub origin: String,
+    /// CENC 内容密钥（十六进制）。mpv 用 `--decryption-key` 解密。
+    pub cenc_key: String,
+    /// 选中地址的画质（高度像素）。0 表示未知。
+    pub quality: u32,
+    /// 可选画质列表（高度像素，降序）。
+    pub qualities: Vec<u32>,
 }
 
 /// 详情结果。
@@ -1134,6 +1177,8 @@ pub struct ChapterItem {
     pub video_url: String,
     pub page_url: String,
     pub referer: String,
+    /// 是否 VIP 分集（试看 / 付费标记）。
+    pub vip: bool,
 }
 
 impl From<Chapter> for ChapterItem {
@@ -1145,6 +1190,7 @@ impl From<Chapter> for ChapterItem {
             video_url: chapter.video_url,
             page_url: chapter.page_url,
             referer: chapter.referer,
+            vip: chapter.vip,
         }
     }
 }
@@ -1379,6 +1425,271 @@ pub fn clear_source_session(source_id: String) -> Result<u32, EngineFailure> {
     Ok(engine
         .clear_source_session(&source_id)
         .map_err(EngineFailure::from)? as u32)
+}
+
+/// 站源健康检测的一步。
+pub struct HealthStep {
+    pub name: String,
+    /// `ok` / `failed`。
+    pub state: String,
+    pub message: String,
+    pub host: String,
+    pub http_status: u32,
+    pub elapsed_ms: u64,
+}
+
+/// 站源健康报告。
+///
+/// `state`：`ok`（四步全过）/ `catalogOnly`（目录可用但取流未过）/
+/// `failed`（目录都进不去）。UI 据此区分「源坏了」与「只能看不能播」。
+pub struct SourceHealth {
+    pub checked_at_ms: u64,
+    pub state: String,
+    /// 检测时用的剧集标题，供 UI 展示「拿哪部剧做的样本」。
+    pub sample: String,
+    pub steps: Vec<HealthStep>,
+}
+
+/// 对单个站源做一轮真实链路检测：目录 → 详情 → 取流 → 媒体连接。
+///
+/// 与 Go 版 `checkSource` 的五步管线等价（媒体与密钥在取流结果里合并检查）：
+/// 每一步独立计时、独立报错，中途任何一步失败立即停止后续步骤。
+/// 检测挂在 `health-<source>` 会话上，`cancel_request` 可以随时中止。
+pub async fn check_source(
+    source_id: String,
+    request_id: String,
+    playback: bool,
+) -> Result<SourceHealth, EngineFailure> {
+    let engine = engine()?;
+    let (source, env) = prepare(&source_id)?;
+    let session = format!("health-{source_id}");
+    let ticket = engine.begin(&session, &request_id);
+    let result = health_inner(&engine, source.as_ref(), &env, playback, &ticket).await;
+    engine.finish(&ticket);
+    result
+}
+
+async fn health_inner(
+    engine: &Engine,
+    source: &dyn SourcePlugin,
+    env: &guo_source_api::SourceEnv,
+    playback: bool,
+    ticket: &RequestTicket,
+) -> Result<SourceHealth, EngineFailure> {
+    let started = std::time::Instant::now();
+    let mut report = SourceHealth {
+        checked_at_ms: now_millis_bridge(),
+        state: "checking".into(),
+        sample: String::new(),
+        steps: Vec::new(),
+    };
+    let mut failure: Option<String> = None;
+
+    // 步骤运行器：独立超时（目录 / 详情 15s，取流 30s，媒体 15s），
+    // 失败后不再继续后续步骤。
+    macro_rules! run_step {
+        ($name:expr, $timeout_secs:expr, $work:expr) => {{
+            let step_start = std::time::Instant::now();
+            let outcome = tokio::time::timeout($timeout_secs, $work).await;
+            let elapsed = step_start.elapsed().as_millis() as u64;
+            match outcome {
+                Ok(Ok(message)) => {
+                    report.steps.push(HealthStep {
+                        name: $name.into(),
+                        state: "ok".into(),
+                        message,
+                        host: String::new(),
+                        http_status: 0,
+                        elapsed_ms: elapsed,
+                    });
+                    Ok(())
+                }
+                Ok(Err(error)) => {
+                    let text = error.to_string();
+                    report.steps.push(HealthStep {
+                        name: $name.into(),
+                        state: "failed".into(),
+                        message: text.clone(),
+                        host: String::new(),
+                        http_status: 0,
+                        elapsed_ms: elapsed,
+                    });
+                    failure = Some(text);
+                    Err(())
+                }
+                Err(_) => {
+                    let text = format!("{} 秒内未完成，已中止", $timeout_secs.as_secs());
+                    report.steps.push(HealthStep {
+                        name: $name.into(),
+                        state: "failed".into(),
+                        message: text,
+                        host: String::new(),
+                        http_status: 0,
+                        elapsed_ms: elapsed,
+                    });
+                    failure = Some("超时".into());
+                    Err(())
+                }
+            }
+        }};
+    }
+
+    // 1. 入口与目录：拿第一页；没有可识别剧集即失败。
+    let catalog_result = run_step!(
+        "入口与目录",
+        std::time::Duration::from_secs(15),
+        async {
+            let page = source.catalog(env, 1, "").await?;
+            if page.items.is_empty() {
+                return Err(guo_source_api::SourceError::parse(
+                    "check",
+                    "入口可达，但没有解析到有效剧集",
+                ));
+            }
+            Ok::<_, guo_source_api::SourceError>(format!("已解析 {} 部剧", page.items.len()))
+        }
+    );
+    if catalog_result.is_err() {
+        report.state = "failed".into();
+        report.checked_at_ms = now_millis_bridge();
+        let _ = engine.cancel_registry().ensure_active(ticket);
+        return Ok(report);
+    }
+
+    // 2. 分集目录：取首个非 VIP 剧的详情与首个分集。
+    //    目录页本身不回传，需要把 drama/chapter 传出闭包，用 Option 承载。
+    let picked: std::sync::Arc<
+        tokio::sync::Mutex<Option<(guo_source_api::Drama, guo_source_api::Chapter)>>,
+    > = std::sync::Arc::new(tokio::sync::Mutex::new(None));
+    let detail_result = {
+        let picked = picked.clone();
+        run_step!(
+            "分集目录",
+            std::time::Duration::from_secs(15),
+            async {
+                // catalog 已在上一步成功，这里重新取一次首页以拿到条目本体
+                //（避免跨步骤传递非 Send 的引用）。
+                let page = source.catalog(env, 1, "").await?;
+                let drama = page
+                    .items
+                    .iter()
+                    .find(|drama| drama.vip != Some(true))
+                    .or_else(|| page.items.first())
+                    .ok_or_else(|| {
+                        guo_source_api::SourceError::parse("check", "目录为空")
+                    })?;
+                let detail = source.detail(env, &drama.source_id).await?;
+                let chapter = detail.chapters.first().ok_or_else(|| {
+                    guo_source_api::SourceError::parse("check", "没有可检测的分集")
+                })?;
+                let message = format!(
+                    "{} 集，检测「{}」第 1 集",
+                    detail.chapters.len(),
+                    drama.title
+                );
+                *picked.lock().await = Some((drama.clone(), chapter.clone()));
+                Ok::<_, guo_source_api::SourceError>(message)
+            }
+        )
+    };
+    if detail_result.is_err() {
+        report.state = "catalogOnly".into();
+        report.checked_at_ms = now_millis_bridge();
+        let _ = engine.cancel_registry().ensure_active(ticket);
+        return Ok(report);
+    }
+    let Some((drama, chapter)) = picked.lock().await.clone() else {
+        report.state = "failed".into();
+        report.checked_at_ms = now_millis_bridge();
+        return Ok(report);
+    };
+    report.sample = drama.title.clone();
+
+    // 3. 取流：拿到播放地址即认为解析层正常。仅目录检测跳过 3 / 4 两步。
+    if !playback {
+        report.state = "catalogOnly".into();
+        report.checked_at_ms = now_millis_bridge();
+        let _ = engine.cancel_registry().ensure_active(ticket)?;
+        return Ok(report);
+    }
+    let media_url: std::sync::Arc<tokio::sync::Mutex<String>> =
+        std::sync::Arc::new(tokio::sync::Mutex::new(String::new()));
+    let referer: std::sync::Arc<tokio::sync::Mutex<String>> =
+        std::sync::Arc::new(tokio::sync::Mutex::new(String::new()));
+    let resolve_result = {
+        let media_url = media_url.clone();
+        let referer = referer.clone();
+        run_step!(
+            "播放地址与播放列表",
+            std::time::Duration::from_secs(30),
+            async {
+                let media = source.resolve(env, &drama, &chapter).await?;
+                if media.url.is_empty() {
+                    return Err(guo_source_api::SourceError::parse(
+                        "check",
+                        "取流返回了空地址",
+                    ));
+                }
+                *media_url.lock().await = media.url.clone();
+                *referer.lock().await = media.referer.clone();
+                Ok::<_, guo_source_api::SourceError>("已取得可识别的播放地址".into())
+            }
+        )
+    };
+    if resolve_result.is_err() {
+        report.state = "catalogOnly".into();
+        report.checked_at_ms = now_millis_bridge();
+        let _ = engine.cancel_registry().ensure_active(ticket);
+        return Ok(report);
+    }
+
+    // 4. 媒体连接：真拉一次媒体开头，解析出的地址能不能下载只有这一步能证明。
+    let media_result = {
+        let media_url = media_url.lock().await.clone();
+        let referer = referer.lock().await.clone();
+        run_step!(
+            "媒体连接",
+            std::time::Duration::from_secs(15),
+            async {
+                let mut request = guo_source_api::FetchRequest::get(&media_url)
+                    .limit_bytes(64 * 1024);
+                if !referer.is_empty() {
+                    request = request.header("Referer", referer);
+                }
+                let response = env.transport.fetch(request).await?;
+                let status = response.status;
+                if !(200..300).contains(&status) {
+                    return Err(guo_source_api::SourceError::parse(
+                        "check",
+                        format!("媒体服务器返回 HTTP {status}"),
+                    ));
+                }
+                if response.body.is_empty() {
+                    return Err(guo_source_api::SourceError::parse(
+                        "check",
+                        "媒体服务器返回空内容",
+                    ));
+                }
+                Ok::<_, guo_source_api::SourceError>(format!(
+                    "已读取媒体开头（HTTP {status}）；实际播放效果请在播放器确认"
+                ))
+            }
+        )
+    };
+    let _ = media_result;
+
+    report.state = if failure.is_some() { "catalogOnly" } else { "ok" }.into();
+    report.checked_at_ms = now_millis_bridge();
+    let _ = started;
+    let _ = engine.cancel_registry().ensure_active(ticket)?;
+    Ok(report)
+}
+
+fn now_millis_bridge() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|value| value.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// 重新装配注册表（插件安装 / 卸载后调用）。会话与下载任务保持不变。

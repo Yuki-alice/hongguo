@@ -10,7 +10,7 @@
 //! 生效；重复初始化返回 `false`，调用方据此区分「首次装配」与「已就绪」。
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -113,6 +113,11 @@ pub struct Engine {
     started_at: Mutex<Option<Instant>>,
     /// 插件安装 / 卸载后递增；调用方据此判断是否需要重新拉清单。
     registry_revision: AtomicU64,
+    /// 当前在飞的下载 worker 数。pump 据此决定是否补员，
+    /// 避免每次登记都无界地再起一批任务。
+    download_workers: AtomicUsize,
+    /// 构造时捕获的 runtime 句柄（worker 在 FRB 同步调用里也要能起）。
+    worker_handle: Option<tokio::runtime::Handle>,
 }
 
 impl Engine {
@@ -158,6 +163,8 @@ impl Engine {
             started: AtomicBool::new(false),
             started_at: Mutex::new(None),
             registry_revision: AtomicU64::new(1),
+            download_workers: AtomicUsize::new(0),
+            worker_handle: tokio::runtime::Handle::try_current().ok(),
         })
     }
 
@@ -411,10 +418,25 @@ impl Engine {
 
     /// 登记下载任务并广播初始事件。
     pub fn enqueue_download(&self, job: Job) -> u64 {
-        let revision = self.scheduler.enqueue(job.clone());
-        self.broadcast_job(&job.id);
-        revision
+        self.scheduler.enqueue(job)
     }
+
+    /// 当前在飞 worker 数，供 [pump_downloads] 补员判断。
+    pub fn download_workers_alive(&self) -> usize {
+        self.download_workers.load(Ordering::SeqCst)
+    }
+
+    /// worker 的运行时句柄。
+    ///
+    /// 构造发生在引擎初始化（FRB async 上下文）里，能拿到 `Handle`；
+    /// 少数同步构造（测试夹具）拿不到时 worker 由 pump 现场取
+    /// `Handle::try_current()` 兜底。两者都没有就不补员并记日志，
+    /// 任务停在队列里等待下一次能起 worker 的调用。
+    pub fn runtime_handle(&self) -> Option<tokio::runtime::Handle> {
+        tokio::runtime::Handle::try_current().ok().or_else(|| self.worker_handle.clone())
+    }
+
+
 
     /// 把某个任务的最新状态推给订阅者。
     pub fn broadcast_job(&self, id: &str) {
@@ -526,6 +548,43 @@ pub fn require() -> Result<Arc<Engine>, EngineError> {
 ///
 /// `OnceLock` 没有 `clear`，因此这里用 `#[cfg(test)]` 的独立槽位替代，
 /// 让同一进程内的多个用例可以各自初始化（例如不同临时目录）。
+/// 确保下载 worker 在跑。
+///
+/// worker 是「认领—执行—再认领」的循环：排队任务耗尽时自然退出。
+/// 在飞数不够（新登记 / resume / 重启恢复）就补员到配置并发数；
+/// 真正的并发上限由调度器的信号量强制，补员只决定并行入口数量。
+///
+/// 放成关联函数而不是方法：worker 任务需要 `Arc<Engine>` 续命，
+/// `&self` 拿不到。调用方（bridge 的登记 / 恢复路径）持有 `Arc`。
+pub fn pump_downloads(engine: &Arc<Engine>) {
+    let queued = engine.scheduler.queued_count();
+    if queued == 0 {
+        return;
+    }
+    let Some(handle) = engine.runtime_handle() else {
+        eprintln!("下载 worker 无 runtime 可用，任务保持排队");
+        return;
+    };
+    let concurrency = engine.scheduler.concurrency();
+    let alive = engine.download_workers_alive();
+    let spawn = queued.min(concurrency.saturating_sub(alive));
+    for _ in 0..spawn {
+        engine.download_workers.fetch_add(1, Ordering::SeqCst);
+        let worker = Arc::clone(engine);
+        handle.spawn(async move {
+            loop {
+                let Some(id) = worker.scheduler.claim_next() else {
+                    break;
+                };
+                let env = worker.env("download");
+                let _ = worker.scheduler.run(&env, &id).await;
+                worker.broadcast_job(&id);
+            }
+            worker.download_workers.fetch_sub(1, Ordering::SeqCst);
+        });
+    }
+}
+
 #[cfg(test)]
 mod test_support {
     use super::*;

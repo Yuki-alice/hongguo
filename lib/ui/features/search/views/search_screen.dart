@@ -13,6 +13,7 @@ import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
 import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 独立搜索页。
 ///
@@ -47,6 +48,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final _focus = FocusNode();
   final _scroll = ScrollController();
   String? _submitted;
+  Timer? _suggestTimer;
+  List<String> _suggestions = const [];
+  int _suggestGeneration = 0;
 
   bool get _hasSearched => _submitted != null;
 
@@ -69,10 +73,32 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _catalog.removeListener(_onChanged);
     _catalog.dispose();
+    _suggestTimer?.cancel();
     _input.dispose();
     _focus.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// 输入防抖拉联想词。只在「尚未提交搜索」时展示，避免与结果抢焦点。
+  void _onInputChanged(String value) {
+    _suggestTimer?.cancel();
+    final generation = ++_suggestGeneration;
+    final query = value.trim();
+    if (_hasSearched || query.isEmpty || query.length > 80) {
+      if (mounted && _suggestions.isNotEmpty)
+        setState(() => _suggestions = const []);
+      return;
+    }
+    _suggestTimer = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final words = await widget.repository.suggestions(query);
+        if (!mounted || generation != _suggestGeneration) return;
+        setState(() => _suggestions = words.take(8).toList());
+      } on Object {
+        // 联想失败静默：它是锦上添花，不该打扰输入。
+      }
+    });
   }
 
   void _onChanged() {
@@ -89,7 +115,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final query = raw.trim();
     if (query.isEmpty) return;
     _focus.unfocus();
-    setState(() => _submitted = query);
+    setState(() {
+      _submitted = query;
+      _suggestions = const [];
+    });
     if (_scroll.hasClients) _scroll.jumpTo(0);
     unawaited(widget.store.rememberSearch(query));
     _catalog.submitSearch(query);
@@ -98,7 +127,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void _clear() {
     _focus.unfocus();
     _input.clear();
-    setState(() => _submitted = null);
+    setState(() {
+      _submitted = null;
+      _suggestions = const [];
+    });
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
@@ -106,7 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: DesktopAppBar(
         title: Text(l10n.searchTitle),
         leading: const BackButton(),
       ),
@@ -169,7 +201,10 @@ class _SearchScreenState extends State<SearchScreen> {
       top: _hasSearched ? Md3Spacing.sm : Md3Spacing.xl,
       bottom: Md3Spacing.lg,
     ),
-    child: _searchField(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_searchField(), _suggestionRow()],
+    ),
   );
 
   Widget _searchField() {
@@ -202,6 +237,32 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
         ],
         onSubmitted: _submit,
+        onChanged: _onInputChanged,
+      ),
+    );
+  }
+
+  /// 联想词行：输入中（未提交）时出现在搜索框下方，点击直接以该词搜索。
+  Widget _suggestionRow() {
+    if (_hasSearched || _suggestions.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: Md3Spacing.sm),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: Md3Spacing.sm,
+          runSpacing: Md3Spacing.sm,
+          children: [
+            for (final word in _suggestions)
+              ActionChip(
+                label: Text(word),
+                backgroundColor: colors.surfaceContainerHigh,
+                side: BorderSide.none,
+                onPressed: () => _submit(word),
+              ),
+          ],
+        ),
       ),
     );
   }

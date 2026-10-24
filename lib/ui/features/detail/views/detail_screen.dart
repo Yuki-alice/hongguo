@@ -25,9 +25,11 @@ import 'package:hoshi/ui/core/episode_browser.dart';
 import 'package:hoshi/ui/core/episode_grid.dart';
 import 'package:hoshi/ui/core/split_list.dart';
 import 'package:hoshi/ui/features/detail/widgets/cover_backdrop.dart';
-import 'package:hoshi/ui/features/detail/widgets/detail_header_card.dart';
 import 'package:hoshi/domain/follow_state.dart';
 import 'package:hoshi/domain/hongguo_series.dart';
+import 'package:hoshi/ui/features/detail/views/detail_layout.dart';
+import 'package:hoshi/ui/features/detail/widgets/detail_sidebar.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({
@@ -302,6 +304,9 @@ class _DetailScreenState extends State<DetailScreen> {
               Navigator.of(context).maybePop(),
         },
         child: Scaffold(
+          // 必须显式不透明：详情页是根级全屏路由，盖在外壳之上；留空会
+          // 透出下层的 rail，看起来像「详情页自带左侧导航栏」。
+          backgroundColor: Theme.of(context).colorScheme.surface,
           body: _immersiveDetail(
             drama: drama,
             episodes: episodes,
@@ -528,13 +533,18 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  /// 沉浸式详情页（参照应用 `info_page.dart` 的形态）。
+  /// 沉浸式详情页：整页滚动 + 左侧信息栏 + 中栏内容流。
   ///
-  /// 头部下方是「剧集 / 简介」两个 Tab，剧集是主操作，默认停在剧集页；
-  /// 站源信息改由 AppBar 动作打开底部弹层，不再占第三个 Tab。
+  /// 结构参照 animeko 的 `SubjectDetailsMultiColumnPage`：
   ///
-  /// 头部 412 高 = 308 信息区 + 48 tab 条 + 56 工具栏。模糊封面只铺到
-  /// tab 条上方（`bottom: kTextTabBarHeight`），否则模糊会透到 tab 下面。
+  /// - **整页一起滚动**，各栏不各自滚动；顶部留白随内容滚出；
+  /// - 左栏放「这部作品是什么」的静态事实（封面 / 播放 / 收藏 / 信息表 /
+  ///   标签），中栏放需要阅读与操作的内容（标题 / 简介 / 选集）；
+  /// - 背景是封面毛玻璃，铺满整页、固定不滚动。
+  ///
+  /// 与旧实现的差别：旧版是 `SliverAppBar` + 底部 TabBar 的纵向结构，
+  /// 宽屏下横向空间被浪费；这里改成横向布局，并把「来源」从 Tab 移进
+  /// 左栏的信息表——它本来不需要整块版面。
   Widget _immersiveDetail({
     required Drama drama,
     required List<Episode> episodes,
@@ -544,260 +554,277 @@ class _DetailScreenState extends State<DetailScreen> {
     final l10n = AppLocalizations.of(context);
     final loading = _controller.loading;
     final canPlay = !loading && episodes.isNotEmpty;
+    final watched = widget.store.watched(drama.id);
+    final resumeIndex = resumeEpisodeIndex(episodes, watched);
+    final playLabel = watched != null && episodes.isNotEmpty
+        ? l10n.detailResumeEpisode(episodes[resumeIndex].number)
+        : l10n.detailPlayNow;
+    final canDownload =
+        widget.repository.supportsDownloads && widget.store.canDownload;
 
-    return DefaultTabController(
-      length: 2,
-      child: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverOverlapAbsorber(
-            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            sliver: SliverAppBar.medium(
-              stretch: true,
-              centerTitle: false,
-              scrolledUnderElevation: 0,
-              automaticallyImplyLeading: false,
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.arrow_back),
-              ),
-              title: Text(drama.title, overflow: TextOverflow.ellipsis),
-              actions: [
-                if (widget.repository.supportsDownloads &&
-                    widget.store.canDownload)
-                  IconButton(
-                    tooltip: l10n.downloadPickerTitle,
-                    onPressed: canPlay ? _download : null,
-                    icon: const Icon(Icons.download_rounded),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 用页面实际可用宽度而不是窗口宽度：详情页也会被嵌进播放页的
+        // 侧栏与选集弹层，那些位置远窄于窗口。
+        final layout = DetailLayout.of(constraints.maxWidth);
+
+        final sidebar = DetailSidebar(
+          drama: drama,
+          repository: widget.repository,
+          width: layout.sidebarWidth,
+          itemSpacing: layout.sidebarItemSpacing,
+          playLabel: playLabel,
+          onPlay: canPlay ? () => _play(resumeIndex, resume: true) : null,
+          onDownload: canPlay && canDownload ? _download : null,
+          followControl: _followingControls(drama),
+          coverOverlay: _coverFavoriteButton(drama),
+        );
+
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _titleBlock(context, drama),
+            SizedBox(height: layout.sectionSpacing),
+            if (drama.description.isNotEmpty) ...[
+              _summaryBlock(context, drama),
+              SizedBox(height: layout.sectionSpacing),
+            ],
+            if (loading || _controller.error != null || episodes.isEmpty)
+              _episodeStatus()
+            else
+              _episodeSection(context, episodes, watchedEpisode),
+            // 底部留出播放条的高度，最后一行选集不会被它压住。
+            const SizedBox(height: 96),
+          ],
+        );
+
+        return Stack(
+          children: [
+            // 毛玻璃背景只铺**头部一段**，不铺满整页。
+            //
+            // 参照应用 `_InfoHeaderBackground` 的做法：模糊层只覆盖顶部
+            // 约 420px，底部渐隐到页面底色；铺满整页会让整屏都被重模糊
+            // 占据，正文可读性下降，也没有「从海报过渡到内容」的层次。
+            if (immersive)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: Md3Detail.headerHeight,
+                child: IgnorePointer(
+                  child: CoverBackdrop(
+                    drama: drama,
+                    repository: widget.repository,
+                    height: Md3Detail.headerHeight,
+                    bottomFeather: Md3Detail.backdropFeather,
                   ),
-                IconButton(
-                  key: const ValueKey('detail-source-sheet'),
-                  tooltip: l10n.detailSourceTab,
-                  onPressed: () => _showSourceSheet(drama),
-                  icon: const Icon(Icons.hub_outlined),
                 ),
-                RefreshAction(
-                  loading: loading,
-                  tooltip: l10n.detailRefreshInfo,
-                  onPressed: _load,
-                ),
-                const SizedBox(width: Md3Spacing.sm),
-              ],
-              expandedHeight: Md3Detail.headerHeight,
-              collapsedHeight:
-                  kTextTabBarHeight +
-                  kToolbarHeight +
-                  MediaQuery.paddingOf(context).top,
-              flexibleSpace: FlexibleSpaceBar(
-                collapseMode: CollapseMode.pin,
-                background: Stack(
-                  children: [
-                    // 模糊封面只到 tab 条上沿。
-                    if (immersive)
-                      Positioned.fill(
-                        bottom: kTextTabBarHeight,
-                        child: IgnorePointer(
-                          child: CoverBackdrop(
-                            drama: drama,
-                            repository: widget.repository,
-                            height: double.infinity,
-                            bottomFeather: Md3Detail.backdropFeather,
-                          ),
-                        ),
-                      ),
-                    SafeArea(
-                      bottom: false,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            Md3Spacing.lg,
-                            kToolbarHeight,
-                            Md3Spacing.lg,
-                            0,
-                          ),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: Md3Detail.cardMaxWidth,
-                              ),
-                              child: DetailHeaderCard(
-                                drama: drama,
-                                repository: widget.repository,
-                                loading: loading,
-                                coverOverlay: _coverFavoriteButton(drama),
-                              ),
-                            ),
-                          ),
-                        ),
+              ),
+            CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  stretch: true,
+                  expandedHeight: 0,
+                  toolbarHeight: kToolbarHeight + WindowSafeArea.top,
+                  backgroundColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  automaticallyImplyLeading: false,
+                  leading: Padding(
+                    padding: EdgeInsets.only(top: WindowSafeArea.top),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+                  ),
+                  title: Padding(
+                    padding: EdgeInsets.only(top: WindowSafeArea.top),
+                    child: Text(
+                      drama.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Md3Type.titleMedium,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                  ),
+                  actions: [
+                    Padding(
+                      padding: EdgeInsets.only(top: WindowSafeArea.top),
+                      child: IconButton(
+                        key: const ValueKey('detail-source-sheet'),
+                        tooltip: l10n.detailSourceTab,
+                        onPressed: () => _showSourceSheet(drama),
+                        icon: const Icon(Icons.hub_outlined),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(top: WindowSafeArea.top),
+                      child: RefreshAction(
+                        loading: loading,
+                        tooltip: l10n.detailRefreshInfo,
+                        onPressed: _load,
+                      ),
+                    ),
+                    const SizedBox(width: Md3Spacing.sm),
                   ],
                 ),
-              ),
-              bottom: TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.center,
-                dividerHeight: 0,
-                labelStyle: TextStyle(
-                  fontSize: Md3Type.labelLarge,
-                  fontWeight: FontWeight.w700,
-                ),
-                unselectedLabelStyle: TextStyle(
-                  fontSize: Md3Type.labelLarge,
-                  fontWeight: FontWeight.w500,
-                ),
-                tabs: [
-                  Tab(
-                    key: const ValueKey('detail-tab-episodes'),
-                    text: l10n.detailEpisodesTab,
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    layout.pagePadding,
+                    Md3Spacing.lg,
+                    layout.pagePadding,
+                    Md3Spacing.xxl,
                   ),
-                  Tab(
-                    key: const ValueKey('detail-tab-overview'),
-                    text: l10n.detailOverviewTab,
+                  sliver: SliverToBoxAdapter(
+                    child: layout.isMultiColumn
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              sidebar,
+                              SizedBox(width: layout.columnSpacing),
+                              Expanded(child: content),
+                            ],
+                          )
+                        : content,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
-        body: TabBarView(
-          children: [
-            // 每个 tab 都放在 Builder 里：`sliverOverlapAbsorberHandleFor`
-            // 必须用 NestedScrollView 之下的 context 调用，用页面 State 的
-            // context 会抛 "must be called with a context that contains a
-            // NestedScrollView"。
-            Builder(
-              builder: (paneContext) =>
-                  _episodesPane(paneContext, episodes, watchedEpisode),
-            ),
-            Builder(builder: (paneContext) => _infoPane(paneContext, drama)),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  /// 「剧集」Tab。
-  ///
-  /// 参照应用每个 Tab 都是 `CustomScrollView`，首个 sliver 是
-  /// `SliverOverlapInjector`：它把被 `SliverAppBar` 吸顶遮住的那段高度补回来，
-  /// 内容才不会钻到 TabBar 底下。缺了它就会看到选集数字与 tab 文字叠在一起。
-  Widget _episodesPane(
+  /// 中栏标题块：标题 + 元数据行（animeko 的 `SubjectTitleBlock`）。
+  Widget _titleBlock(BuildContext context, Drama drama) {
+    final colors = Theme.of(context).colorScheme;
+    final site = SourceSite.byId(drama.source);
+    final meta = [
+      site.name,
+      if (drama.category.isNotEmpty) drama.category,
+      if (drama.releaseStatus.isNotEmpty && drama.releaseStatus != 'unknown')
+        drama.releaseLabel,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          drama.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: Md3Type.headlineSmall,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
+            color: colors.onSurface,
+          ),
+        ),
+        const SizedBox(height: Md3Spacing.sm),
+        Text(
+          meta.join(' · '),
+          style: TextStyle(
+            fontSize: Md3Type.bodyMedium,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 简介块：长文本可展开。
+  Widget _summaryBlock(BuildContext context, Drama drama) {
+    final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          drama.description,
+          maxLines: _expandedDescription ? null : 4,
+          overflow: _expandedDescription
+              ? TextOverflow.visible
+              : TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: Md3Type.bodyMedium,
+            height: 1.7,
+            color: colors.onSurface,
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () =>
+                setState(() => _expandedDescription = !_expandedDescription),
+            child: Text(
+              _expandedDescription
+                  ? l10n.detailCollapseSynopsis
+                  : l10n.detailExpandSynopsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 选集区：分组条 + 选集网格（嵌在整页滚动里，不再自带滚动）。
+  Widget _episodeSection(
     BuildContext context,
     List<Episode> episodes,
     int? watchedEpisode,
   ) {
     final l10n = AppLocalizations.of(context);
-    final handle = NestedScrollView.sliverOverlapAbsorberHandleFor(context);
-    if (_controller.loading || _controller.error != null || episodes.isEmpty) {
-      return CustomScrollView(
-        slivers: [
-          SliverOverlapInjector(handle: handle),
-          SliverFillRemaining(hasScrollBody: false, child: _episodeStatus()),
-        ],
-      );
-    }
     final start = _controller.episodePage * episodePageSize;
     final visible = episodes.skip(start).take(episodePageSize).toList();
-    return CustomScrollView(
-      key: const PageStorageKey('detail-episodes'),
-      slivers: [
-        SliverOverlapInjector(handle: handle),
-        SliverToBoxAdapter(child: _seriesSelector(_controller.currentDrama)),
-        SliverToBoxAdapter(
-          child: EpisodeRangeBar(
-            episodes: episodes,
-            page: _controller.episodePage,
-            title: l10n.detailGroup,
-            currentNumber: watchedEpisode,
-            onLocate: _locateEpisode,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.detailEpisodesTab,
+          style: TextStyle(
+            fontSize: Md3Type.titleSmall,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-          sliver: SliverGrid(
-            // 与 Kazumi 的选集网格一致：按宽度切列、单元格等高，
-            // 数字再多也不换行挤压。
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 108,
-              mainAxisExtent: 54,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final episode = visible[index];
-              return EpisodeButton(
-                key: ValueKey('episode-${episode.number}'),
-                number: episode.number,
-                vip: episode.vip,
-                current: episode.number == watchedEpisode,
-                onPressed: () => _play(start + index),
-              );
-            }, childCount: visible.length),
-          ),
+        const SizedBox(height: Md3Spacing.sm),
+        _seriesSelector(_controller.currentDrama),
+        EpisodeRangeBar(
+          episodes: episodes,
+          page: _controller.episodePage,
+          title: l10n.detailGroup,
+          currentNumber: watchedEpisode,
+          onLocate: _locateEpisode,
         ),
-      ],
-    );
-  }
-
-  /// 「简介」Tab：只放长文本类信息，避免和左栏重复。
-  Widget _infoPane(BuildContext context, Drama drama) {
-    final l10n = AppLocalizations.of(context);
-    final colors = Theme.of(context).colorScheme;
-    final handle = NestedScrollView.sliverOverlapAbsorberHandleFor(context);
-    return CustomScrollView(
-      key: const PageStorageKey('detail-overview'),
-      slivers: [
-        SliverOverlapInjector(handle: handle),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          sliver: SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (drama.description.isEmpty)
-                  EmptyState(
-                    title: l10n.detailNoSynopsis,
-                    icon: Icons.article_outlined,
-                    compact: true,
-                  )
-                else
-                  SelectableText(
-                    drama.description,
-                    style: TextStyle(
-                      fontSize: Md3Type.bodyLarge,
-                      height: 1.7,
-                      color: colors.onSurface,
-                    ),
-                  ),
-                if (drama.tags.isNotEmpty) ...[
-                  const SizedBox(height: Md3Spacing.xl),
-                  Text(
-                    l10n.detailTagsTitle,
-                    style: TextStyle(
-                      fontSize: Md3Type.labelLarge,
-                      fontWeight: FontWeight.w700,
-                      color: colors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: Md3Spacing.sm),
-                  Wrap(
-                    spacing: Md3Spacing.sm,
-                    runSpacing: Md3Spacing.sm,
-                    children: [
-                      for (final tag in drama.tags) Chip(label: Text(tag)),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+        const SizedBox(height: Md3Spacing.sm),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 108,
+            mainAxisExtent: 54,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
           ),
+          itemCount: visible.length,
+          itemBuilder: (context, index) {
+            final episode = visible[index];
+            return EpisodeButton(
+              key: ValueKey('episode-${episode.number}'),
+              number: episode.number,
+              vip: episode.vip,
+              current: episode.number == watchedEpisode,
+              onPressed: () => _play(start + index),
+            );
+          },
         ),
       ],
     );
   }
 
-  /// 站源信息改为底部弹层（参照应用 2.4.2 的 `source_sheet_view`）。
   ///
   /// 详情页只保留「剧集 / 简介」两个 Tab；站源是低频信息，放在 AppBar
   /// 动作里，用弹层承担，避免为一块只读信息单独占一个 Tab。

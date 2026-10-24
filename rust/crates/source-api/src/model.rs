@@ -48,6 +48,7 @@ pub struct Chapter {
     pub page_url: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub referer: String,
+    /// 是否 VIP 分集（试看 / 付费标记）。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub vip: bool,
 }
@@ -78,6 +79,17 @@ pub struct Media {
     /// AES-128 的 IV（十六进制，无 `0x`）。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub key_iv: String,
+    /// CENC 内容密钥（十六进制，16 字节）。mpv 用 `--decryption-key` 直接解；
+    /// 站点把密钥放在取流响应的 `spade_a` 字段里，由源侧解出。
+    /// 为空表示未加密或无需密钥。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cenc_key: String,
+    /// 选中地址的画质（高度像素，如 720）。0 表示未知。
+    #[serde(default)]
+    pub quality: u32,
+    /// 可选画质列表（高度像素，降序）。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub qualities: Vec<u32>,
     /// 播放时必须随请求发送的 Cookie。
     ///
     /// 部分站点的媒体域走 CDN 签名：取流接口在响应头里下发

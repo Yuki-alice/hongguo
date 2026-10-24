@@ -17,6 +17,7 @@ use guo_source_api::{
     SourceError, SourceMeta, SourcePlugin, Suggestion, CURRENT_API_LEVEL,
 };
 
+use crate::argus::{comment_headers, CommentNonce};
 use crate::router::{parse_router_data, router_loader_map, HongguoDrama};
 use crate::sign::{gorgon, SignInputs};
 
@@ -34,6 +35,16 @@ pub const ROUTES: [(&str, &str); 4] = [
     ("ai-drama", "AI剧"),
     ("comic", "动漫"),
 ];
+
+/// 推荐流每页条数。分类页本身不分页地给出整批推荐，这里按固定窗口切片，
+/// 让「加载更多」有确定的语义（与 App 接口当年的 18 条保持同一量级）。
+const RECOMMEND_PAGE_SIZE: u32 = 18;
+
+/// 弹幕可查询的时间轴上限（24 小时，与 Go 版 danmakuMaxDurationMS 一致）。
+const DANMAKU_MAX_WINDOW_MS: i64 = 24 * 60 * 60 * 1000;
+
+/// 搜索结果每页条数。网页搜索页一次返回全部匹配，分页只用于估算 `has_more`。
+const SEARCH_PAGE_SIZE: u32 = 20;
 
 /// 红果主源。
 pub struct HongguoSource {
@@ -208,30 +219,58 @@ impl HongguoSource {
                 "站源未返回所请求的剧集，可能仅允许网页试看",
             ));
         }
-        let info = page
-            .get("video_player_info")
-            .and_then(Value::as_object)
-            .ok_or_else(|| SourceError::parse("hongguo", "播放页缺少 video_player_info"))?;
-        let mut addresses = Vec::new();
-        for key in ["video_list", "video_model", "play_addr"] {
-            collect_addresses(info.get(key), &mut addresses);
+        // 2026-10 起播放页不再下发 `video_player_info`：媒体地址改由客户端
+        // 拉取，网页只保留公开试看通道。按顺序尝试两种承载。
+        if let Some(info) = page.get("video_player_info").and_then(Value::as_object) {
+            let mut addresses = Vec::new();
+            for key in ["video_list", "video_model", "play_addr"] {
+                collect_addresses(info.get(key), &mut addresses);
+            }
+            if let Some(url) = addresses.first() {
+                return Ok(Self::web_media(url));
+            }
         }
-        if addresses.is_empty() {
-            return Err(SourceError::parse(
-                "hongguo",
-                "该集未提供公开播放地址，可能需要登录或 App 授权",
-            ));
+        if let Some(media) = Self::public_preview_media(page, video_id) {
+            return Ok(media);
         }
-        let url = addresses[0].clone();
-        Ok(Media {
-            url,
+        Err(SourceError::parse(
+            "hongguo",
+            "该集未提供公开播放地址，可能需要登录或 App 授权",
+        ))
+    }
+
+    /// 网页公开试看地址：`/video/public/<vid>/360p.mp4`。
+    ///
+    /// 站点只对 `publicVideoSeo.available` 为真、且 `itemId` 与请求一致的
+    /// 分集开放这条路。它是**降级通道**：画质固定 360p、部分分集 404。
+    /// 能播就比不能播好，但调用方不该把它当成原画。
+    fn public_preview_media(page: &Value, video_id: &str) -> Option<Media> {
+        let seo = page.get("publicVideoSeo")?.as_object()?;
+        if seo.get("available").and_then(Value::as_bool) != Some(true) {
+            return None;
+        }
+        let item_id = seo.get("itemId").map(text_of)?;
+        if item_id != video_id {
+            return None;
+        }
+        Some(Self::web_media(&format!(
+            "{WEB_BASE}/video/public/{video_id}/360p.mp4"
+        )))
+    }
+
+    fn web_media(url: &str) -> Media {
+        Media {
+            url: url.to_string(),
             referer: format!("{WEB_BASE}/"),
             playlist: None,
             key_uri: String::new(),
             key_iv: String::new(),
             cookies: String::new(),
             origin: String::new(),
-        })
+            cenc_key: String::new(),
+            quality: 0,
+            qualities: Vec::new(),
+        }
     }
 
     /// App 接口的公共查询参数。与 Go 版逐项一致。
@@ -261,6 +300,52 @@ impl HongguoSource {
         .iter()
         .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
         .collect()
+    }
+
+    /// 构造一次**评论签名**的 App 请求（弹幕 / 文字接口专用）。
+    ///
+    /// 与 [signed_app_request] 的差别：X-Argus / X-Ladon / 评论版 X-Gorgon
+    /// （2026-10-24 实测：没有这一层，弹幕接口返回 `110001 未知异常`）；
+    /// `X-SS-STUB` 固定为空串而不是请求体摘要；另带 `Comment-Source` 与
+    /// `Server-Channel` 两个头（Go 版对弹幕路径如此）。
+    pub fn signed_comment_request(
+        &self,
+        path: &str,
+        device_id: &str,
+        install_id: &str,
+        body: Vec<u8>,
+        now_ms: u64,
+    ) -> FetchRequest {
+        let mut query = self.app_query(device_id, install_id);
+        query.push(("_rticket".to_string(), now_ms.to_string()));
+        let raw_query = encode_query(&query);
+        let nonce = CommentNonce::generate();
+        let headers = comment_headers(&raw_query, nonce, now_ms);
+
+        let url = format!("{}{path}?{raw_query}", self.app_base.trim_end_matches('/'));
+        let mut request = FetchRequest::post(url, body);
+        request
+            .headers
+            .insert("User-Agent".into(), APP_USER_AGENT.into());
+        request.headers.insert("Accept".into(), "application/json".into());
+        request
+            .headers
+            .insert("Content-Type".into(), "application/json; charset=utf-8".into());
+        request.headers.insert("X-XS-From-Web".into(), "0".into());
+        request.headers.insert("Sdk-Version".into(), "2".into());
+        request.headers.insert("Comment-Source".into(), "601".into());
+        request.headers.insert("Server-Channel".into(), "1000".into());
+        request
+            .headers
+            .insert("X-Khronos".into(), headers.x_khronos);
+        request.headers.insert("X-Gorgon".into(), headers.x_gorgon);
+        request
+            .headers
+            .insert("X-SS-Req-Ticket".into(), headers.x_ss_req_ticket);
+        request.headers.insert("X-SS-STUB".into(), String::new());
+        request.headers.insert("X-Argus".into(), headers.x_argus);
+        request.headers.insert("X-Ladon".into(), headers.x_ladon);
+        request
     }
 
     /// 构造一次已签名的 App 请求。
@@ -381,6 +466,46 @@ impl HongguoSource {
             },
         })
     }
+
+    /// 用联想接口做搜索（降级路径）。
+    ///
+    /// 站点一次最多返回 `SUGGESTION_LIMIT` 条，因此结果集有限；如实把这件事
+    /// 写进 `warning`，UI 才不会让用户以为「只有这么多」。
+    async fn search_by_suggestion(
+        &self,
+        env: &SourceEnv,
+        keyword: &str,
+        page: u32,
+    ) -> Result<Page, SourceError> {
+        if page > 1 {
+            return Ok(Page {
+                items: Vec::new(),
+                has_more: false,
+                page,
+                warning: "红果联想搜索每页最多 10 条，已到末页".into(),
+            });
+        }
+        let url = format!(
+            "{}/incent_resource/suggestion?app_id=8662&query={}&count={}",
+            self.web_base.trim_end_matches('/'),
+            urlencode(keyword),
+            crate::capabilities::SUGGESTION_LIMIT
+        );
+        let body = self.page_text(env, url).await?;
+        let items = crate::capabilities::parse_suggestion_dramas(&body)?;
+        let mut seen = std::collections::HashSet::new();
+        let items: Vec<Drama> = items
+            .into_iter()
+            .filter(|drama| seen.insert(drama.id.clone()))
+            .collect();
+        Ok(Page {
+            items,
+            has_more: false,
+            page,
+            warning: "红果网页搜索暂不可用，当前为联想结果（最多 10 条）".into(),
+        })
+    }
+
 }
 
 impl HongguoSource {
@@ -432,6 +557,10 @@ fn is_incomplete(error: &SourceError) -> bool {
 }
 
 /// App 接口把业务错误放在 `code` / `BaseResp.StatusCode` 里，HTTP 200 也可能是失败。
+///
+/// 当前没有调用方：推荐曾经走 App 接口，2026-10 改成网页分类页后不再需要。
+/// 保留它是为弹幕与将来的 App 路径备好统一校验，**不要**因为当前零引用就删掉。
+#[allow(dead_code)]
 fn check_app_code(root: &Value) -> Result<(), SourceError> {
     let code = root
         .get("code")
@@ -449,6 +578,51 @@ fn check_app_code(root: &Value) -> Result<(), SourceError> {
         ));
     }
     Ok(())
+}
+
+/// 解析网页搜索页。站点把结果放在 `search_(keyword)/page` 的 loader 里。
+fn parse_search_page(body: &str, keyword: &str, page: u32) -> Result<Page, SourceError> {
+    let data = parse_router_data(body)
+        .ok_or_else(|| SourceError::parse("hongguo", "搜索页里没有 _ROUTER_DATA"))?;
+    let content = router_loader_map(&data, &["search_(keyword)/page", "search_"])
+        .ok_or_else(|| SourceError::parse("hongguo", "搜索结果为空"))?;
+    if content.get("isSuccess").and_then(Value::as_bool) == Some(false) {
+        return Err(SourceError::parse("hongguo", "搜索接口返回 isSuccess=false"));
+    }
+    // 站点会校验回传的 query 与请求一致，避免把别的词的结果当成当前结果。
+    let returned = content.get("query").map(text_of).unwrap_or_default();
+    if !returned.is_empty() && returned != keyword {
+        return Err(SourceError::parse(
+            "hongguo",
+            format!("返回了「{returned}」的结果，不是「{keyword}」"),
+        ));
+    }
+    let rows = content
+        .get("searchList")
+        .and_then(Value::as_array)
+        .ok_or_else(|| SourceError::parse("hongguo", "搜索结果里没有 searchList"))?;
+    let mut items = Vec::with_capacity(rows.len());
+    let mut seen = std::collections::HashSet::new();
+    for row in rows {
+        let Some(drama) = HongguoDrama::from_value(row, "短剧") else {
+            continue;
+        };
+        let drama = drama.into_drama();
+        if !drama.id.is_empty() && seen.insert(drama.id.clone()) {
+            items.push(drama);
+        }
+    }
+    let total = content
+        .get("totalCount")
+        .map(text_of)
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(items.len() as u32);
+    Ok(Page {
+        items,
+        has_more: total as usize > page as usize * SEARCH_PAGE_SIZE as usize,
+        page,
+        warning: String::new(),
+    })
 }
 
 fn now_millis() -> u64 {
@@ -549,17 +723,27 @@ impl SourcePlugin for HongguoSource {
     }
 
     async fn search(&self, env: &SourceEnv, query: &str, page: u32) -> Result<Page, SourceError> {
-        // 网页没有搜索接口；用分类页做关键词过滤，属于降级实现，
-        // 真正的搜索在 App 接口（P2）。这里明确标注 warning，避免 UI 误以为搜全了。
-        let mut result = self.web_catalog(env, page, "").await?;
-        let needle = query.trim();
-        if !needle.is_empty() {
-            result.items.retain(|drama| drama.title.contains(needle));
+        let keyword = query.trim();
+        if keyword.is_empty() {
+            return Err(SourceError::EmptyRequest("红果搜索词"));
         }
-        if result.warning.is_empty() {
-            result.warning = "红果网页版无搜索接口，当前为标题过滤结果".into();
+        // 网页搜索页：`/search/<keyword>`。站点在 2026-10 改成了客户端渲染，
+        // 页面里不再有 `_ROUTER_DATA`，因此**不能**再假设能解析出结果；
+        // 抓不到时明确报「暂不可用」，而不是拿首页做标题过滤冒充搜索结果
+        // ——那种做法会把「搜不到」和「站源坏了」混为一谈。
+        let url = format!(
+            "{}/search/{}",
+            self.web_base.trim_end_matches('/'),
+            urlencode(keyword)
+        );
+        let body = self.page_text(env, url).await?;
+        if let Ok(page_data) = parse_search_page(&body, keyword, page) {
+            return Ok(page_data);
         }
-        Ok(result)
+        // 搜索页已改为客户端渲染（无 `_ROUTER_DATA`）。联想接口仍可用，且
+        // `word_type == "short_play_name"` 的行带完整 `video_data`，能直接
+        // 构造可点开的条目——这是当前唯一可用的真实搜索数据源。
+        self.search_by_suggestion(env, keyword, page).await
     }
 
     async fn resolve(
@@ -618,23 +802,37 @@ impl SourcePlugin for HongguoSource {
         env: &SourceEnv,
         cursor: &RecommendCursor,
     ) -> Result<RecommendPage, SourceError> {
-        // 推荐走 App 接口：它需要签名与设备身份，网页没有对应能力。
-        let identity = self.identity(env).await?;
-        let payload = crate::capabilities::recommend_payload(cursor, "short_play");
-        let body = payload.to_string().into_bytes();
-        let request = self.signed_app_request(
-            "/reading/distribution/category/landpage/v/",
-            &[],
-            &identity.device_id,
-            &identity.install_id,
-            Some(body),
-            now_millis(),
-        );
-        let text = env.text(request).await?;
-        let root: Value = serde_json::from_str(&text)
-            .map_err(|err| SourceError::parse("hongguo", format!("推荐返回不是 JSON：{err}")))?;
-        check_app_code(&root)?;
-        crate::capabilities::parse_recommend_page(&root)
+        // App 推荐接口（`/reading/distribution/category/landpage/v/`）在
+        // 2026-10-24 实测对本机一律返回空响应体，已不可用。改用网页分类页
+        // 的 `recommendList`：同一批内容，只是少了「按 genre 精排」。
+        //
+        // genre 仍参与选择路由：真人剧 / 漫剧 / AI 剧各取对应分类页；
+        // 翻页用 `offset` 换算成页码，`session_id` 不再需要。
+        let (route, name) = match cursor.genre.as_str() {
+            "comic_series" => ("comic-drama", "漫剧"),
+            "ai_series" => ("ai-drama", "AI剧"),
+            _ => ("real-drama", "真人剧"),
+        };
+        let page = cursor.offset / RECOMMEND_PAGE_SIZE + 1;
+        let url = self.category_url(&format!("{route}?page={page}"));
+        let body = self.page_text(env, url).await?;
+        let (dramas, total_pages) = Self::parse_category_page(&body, name)?;
+        let items: Vec<Drama> = dramas
+            .into_iter()
+            .map(|drama| drama.into_drama())
+            .filter(|drama| !drama.id.is_empty())
+            .collect();
+        let has_more = items.len() >= RECOMMEND_PAGE_SIZE as usize
+            && (total_pages == 0 || page < total_pages);
+        Ok(RecommendPage {
+            items,
+            cursor: RecommendCursor {
+                offset: cursor.offset + RECOMMEND_PAGE_SIZE,
+                session_id: String::new(),
+                genre: cursor.genre.clone(),
+            },
+            has_more,
+        })
     }
 
     async fn suggestions(
@@ -671,25 +869,49 @@ impl SourcePlugin for HongguoSource {
         if video_id.is_empty() || !video_id.chars().all(|c| c.is_ascii_digit()) {
             return Err(SourceError::parse("hongguo", "章节 ID 无效，无法加载弹幕"));
         }
+        if start_ms < 0 || start_ms >= DANMAKU_MAX_WINDOW_MS {
+            return Err(SourceError::parse("hongguo", "弹幕时间轴超出可查询范围"));
+        }
         let identity = self.identity(env).await?;
-        // 每段 60 秒，与 Go 版的分段粒度一致。
-        let end_ms = start_ms + 60_000;
+        // series_id 是弹幕的 book_id（剧维度）。详情解析把它放在分集的
+        // `source` 字段；为空说明调用方没经过详情直接构造分集，无法定位剧集。
+        let series_id = chapter.source.clone();
+        if series_id.is_empty() || !series_id.chars().all(|c| c.is_ascii_digit()) {
+            return Err(SourceError::parse("hongguo", "缺少剧 ID，无法加载弹幕"));
+        }
+        // 请求体与 Go 版逐字段一致（comment_source/group_type/comment_type 都是
+        // 服务端风控的校验位，改任何一个都会回到 110001）。
+        // `playlet_item_duration` 用 start+60s 作为窗口提示；服务端按自己的
+        // 窗口策略返回 30s 或 60s 分段，真实窗口以响应里的
+        // `next_query_danmaku_list_time` 为准（见 parse_danmaku）。
+        let duration_hint = start_ms.saturating_add(60_000);
         let payload = serde_json::json!({
-            "offset": 0,
+            "comment_source": 601,
+            "server_channel": 1000,
+            "group_id": video_id,
+            "group_type": 30,
+            "comment_type": 20,
+            "sort": 1,
             "count": crate::capabilities::DANMAKU_LIMIT,
-            "start_time": start_ms,
-            "end_time": end_ms,
+            "cursor": "",
+            "aid": 8662,
+            "compliance_status": 0,
+            "business_param": {
+                "book_id": series_id,
+                "start_offset_time": start_ms,
+                "playlet_item_duration": duration_hint,
+                "need_danmaku_guide_type": [1, 3, 4, 2],
+            },
         });
-        let request = self.signed_app_request(
+        let request = self.signed_comment_request(
             &format!("/novel/commentapi/comment/list/{video_id}/v1/"),
-            &[],
             &identity.device_id,
             &identity.install_id,
-            Some(payload.to_string().into_bytes()),
+            payload.to_string().into_bytes(),
             now_millis(),
         );
         let text = env.text(request).await?;
-        crate::capabilities::parse_danmaku(&text, start_ms, end_ms)
+        crate::capabilities::parse_danmaku(&text, &video_id, start_ms)
     }
 
     async fn seasons(

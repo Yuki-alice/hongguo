@@ -6,6 +6,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/home/widgets/saved_library.dart';
 import 'package:hoshi/ui/features/player/views/playback_launch_screen.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 历史记录页。
 ///
@@ -26,7 +27,7 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: DesktopAppBar(
         title: Text(l10n.recentlyWatched),
         leading: const BackButton(),
       ),

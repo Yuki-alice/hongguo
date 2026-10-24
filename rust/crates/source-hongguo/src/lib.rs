@@ -8,6 +8,7 @@
 //! - [`router`]：`_ROUTER_DATA` 内嵌 JSON 的提取与字段映射；
 //! - [`source`]：`SourcePlugin` 实现（目录 / 详情 / 取流 / 分类）。
 
+mod argus;
 mod capabilities;
 mod device;
 mod rankings;
@@ -16,9 +17,11 @@ mod sign;
 mod source;
 
 pub use capabilities::{
-    base_title_for_search, group_seasons, parse_danmaku, parse_recommend_page, parse_suggestions,
-    recommend_payload, season_of, DANMAKU_LIMIT, SUGGESTION_LIMIT,
+    base_title_for_search, group_seasons, parse_danmaku, parse_recommend_page,
+    parse_suggestion_dramas, parse_suggestions, recommend_payload, season_of, DANMAKU_LIMIT,
+    SUGGESTION_LIMIT,
 };
+pub use argus::{comment_headers, sm3, CommentHeaders, CommentNonce};
 pub use device::DeviceIdentity;
 pub use rankings::{board_path, boards, find_board, parse_ranking_page, PAGE_SIZE};
 pub use router::{parse_router_data, router_loader_map, HongguoDrama};

@@ -6,6 +6,7 @@ import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/episode_browser.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class DownloadSelection {
   const DownloadSelection(this.episodes, this.quality);
@@ -270,7 +271,7 @@ class _DownloadPickerState extends State<DownloadPicker> {
       );
     }
     return Scaffold(
-      appBar: AppBar(
+      appBar: DesktopAppBar(
         title: Text(l10n.downloadPickerTitle),
         automaticallyImplyLeading: true,
       ),

@@ -15,6 +15,16 @@ class SourceHealthStep {
       elapsedMs = intValue(json['elapsedMs']),
       cfRay = json['cfRay'] as String? ?? '';
 
+  SourceHealthStep({
+    required this.name,
+    required this.state,
+    required this.message,
+    this.host = '',
+    this.httpStatus = 0,
+    required this.elapsedMs,
+    this.cfRay = '',
+  });
+
   final String name, state, message, host, cfRay;
   final int httpStatus, elapsedMs;
 }
@@ -28,6 +38,13 @@ class SourceHealth {
         for (final step in json['steps'] as List? ?? [])
           SourceHealthStep.fromJson(Map<String, dynamic>.from(step as Map)),
       ];
+
+  SourceHealth({
+    required this.checkedAt,
+    required this.state,
+    required this.sample,
+    required this.steps,
+  });
 
   final DateTime? checkedAt;
   final String state, sample;
@@ -65,6 +82,27 @@ class SourceStatus {
               Map<String, dynamic>.from(json['health'] as Map),
             )
           : null;
+
+  SourceStatus({
+    required this.source,
+    this.count = 0,
+    this.unknownVip = 0,
+    this.page = 0,
+    this.hasMore = false,
+    this.updatedAt,
+    this.running = false,
+    this.operation = '',
+    this.stage = '',
+    this.completed = 0,
+    this.total = 0,
+    this.added = 0,
+    this.error = '',
+    this.storageError = '',
+    this.startedAt,
+    this.finishedAt,
+    this.retryAt,
+    this.health,
+  });
 
   final String source, operation, stage, error, storageError;
   final int count, page, completed, total, added, unknownVip;

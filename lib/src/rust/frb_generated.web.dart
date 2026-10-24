@@ -75,6 +75,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DanmakuItem dco_decode_danmaku_item(dynamic raw);
 
   @protected
+  DanmakuPageResult dco_decode_danmaku_page_result(dynamic raw);
+
+  @protected
   DownloadBatchOutcome dco_decode_download_batch_outcome(dynamic raw);
 
   @protected
@@ -120,6 +123,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FailedPluginReport dco_decode_failed_plugin_report(dynamic raw);
 
   @protected
+  HealthStep dco_decode_health_step(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
@@ -162,7 +168,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FailedPluginReport> dco_decode_list_failed_plugin_report(dynamic raw);
 
   @protected
+  List<HealthStep> dco_decode_list_health_step(dynamic raw);
+
+  @protected
   List<PluginSummary> dco_decode_list_plugin_summary(dynamic raw);
+
+  @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -232,6 +244,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceCapabilities dco_decode_source_capabilities(dynamic raw);
+
+  @protected
+  SourceHealth dco_decode_source_health(dynamic raw);
 
   @protected
   SourceSummary dco_decode_source_summary(dynamic raw);
@@ -311,6 +326,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DanmakuItem sse_decode_danmaku_item(SseDeserializer deserializer);
 
   @protected
+  DanmakuPageResult sse_decode_danmaku_page_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DownloadBatchOutcome sse_decode_download_batch_outcome(
     SseDeserializer deserializer,
   );
@@ -360,6 +380,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FailedPluginReport sse_decode_failed_plugin_report(
     SseDeserializer deserializer,
   );
+
+  @protected
+  HealthStep sse_decode_health_step(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
@@ -422,9 +445,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<HealthStep> sse_decode_list_health_step(SseDeserializer deserializer);
+
+  @protected
   List<PluginSummary> sse_decode_list_plugin_summary(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -510,6 +539,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SourceCapabilities sse_decode_source_capabilities(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SourceHealth sse_decode_source_health(SseDeserializer deserializer);
 
   @protected
   SourceSummary sse_decode_source_summary(SseDeserializer deserializer);
@@ -605,6 +637,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_danmaku_item(DanmakuItem self, SseSerializer serializer);
 
   @protected
+  void sse_encode_danmaku_page_result(
+    DanmakuPageResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_download_batch_outcome(
     DownloadBatchOutcome self,
     SseSerializer serializer,
@@ -675,6 +713,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     FailedPluginReport self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_health_step(HealthStep self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
@@ -755,8 +796,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_health_step(
+    List<HealthStep> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_plugin_summary(
     List<PluginSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
     SseSerializer serializer,
   );
 
@@ -867,6 +920,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SourceCapabilities self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_source_health(SourceHealth self, SseSerializer serializer);
 
   @protected
   void sse_encode_source_summary(SourceSummary self, SseSerializer serializer);

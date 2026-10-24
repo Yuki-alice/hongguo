@@ -8,6 +8,7 @@ import 'package:hoshi/ui/features/settings/controllers/resource_settings_control
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class DownloadPreferencesScreen extends StatelessWidget {
   const DownloadPreferencesScreen({super.key, required this.store});
@@ -19,7 +20,7 @@ class DownloadPreferencesScreen extends StatelessWidget {
       final l10n = AppLocalizations.of(context);
       final preferences = store.downloadPreferences;
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.downloadPrefsTitle)),
+        appBar: DesktopAppBar(title: Text(l10n.downloadPrefsTitle)),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(
@@ -157,7 +158,7 @@ class _ResourceSettingsScreenState extends State<ResourceSettingsScreen> {
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(l10n.resourceSettingsTitle),
           actions: [
             TextButton(

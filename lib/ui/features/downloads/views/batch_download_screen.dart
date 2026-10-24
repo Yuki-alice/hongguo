@@ -12,6 +12,7 @@ import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class BatchDownloadScreen extends StatefulWidget {
   const BatchDownloadScreen({
@@ -71,7 +72,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.batchDownloadTitle)),
+        appBar: DesktopAppBar(title: Text(l10n.batchDownloadTitle)),
         body: SafeArea(
           top: false,
           child: !_batch.hasAccess

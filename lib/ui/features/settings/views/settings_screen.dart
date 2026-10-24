@@ -15,11 +15,11 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/split_list.dart';
 import 'package:hoshi/domain/window_bounds.dart';
-import 'package:hoshi/ui/shell/window_chrome.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/settings/controllers/settings_controller.dart';
 import 'package:hoshi/ui/features/settings/controllers/storage_controller.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 String storageSize(int bytes, AppLocalizations l10n) {
   if (bytes < 0) return l10n.storageUnavailable;
@@ -176,7 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 是分组导航，右栏只显示当前分组。
       if (wide) {
         return Scaffold(
-          appBar: AppBar(
+          appBar: DesktopAppBar(
             title: Text(l10n.settingsNav),
             leading: BackButton(
               onPressed: () => Navigator.of(context).maybePop(),
@@ -211,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
       if (opened != null) {
         return Scaffold(
-          appBar: AppBar(
+          appBar: DesktopAppBar(
             title: Text(opened.title),
             leading: BackButton(
               onPressed: () => setState(() => _opened = null),
@@ -221,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.settingsTitle)),
+        appBar: DesktopAppBar(title: Text(l10n.settingsTitle)),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(
             Md3Spacing.lg,
@@ -724,7 +724,7 @@ class _StorageScreenState extends State<StorageScreen> {
       builder: (context, _) => PopScope(
         canPop: !_controller.busy,
         child: Scaffold(
-          appBar: AppBar(title: Text(l10n.storageTitle)),
+          appBar: DesktopAppBar(title: Text(l10n.storageTitle)),
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(

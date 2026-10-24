@@ -215,6 +215,9 @@ impl SourcePlugin for NiuguoSource {
                     key_iv: String::new(),
                     cookies: String::new(),
                     origin: String::new(),
+                    cenc_key: String::new(),
+                    quality: 0,
+                    qualities: Vec::new(),
                 });
             }
         }

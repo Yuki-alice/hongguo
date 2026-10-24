@@ -21,6 +21,7 @@ import 'package:hoshi/ui/features/discover/views/discover_view.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/routing/root_navigation.dart';
 
 /// 应用主页面。
 ///
@@ -302,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final ref = DramaRef.fromDramaId(drama.id);
     if (ref == null) return;
     if (download) {
-      context.push(
+      context.pushFullscreen(
         AppRoutes.withQuery(AppRoutes.detailOf(ref), {'download': true}),
         extra: drama,
       );

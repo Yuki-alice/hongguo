@@ -17,6 +17,7 @@ import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class LocalMediaScreen extends StatefulWidget {
   const LocalMediaScreen({
@@ -168,7 +169,7 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
           .where((item) => item.merged == _controller.merged)
           .toList();
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(l10n.localMediaTitle),
           actions: [
             IconButton(

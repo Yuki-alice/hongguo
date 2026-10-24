@@ -7,7 +7,7 @@ import 'api/error.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `join_url`, `media_inner`, `prepare`, `run`, `search_inner`, `timeout_for`
+// These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `health_inner`, `join_url`, `media_inner`, `now_millis_bridge`, `prepare`, `run`, `search_inner`, `timeout_for`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_registry`
 
@@ -217,7 +217,7 @@ Future<List<String>> fetchSuggestions({
 );
 
 /// 一集的分段弹幕。
-Future<List<DanmakuItem>> fetchDanmaku({
+Future<DanmakuPageResult> fetchDanmaku({
   required String sourceId,
   required ChapterInput chapter,
   required PlatformInt64 startMs,
@@ -342,6 +342,21 @@ Future<LegacyMigrationResult> importLegacyDownloads({
 Future<int> clearSourceSession({required String sourceId}) =>
     RustLib.instance.api.crateApiClearSourceSession(sourceId: sourceId);
 
+/// 对单个站源做一轮真实链路检测：目录 → 详情 → 取流 → 媒体连接。
+///
+/// 与 Go 版 `checkSource` 的五步管线等价（媒体与密钥在取流结果里合并检查）：
+/// 每一步独立计时、独立报错，中途任何一步失败立即停止后续步骤。
+/// 检测挂在 `health-<source>` 会话上，`cancel_request` 可以随时中止。
+Future<SourceHealth> checkSource({
+  required String sourceId,
+  required String requestId,
+  required bool playback,
+}) => RustLib.instance.api.crateApiCheckSource(
+  sourceId: sourceId,
+  requestId: requestId,
+  playback: playback,
+);
+
 /// 重新装配注册表（插件安装 / 卸载后调用）。会话与下载任务保持不变。
 Future<int> reloadSources() => RustLib.instance.api.crateApiReloadSources();
 
@@ -403,6 +418,9 @@ class ChapterInput {
   final String pageUrl;
   final String referer;
 
+  /// 是否 VIP 分集（试看 / 付费标记）。
+  final bool vip;
+
   const ChapterInput({
     required this.id,
     required this.title,
@@ -410,6 +428,7 @@ class ChapterInput {
     required this.videoUrl,
     required this.pageUrl,
     required this.referer,
+    required this.vip,
   });
 
   @override
@@ -419,7 +438,8 @@ class ChapterInput {
       sourceId.hashCode ^
       videoUrl.hashCode ^
       pageUrl.hashCode ^
-      referer.hashCode;
+      referer.hashCode ^
+      vip.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -431,7 +451,8 @@ class ChapterInput {
           sourceId == other.sourceId &&
           videoUrl == other.videoUrl &&
           pageUrl == other.pageUrl &&
-          referer == other.referer;
+          referer == other.referer &&
+          vip == other.vip;
 }
 
 /// 单个分集。
@@ -443,6 +464,9 @@ class ChapterItem {
   final String pageUrl;
   final String referer;
 
+  /// 是否 VIP 分集（试看 / 付费标记）。
+  final bool vip;
+
   const ChapterItem({
     required this.id,
     required this.title,
@@ -450,6 +474,7 @@ class ChapterItem {
     required this.videoUrl,
     required this.pageUrl,
     required this.referer,
+    required this.vip,
   });
 
   @override
@@ -459,7 +484,8 @@ class ChapterItem {
       source.hashCode ^
       videoUrl.hashCode ^
       pageUrl.hashCode ^
-      referer.hashCode;
+      referer.hashCode ^
+      vip.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -471,7 +497,8 @@ class ChapterItem {
           source == other.source &&
           videoUrl == other.videoUrl &&
           pageUrl == other.pageUrl &&
-          referer == other.referer;
+          referer == other.referer &&
+          vip == other.vip;
 }
 
 /// 详情结果。
@@ -535,6 +562,33 @@ class DanmakuItem {
           timeMs == other.timeMs &&
           text == other.text &&
           color == other.color;
+}
+
+/// 弹幕一页：条目 + 服务端窗口游标。
+class DanmakuPageResult {
+  final List<DanmakuItem> items;
+
+  /// 本段结束时间（毫秒），下一次请求从这里开始。
+  final PlatformInt64 endMs;
+  final bool hasMore;
+
+  const DanmakuPageResult({
+    required this.items,
+    required this.endMs,
+    required this.hasMore,
+  });
+
+  @override
+  int get hashCode => items.hashCode ^ endMs.hashCode ^ hasMore.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DanmakuPageResult &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          endMs == other.endMs &&
+          hasMore == other.hasMore;
 }
 
 /// 批量控制结果。
@@ -1087,6 +1141,48 @@ class FailedPluginReport {
           detail == other.detail;
 }
 
+/// 站源健康检测的一步。
+class HealthStep {
+  final String name;
+
+  /// `ok` / `failed`。
+  final String state;
+  final String message;
+  final String host;
+  final int httpStatus;
+  final BigInt elapsedMs;
+
+  const HealthStep({
+    required this.name,
+    required this.state,
+    required this.message,
+    required this.host,
+    required this.httpStatus,
+    required this.elapsedMs,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      state.hashCode ^
+      message.hashCode ^
+      host.hashCode ^
+      httpStatus.hashCode ^
+      elapsedMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HealthStep &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          state == other.state &&
+          message == other.message &&
+          host == other.host &&
+          httpStatus == other.httpStatus &&
+          elapsedMs == other.elapsedMs;
+}
+
 /// 旧索引迁移结果。
 class LegacyMigrationResult {
   /// 是否读到旧索引文件。
@@ -1157,6 +1253,15 @@ class MediaResult {
   /// 播放请求必须携带的 `Origin`（部分 CDN 会校验来源）。
   final String origin;
 
+  /// CENC 内容密钥（十六进制）。mpv 用 `--decryption-key` 解密。
+  final String cencKey;
+
+  /// 选中地址的画质（高度像素）。0 表示未知。
+  final int quality;
+
+  /// 可选画质列表（高度像素，降序）。
+  final Uint32List qualities;
+
   const MediaResult({
     required this.url,
     required this.referer,
@@ -1165,6 +1270,9 @@ class MediaResult {
     required this.keyIv,
     required this.cookies,
     required this.origin,
+    required this.cencKey,
+    required this.quality,
+    required this.qualities,
   });
 
   @override
@@ -1175,7 +1283,10 @@ class MediaResult {
       keyUri.hashCode ^
       keyIv.hashCode ^
       cookies.hashCode ^
-      origin.hashCode;
+      origin.hashCode ^
+      cencKey.hashCode ^
+      quality.hashCode ^
+      qualities.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1188,7 +1299,10 @@ class MediaResult {
           keyUri == other.keyUri &&
           keyIv == other.keyIv &&
           cookies == other.cookies &&
-          origin == other.origin;
+          origin == other.origin &&
+          cencKey == other.cencKey &&
+          quality == other.quality &&
+          qualities == other.qualities;
 }
 
 /// 可安装 / 已安装插件的摘要。`installed` 与 `enabled` 共同决定 UI 上的按钮状态。
@@ -1536,6 +1650,40 @@ class SourceCapabilities {
           group == other.group &&
           apiLevel == other.apiLevel &&
           capabilities == other.capabilities;
+}
+
+/// 站源健康报告。
+///
+/// `state`：`ok`（四步全过）/ `catalogOnly`（目录可用但取流未过）/
+/// `failed`（目录都进不去）。UI 据此区分「源坏了」与「只能看不能播」。
+class SourceHealth {
+  final BigInt checkedAtMs;
+  final String state;
+
+  /// 检测时用的剧集标题，供 UI 展示「拿哪部剧做的样本」。
+  final String sample;
+  final List<HealthStep> steps;
+
+  const SourceHealth({
+    required this.checkedAtMs,
+    required this.state,
+    required this.sample,
+    required this.steps,
+  });
+
+  @override
+  int get hashCode =>
+      checkedAtMs.hashCode ^ state.hashCode ^ sample.hashCode ^ steps.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SourceHealth &&
+          runtimeType == other.runtimeType &&
+          checkedAtMs == other.checkedAtMs &&
+          state == other.state &&
+          sample == other.sample &&
+          steps == other.steps;
 }
 
 /// Dart 可见的站源摘要。

@@ -1702,6 +1702,24 @@ abstract class AppLocalizations {
   /// **'来源'**
   String get detailSourceTab;
 
+  /// No description provided for @detailInfoTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'作品信息'**
+  String get detailInfoTitle;
+
+  /// No description provided for @detailSourceLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'站源'**
+  String get detailSourceLabel;
+
+  /// No description provided for @followAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入追剧'**
+  String get followAdd;
+
   /// No description provided for @detailNoSynopsis.
   ///
   /// In zh, this message translates to:

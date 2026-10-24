@@ -14,6 +14,7 @@ import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/skeleton.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
 import 'package:hoshi/ui/features/discover/widgets/catalog_selection_bar.dart';
@@ -169,6 +170,9 @@ class _DiscoverViewState extends State<DiscoverView> {
   static const double titleExpanded = Md3HomeHeader.titleExpanded;
   static const double titleCollapsed = Md3HomeHeader.titleCollapsed;
 
+  /// 标题行的点击高度（图标 + 文字一行）。
+  static const double _titleHeight = 44;
+
   /// Kazumi 首页形态：顶栏、分类栏、网格在**同一个** `CustomScrollView` 里，
   /// 于是标题能随滚动从 28/w700 收缩成 20/w500，分类栏跟着内容一起滚走。
   Widget _catalogScroll() {
@@ -212,54 +216,61 @@ class _DiscoverViewState extends State<DiscoverView> {
     );
   }
 
-  /// 折叠大标题。标题位置就是站源切换器（Kazumi 那里是分类下拉），
-  /// 左右留白与下面的网格取同一个 `contentInset`，首列与标题对齐。
+  /// 折叠大标题。标题本身是站源切换器，左右留白与网格取同一个
+  /// `contentInset`，首列与标题对齐。
+  ///
+  /// 安全区约束：macOS 隐藏标题栏后 `MediaQuery.padding.top` 恒为 0
+  /// （`window_manager` 会加 `.fullSizeContentView`），所以 `SafeArea`
+  /// 不可用，[WindowSafeArea.top] 必须显式参与定位。标题的位置只能靠
+  /// **计算**偏移，不能在 `flexibleSpace` 外层加 `Padding`——SliverAppBar
+  /// 按 `toolbarHeight` 裁切，内容被推下去会切掉标题上半截。
   Widget _headerSliver(BuildContext context, double width) {
     final l10n = AppLocalizations.of(context);
+    final safeTop = WindowSafeArea.top;
+    final toolbar = kToolbarHeight + safeTop;
+    final expanded = headerHeight + safeTop;
     return SliverAppBar(
       pinned: true,
       stretch: true,
-      expandedHeight: headerHeight,
+      expandedHeight: expanded,
+      toolbarHeight: toolbar,
       elevation: 0,
       scrolledUnderElevation: 0,
       titleSpacing: 0,
       centerTitle: false,
-      // 折叠后必须填色：`popular_page.dart` 用的是
-      // `backgroundColor: Theme.of(context).colorScheme.surface`。留透明
-      // 会让海报从标题下面透出来，滚动时糊成一片。
       backgroundColor: Theme.of(context).colorScheme.surface,
       actions: widget.selectionMode
           ? _selectionActions(l10n)
           : _catalogActions(l10n),
-      // 选中模式的标题走工具栏；浏览态的标题是 flexibleSpace 里的分类菜单。
       title: widget.selectionMode
           ? Text(l10n.selectDrama, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
-      flexibleSpace: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final maxExtent = headerHeight - MediaQuery.paddingOf(context).top;
-            // t = 0 完全展开，t = 1 收到工具栏高度。
-            final t =
-                1 -
-                ((constraints.maxHeight - kToolbarHeight) /
-                        (maxExtent - kToolbarHeight))
-                    .clamp(0.0, 1.0);
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: Md3Spacing.contentInset(
-                    constraints.maxWidth,
-                    maxWidth: Md3Spacing.wideMaxWidth,
-                  ),
-                  right: 60,
-                  top: Md3Spacing.sm,
-                  bottom: Md3Spacing.sm,
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          // t：0 = 完全展开，1 = 收到工具栏高度。
+          final t =
+              (1 -
+                      ((constraints.maxHeight - toolbar) / (expanded - toolbar))
+                          .clamp(0.0, 1.0))
+                  .toDouble();
+          // 标题顶边在「展开态居中」与「工具栏内居中」之间插值，并钳制在
+          // 安全区下沿与可视区间内，滚动全程都不会被裁切。
+          final titleTop = lerpDouble(
+            safeTop + (expanded - _titleHeight) / 2,
+            safeTop + (kToolbarHeight - _titleHeight) / 2,
+            t,
+          )!;
+          return Stack(
+            children: [
+              Positioned(
+                left: 16,
+                right: 60,
+                top: titleTop.clamp(
+                  safeTop,
+                  constraints.maxHeight - _titleHeight,
                 ),
                 child: SizedBox(
-                  height: 44,
+                  height: _titleHeight,
                   child: widget.selectionMode
                       ? const SizedBox.shrink()
                       : _categoryMenu(
@@ -273,9 +284,9 @@ class _DiscoverViewState extends State<DiscoverView> {
                         ),
                 ),
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }

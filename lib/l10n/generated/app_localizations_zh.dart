@@ -914,6 +914,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get detailSourceTab => '来源';
 
   @override
+  String get detailInfoTitle => '作品信息';
+
+  @override
+  String get detailSourceLabel => '站源';
+
+  @override
+  String get followAdd => '加入追剧';
+
+  @override
   String get detailNoSynopsis => '这部剧还没有简介';
 
   @override

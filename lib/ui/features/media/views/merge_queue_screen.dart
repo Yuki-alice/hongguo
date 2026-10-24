@@ -11,6 +11,7 @@ import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class MergeQueueScreen extends StatefulWidget {
   const MergeQueueScreen({
@@ -180,7 +181,7 @@ class _MergeQueueScreenState extends State<MergeQueueScreen> {
       final l10n = AppLocalizations.of(context);
       final jobs = widget.library.merges.items;
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(l10n.mergeQueueTitle),
           actions: [
             IconButton(

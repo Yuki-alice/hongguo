@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -237,6 +238,29 @@ class LocalStore extends ChangeNotifier {
 
   bool get hideVip =>
       _configurationError == null ? _bool(_key('hideVip')) ?? true : true;
+
+  /// 已归档的下载任务 id（全局，不随用户切换：下载任务本身是全局的）。
+  ///
+  /// 引擎没有「归档」状态，这是 UI 展示旗标。下载页轮询频率高，
+  /// 这里用同步读取的字符串缓存；写入走队列后刷新缓存。
+  Set<String> get archivedDownloadIds {
+    if (_configurationError != null) return const {};
+    final value = _string('archivedDownloads');
+    if (value == null || value.isEmpty) return const {};
+    return {
+      for (final id in value.split('\n'))
+        if (id.isNotEmpty) id,
+    };
+  }
+
+  set archivedDownloadIds(List<String> ids) {
+    final unique = {...ids}.where((id) => id.isNotEmpty).toList()..sort();
+    unawaited(
+      _commit({
+        'archivedDownloads': unique.join('\n'),
+      }).catchError((Object _) {}),
+    );
+  }
 
   String get themeMode {
     final value = _configurationError == null ? _string('themeMode') : null;

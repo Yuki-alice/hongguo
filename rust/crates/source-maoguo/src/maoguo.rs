@@ -528,6 +528,9 @@ impl SourcePlugin for MaoguoSource {
                 key_iv: String::new(),
                 cookies: String::new(),
                 origin: String::new(),
+                cenc_key: String::new(),
+                quality: 0,
+                qualities: Vec::new(),
             });
         }
         if playlist.segments.is_empty() {
@@ -545,6 +548,9 @@ impl SourcePlugin for MaoguoSource {
                         key_iv: inner.key_iv.clone().unwrap_or_default(),
                         cookies: String::new(),
                         origin: String::new(),
+                        cenc_key: String::new(),
+                        quality: 0,
+                        qualities: Vec::new(),
                     });
                 }
             }
@@ -557,6 +563,9 @@ impl SourcePlugin for MaoguoSource {
             key_iv: playlist.key_iv.clone().unwrap_or_default(),
             cookies: String::new(),
             origin: String::new(),
+            cenc_key: String::new(),
+            quality: 0,
+            qualities: Vec::new(),
         })
     }
 }

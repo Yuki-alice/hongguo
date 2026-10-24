@@ -1234,6 +1234,7 @@ dependencies = [
 name = "guo-source-hongguo"
 version = "0.3.0"
 dependencies = [
+ "aes",
  "async-trait",
  "guo-media",
  "guo-source-api",

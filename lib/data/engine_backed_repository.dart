@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:hoshi/data/app_contract.dart';
@@ -38,9 +40,15 @@ class EngineBackedRepository extends AppRepository {
   /// 该站源是否交给引擎。
   bool handles(String source) => engine.initialized && source.isNotEmpty;
 
+  /// 正在进行的站源检测（source → 阶段）。
+  final _sourceJobs = <String, _SourceJobState>{};
+
+  /// 最近一次站源健康报告（source → 报告）。
+  final _sourceHealth = <String, SourceHealth>{};
+
   @override
   RepositoryCapabilities get capabilities => const RepositoryCapabilities(
-    sourceManagement: false,
+    sourceManagement: true,
     downloads: true,
     danmaku: true,
     recommendations: true,
@@ -241,24 +249,32 @@ class EngineBackedRepository extends AppRepository {
     if (plan.local || plan.danmakuId.isEmpty || plan.source.isEmpty) {
       throw UnsupportedFailure('弹幕');
     }
-    final next = _min(startMs + 60000, durationMs);
-    if (next <= startMs) throw UnsupportedFailure('弹幕');
-    final items = await engine.danmaku(
+    if (durationMs <= startMs) throw UnsupportedFailure('弹幕');
+    // `danmakuId` 携带的是源侧的分集定位符（红果是 `hongguo-cenc://<vid>`，
+    // 规则源是分集页地址）。引擎按 `Chapter.video_url` 找这一集的弹幕，
+    // 因此必须原样回传——用 id 重新拼 Drama 会丢掉定位符，弹幕必然报
+    // 「章节 ID 无效」。
+    final page = await engine.danmaku(
       Drama(
-        id: '${plan.source}:${plan.danmakuId}',
+        id: plan.sourceId.isEmpty
+            ? '${plan.source}:${plan.danmakuId}'
+            : '${plan.source}:${plan.sourceId}',
         source: plan.source,
         sourceId: plan.sourceId,
         title: '',
       ),
-      Episode({'id': plan.danmakuId}, 1),
+      Episode({'id': plan.danmakuId, 'videoUrl': plan.danmakuId}, 1),
       startMs: startMs,
     );
+    // 窗口结束以服务端游标为准（红果按 30s 分段），并夹到本集时长内。
+    final next = _min(page.endMs, durationMs);
+    if (next <= startMs) throw UnsupportedFailure('弹幕');
     return DanmakuPage(
       episodeId: plan.danmakuId,
       startMs: startMs,
       nextMs: next,
       items: [
-        for (final item in items)
+        for (final item in page.items)
           if (item.timeMs >= startMs && item.timeMs < next)
             DanmakuItem(
               id: '${item.timeMs}:${item.text.hashCode}',
@@ -412,13 +428,21 @@ class EngineBackedRepository extends AppRepository {
     int quality = 0,
   }) async {
     if (!handles(detail.drama.source)) throw UnsupportedFailure('下载');
-    var accepted = 0;
+    // 两阶段：先逐集取流并登记（取流必须联网，可能失败，失败的分集跳过），
+    // 再把已登记的任务**在后台**跑起来。以前这里串行 await 每一集下载到
+    // 完成，「加入下载」会卡到整部剧下完；现在返回登记数，进度由下载页
+    // 的快照轮询承担，引擎的并发闸门负责限速。
+    final registered = <(String, _EngineDownload)>[];
     for (final episode in episodes) {
       try {
         final plan = await engine.resolve(detail.drama, episode);
         final id = '${detail.drama.id}:${episode.id}';
-        final target = await _downloadTarget(detail.drama, episode);
-        await engine.download(
+        final target = await _downloadTarget(
+          detail.drama,
+          episode,
+          hls: plan.segments.isNotEmpty,
+        );
+        await engine.registerDownload(
           id: id,
           url: plan.url,
           target: target,
@@ -433,25 +457,49 @@ class EngineBackedRepository extends AppRepository {
           keyUri: plan.keyUri,
           keyIv: plan.keyIv,
         );
-        _downloads[id] = _EngineDownload(
-          drama: detail.drama,
-          episode: episode,
-          index: episode.number,
-        );
-        accepted += 1;
+        registered.add((
+          id,
+          _EngineDownload(
+            drama: detail.drama,
+            episode: episode,
+            index: episode.number,
+          ),
+        ));
       } on Object {
-        // 单个分集失败不影响其余分集，交给上层重试。
+        // 单个分集取流失败不影响其余分集，列表里看不到它即代表失败。
       }
     }
-    return accepted;
+    for (final (id, context) in registered) {
+      _downloads[id] = context;
+      unawaited(_runDownload(id));
+    }
+    return registered.length;
   }
 
-  /// 计算下载目标路径（不含扩展名）。
-  Future<String> _downloadTarget(Drama drama, Episode episode) async {
+  /// 后台执行单个已登记任务。失败写进任务本身（列表页可见），不再静默。
+  Future<void> _runDownload(String id) async {
+    try {
+      await engine.runDownload(id);
+    } on Object catch (error) {
+      debugPrint('下载任务 $id 结束：$error');
+    }
+  }
+
+  /// 计算下载目标路径。
+  ///
+  /// 扩展名不能省：mpv / ffmpeg / 系统都按扩展名挑解复用器，HLS 拼接产物
+  /// 是 MPEG-TS，单文件按 mp4 处理。没有扩展名的文件在「本地媒体」和
+  /// 外部播放器里都不可识别。
+  Future<String> _downloadTarget(
+    Drama drama,
+    Episode episode, {
+    bool hls = false,
+  }) async {
     final directory = await downloadDirectory();
     final safeDrama = drama.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     final safeEpisode = episode.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    return '$directory/$safeDrama/${episode.id}_$safeEpisode';
+    final extension = hls ? '.ts' : '.mp4';
+    return '$directory/$safeDrama/${episode.id}_$safeEpisode$extension';
   }
 
   /// 下载任务列表：引擎索引 + 下层旧记录。
@@ -463,6 +511,7 @@ class EngineBackedRepository extends AppRepository {
   Future<List<DownloadJob>> downloads() async {
     final rows = await engine.downloads();
     if (rows.isEmpty) return const [];
+    final archivedIds = await archivedJobIds();
     final jobs = <DownloadJob>[];
     for (final row in rows) {
       final context = _downloads[row.id] ?? _contextFromSnapshot(row);
@@ -477,6 +526,8 @@ class EngineBackedRepository extends AppRepository {
           total: row.total,
           progress: row.progress,
           error: row.error,
+          revision: row.revision,
+          archived: archivedIds.contains(row.id),
         ),
       );
     }
@@ -511,16 +562,60 @@ class EngineBackedRepository extends AppRepository {
 
   @override
   Future<void> controlDownloads(String command, {String id = ''}) async {
+    // 「暂停全部」是通知栏 / iOS 后台的命令：引擎按单任务控制，这里展开。
+    if (command == 'pauseAll') {
+      final ids = [for (final job in await engine.downloads()) job.id];
+      if (ids.isNotEmpty) await engine.controlDownloads('pause', ids);
+      return;
+    }
+    if (command == 'archive' || command == 'restore') {
+      final target = id.isEmpty
+          ? [for (final job in await engine.downloads()) job.id]
+          : [id];
+      await _setArchived(target, archived: command == 'archive');
+      return;
+    }
+    final engineCommand = _engineCommand(command);
     if (id.isEmpty) {
       final ids = [for (final job in await engine.downloads()) job.id];
       if (ids.isNotEmpty) {
-        await engine.controlDownloads(command, ids);
-        if (command == 'delete' || command == 'remove') _downloads.clear();
+        await engine.controlDownloads(engineCommand, ids);
+        if (engineCommand == 'delete') _downloads.clear();
       }
       return;
     }
-    await engine.controlDownload(command, id);
-    if (command == 'delete' || command == 'remove') _downloads.remove(id);
+    await engine.controlDownload(engineCommand, id);
+    if (engineCommand == 'delete') _downloads.remove(id);
+  }
+
+  /// UI 命令名 → 引擎命令名。引擎只认 `pause` / `resume` / `retry` /
+  /// `delete`；「删除」在 UI 里叫 `remove`，不映射就是全部静默失败。
+  String _engineCommand(String command) => switch (command) {
+    'remove' || 'delete' => 'delete',
+    'resume' || 'retry' => 'resume',
+    _ => command,
+  };
+
+  /// 已归档任务集合。引擎没有「归档」状态，这是 UI 层的展示旗标，
+  /// 落在 LocalStore 里跨启动保留（下载任务本身是全局的，不随用户切换）。
+  Future<Set<String>> archivedJobIds() async {
+    final store = access;
+    if (store == null) return const {};
+    return {
+      for (final id in store.archivedDownloadIds)
+        if (id.isNotEmpty) id,
+    };
+  }
+
+  Future<void> _setArchived(
+    Iterable<String> ids, {
+    required bool archived,
+  }) async {
+    final store = access;
+    if (store == null) return;
+    final current = {...store.archivedDownloadIds};
+    archived ? current.addAll(ids) : current.removeAll(ids);
+    store.archivedDownloadIds = current.toList();
   }
 
   /// 批量控制：引擎任务走引擎，其余（旧 Go 记录）交给下层。
@@ -539,6 +634,11 @@ class EngineBackedRepository extends AppRepository {
       return const DownloadBatchResult(completed: [], failures: {});
     }
 
+    // 归档是 UI 旗标，在本地完成，不进引擎。
+    if (command == 'archive' || command == 'restore') {
+      await _setArchived(engineIds, archived: command == 'archive');
+      return DownloadBatchResult(completed: engineIds, failures: {});
+    }
     final versions = <rust.DownloadVersion>[
       for (final id in engineIds)
         if (expectedVersions[id] != null)
@@ -550,7 +650,7 @@ class EngineBackedRepository extends AppRepository {
     final rust.DownloadBatchOutcome outcome;
     try {
       outcome = await rust.controlDownloadBatch(
-        command: command,
+        command: _engineCommand(command),
         ids: engineIds,
         expectedVersions: versions,
       );
@@ -561,7 +661,7 @@ class EngineBackedRepository extends AppRepository {
     final failures = <String, String>{
       for (final failure in outcome.failures) failure.id: failure.detail,
     };
-    if (command == 'delete' || command == 'remove') {
+    if (_engineCommand(command) == 'delete') {
       for (final id in completed) {
         _downloads.remove(id);
       }
@@ -583,19 +683,106 @@ class EngineBackedRepository extends AppRepository {
   ) async => throw UnsupportedFailure('局域网互联');
 
   @override
-  Future<SourceStatus> sourceStatus(String source) async =>
-      throw UnsupportedFailure('站源诊断');
+  Future<SourceStatus> sourceStatus(String source) async {
+    final job = _sourceJobs[source];
+    final health = _sourceHealth[source];
+    // 目录数取本地缓存（不打网络），让「缓存了多少部剧」始终可见。
+    var count = 0;
+    try {
+      final cached = await engine.cachedCatalog(source);
+      count = cached.items.length;
+    } on Object {
+      // 缓存读不到就按 0 显示。
+    }
+    if (job != null) {
+      return SourceStatus(
+        source: source,
+        count: count,
+        running: true,
+        operation: job.operation,
+        stage: job.stage,
+        completed: job.completed,
+        total: job.total,
+        startedAt: job.startedAt,
+        health: health,
+      );
+    }
+    if (health == null) {
+      return SourceStatus(source: source, count: count);
+    }
+    return SourceStatus(
+      source: source,
+      count: count,
+      updatedAt: health.checkedAt,
+      finishedAt: health.checkedAt,
+      error: health.state == 'failed' ? _failedStep(health).message : '',
+      health: health,
+    );
+  }
 
+  /// 启动一次站源检测。`check` 走全链路（含取流），`checkCatalog` 只测目录。
+  ///
+  /// 检测在后台 Future 里跑；`sourceStatus` 的轮询负责把阶段与结果
+  /// 反映到 UI，因此这里立即返回「运行中」的状态即可。
   @override
   Future<SourceStatus> startSourceJob(
     String source,
     String operation, {
     Drama? drama,
-  }) async => throw UnsupportedFailure('站源任务');
+  }) async {
+    if (operation != 'check' && operation != 'checkCatalog') {
+      throw UnsupportedFailure('站源任务 $operation');
+    }
+    if (_sourceJobs.containsKey(source)) {
+      return sourceStatus(source);
+    }
+    final playback = operation == 'check';
+    final job = _SourceJobState(
+      operation: operation,
+      stage: '入口与目录',
+      total: playback ? 4 : 2,
+    );
+    _sourceJobs[source] = job;
+    unawaited(() async {
+      try {
+        final health = await engine.checkSource(source, playback: playback);
+        _sourceHealth[source] = health;
+      } on Object {
+        // 检测失败也要落地，否则 UI 会一直显示「检测中」。
+        _sourceHealth[source] = SourceHealth(
+          checkedAt: DateTime.now(),
+          state: 'failed',
+          sample: '',
+          steps: const [],
+        );
+      } finally {
+        _sourceJobs.remove(source);
+      }
+    }());
+    return sourceStatus(source);
+  }
 
   @override
-  Future<SourceStatus> cancelSourceJob(String source) async =>
-      throw UnsupportedFailure('站源任务');
+  Future<SourceStatus> cancelSourceJob(String source) async {
+    try {
+      await engine.cancelSourceCheck(source);
+    } on Object {
+      // 会话不存在（检测已结束）不算错误。
+    }
+    return sourceStatus(source);
+  }
+
+  SourceHealthStep _failedStep(SourceHealth? health) =>
+      health?.steps.firstWhere(
+        (step) => step.state == 'failed',
+        orElse: () => SourceHealthStep(
+          name: '',
+          state: 'failed',
+          message: '检测未通过',
+          elapsedMs: 0,
+        ),
+      ) ??
+      SourceHealthStep(name: '', state: 'failed', message: '', elapsedMs: 0);
 
   @override
   Future<ResourceSettings> resourceSettings() => engine.resourceSettings();
@@ -630,6 +817,22 @@ class EngineBackedRepository extends AppRepository {
           retryAtMs: error.retryAtMs,
         )
       : error;
+}
+
+/// 一次站源检测的进行中状态。
+class _SourceJobState {
+  _SourceJobState({
+    required this.operation,
+    required this.stage,
+    required this.total,
+  }) : startedAt = DateTime.now(),
+       completed = 0;
+
+  final String operation;
+  final String stage;
+  final int total;
+  final DateTime startedAt;
+  final int completed;
 }
 
 /// 引擎下载任务在 Dart 侧的上下文。

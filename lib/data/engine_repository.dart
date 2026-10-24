@@ -8,6 +8,7 @@ import 'package:hoshi/data/engine_failure.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/domain/ranking_models.dart';
 import 'package:hoshi/domain/resource_settings.dart';
+import 'package:hoshi/domain/source_status.dart';
 import 'package:hoshi/src/rust/api.dart' as rust;
 import 'package:hoshi/src/rust/api/error.dart' as rust_error;
 import 'package:hoshi/src/rust/frb_generated.dart';
@@ -182,12 +183,16 @@ class EngineRepository {
   }
 
   /// 一集的弹幕（从 `startMs` 起 60 秒）。
-  Future<List<DomainDanmaku>> danmaku(
+  /// 返回一页弹幕与服务端窗口游标（`endMs`）。
+  ///
+  /// 服务端按 30s 或 60s 分段，调用方必须用 `endMs` 推进窗口；
+  /// 自己按 60s 估算会整段跳过 30s 分段里的弹幕。
+  Future<DomainDanmakuPage> danmaku(
     Drama drama,
     Episode episode, {
     int startMs = 0,
   }) async {
-    final items = await _guard(
+    final page = await _guard(
       () => rust.fetchDanmaku(
         sourceId: drama.source,
         chapter: _chapterInput(drama, episode),
@@ -195,14 +200,17 @@ class EngineRepository {
         requestId: _nextId(),
       ),
     );
-    return [
-      for (final item in items)
-        DomainDanmaku(
-          timeMs: item.timeMs.toInt(),
-          text: item.text,
-          color: item.color,
-        ),
-    ];
+    return DomainDanmakuPage(
+      items: [
+        for (final item in page.items)
+          DomainDanmaku(
+            timeMs: item.timeMs.toInt(),
+            text: item.text,
+            color: item.color,
+          ),
+      ],
+      endMs: page.endMs,
+    );
   }
 
   /// 同一部剧的其它季。没有系列信息时返回空。
@@ -323,6 +331,7 @@ class EngineRepository {
           'videoUrl': result.chapters[i].videoUrl,
           'pageUrl': result.chapters[i].pageUrl,
           'referer': result.chapters[i].referer,
+          'vip': result.chapters[i].vip,
           'currentEpisode': i + 1,
         }, i + 1),
     ]);
@@ -352,9 +361,13 @@ class EngineRepository {
       segments: media.playlist,
       keyUri: media.keyUri,
       keyIv: media.keyIv,
-      // 弹幕按分集取，不需要额外会话；这里用分集 id 作为弹幕标识，
-      // 让 DanmakuController 的 `danmakuId` 门槛成立。
-      danmakuId: episode.id,
+      decryptionKey: media.cencKey,
+      quality: media.quality,
+      qualities: media.qualities,
+      // 弹幕标识 = 源侧分集定位符。红果把它放在 `hongguo-cenc://<vid>`，
+      // 规则源放在分集页地址；弹幕接口按 `Chapter.video_url` 回查这一集，
+      // 所以这里原样带 `videoUrl`，没有时退回分集 id。
+      danmakuId: episode.raw['videoUrl'] as String? ?? episode.id,
       source: drama.source,
       sourceId: drama.sourceId,
     );
@@ -364,10 +377,11 @@ class EngineRepository {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-  /// 登记并执行一个下载任务。
+  /// 登记一个下载任务（不启动）。
   ///
-  /// 返回下载完成后的字节数；失败时抛出 [EngineException]。
-  Future<int> download({
+  /// 返回引擎侧的登记序号。执行交给 [runDownload]，两者分离后
+  /// 「加入下载」才能立即返回，进度交给快照与列表页轮询。
+  Future<int> registerDownload({
     required String id,
     required String url,
     required String target,
@@ -382,7 +396,7 @@ class EngineRepository {
     String keyUri = '',
     String keyIv = '',
   }) async {
-    await _guard(
+    final revision = await _guard(
       () => rust.enqueueDownload(
         request: rust.DownloadRequest(
           id: id,
@@ -401,9 +415,55 @@ class EngineRepository {
         ),
       ),
     );
+    return revision.toInt();
+  }
+
+  /// 执行一个已登记的任务，直到完成 / 暂停 / 失败。
+  ///
+  /// 返回完成后的字节数；失败抛 [EngineException]。调用方应在后台
+  /// Future 里等待它——在 UI 调用链上 await 会让「加入下载」卡到下载结束。
+  Future<int> runDownload(String id) async {
     final bytes = await _guard(() => rust.runDownload(id: id));
     return bytes.toInt();
   }
+
+  /// 站源健康检测：目录 → 详情 → 取流 → 媒体连接。
+  ///
+  /// [playback] 为 false 时只测目录与详情（「仅目录检测」入口）。
+  Future<SourceHealth> checkSource(
+    String source, {
+    bool playback = true,
+  }) async {
+    final result = await _guard(
+      () => rust.checkSource(
+        sourceId: source,
+        requestId: _nextId('health'),
+        playback: playback,
+      ),
+    );
+    return SourceHealth(
+      checkedAt: DateTime.fromMillisecondsSinceEpoch(
+        result.checkedAtMs.toInt(),
+      ),
+      state: result.state,
+      sample: result.sample,
+      steps: [
+        for (final step in result.steps)
+          SourceHealthStep(
+            name: step.name,
+            state: step.state,
+            message: step.message,
+            host: step.host,
+            httpStatus: step.httpStatus,
+            elapsedMs: step.elapsedMs.toInt(),
+          ),
+      ],
+    );
+  }
+
+  /// 取消某个站源正在进行的健康检测。
+  Future<bool> cancelSourceCheck(String source) =>
+      _guard(() => rust.cancelRequest(session: 'health-$source'));
 
   /// 当前下载任务快照。
   Future<List<DownloadSnapshotInfo>> downloads() async {
@@ -413,6 +473,7 @@ class EngineRepository {
         DownloadSnapshotInfo(
           id: row.id,
           title: row.title,
+          revision: row.revision.toInt(),
           state: row.state,
           bytes: row.bytes.toInt(),
           total: row.total,
@@ -592,6 +653,7 @@ class EngineRepository {
         videoUrl: episode.raw['videoUrl'] as String? ?? '',
         pageUrl: episode.raw['pageUrl'] as String? ?? '',
         referer: episode.raw['referer'] as String? ?? '',
+        vip: episode.vip,
       );
 
   Drama _drama(rust.DramaItem item) => Drama(
@@ -691,6 +753,7 @@ class DownloadSnapshotInfo {
     this.dramaTitle = '',
     this.episodeIndex = 0,
     this.coverUrl = '',
+    this.revision = 0,
   });
 
   final String id;
@@ -707,6 +770,9 @@ class DownloadSnapshotInfo {
   final String dramaTitle;
   final int episodeIndex;
   final String coverUrl;
+
+  /// 引擎侧版本号：每次任务被改动都会递增，用于合并清理的版本闸门。
+  final int revision;
 
   bool get finished => state == 'completed';
   bool get failed => state == 'failed';

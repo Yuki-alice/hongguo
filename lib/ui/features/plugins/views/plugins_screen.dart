@@ -8,6 +8,7 @@ import 'package:hoshi/ui/core/app_page.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 插件仓库管理页。
 ///
@@ -67,7 +68,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
         // 版式照参照应用 `plugin_view_page.dart`：顶部介绍块 → 搜索框 →
         // 「全部 / 可更新」筛选片 → 规则卡片列表。不是左侧导航 + 右栏的形态。
         return Scaffold(
-          appBar: AppBar(
+          appBar: DesktopAppBar(
             title: Text(l10n.pluginsManageTitle),
             actions: [
               IconButton(

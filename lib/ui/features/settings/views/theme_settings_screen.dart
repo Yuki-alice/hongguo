@@ -10,6 +10,7 @@ import 'package:hoshi/ui/core/app_theme.dart';
 import 'package:hoshi/ui/core/split_list.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 /// 外观设置面板。
 ///
@@ -31,7 +32,7 @@ class ThemeSettingsScreen extends StatelessWidget {
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.themeSettingsTitle)),
+        appBar: DesktopAppBar(title: Text(l10n.themeSettingsTitle)),
         body: AppPage(
           child: ListView(
             padding: const EdgeInsets.only(bottom: Md3Spacing.xxl),

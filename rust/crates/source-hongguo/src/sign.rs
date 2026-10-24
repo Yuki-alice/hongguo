@@ -80,7 +80,7 @@ pub fn gorgon(inputs: &SignInputs<'_>) -> GorgonHeaders {
 
 /// MD5 的原始 16 字节。契约层的 `md5_hash` 返回 `u128`（小端拼装），
 /// 这里转回字节序，避免签名实现再写一份 MD5。
-fn md5_bytes(input: &[u8]) -> [u8; 16] {
+pub(crate) fn md5_bytes(input: &[u8]) -> [u8; 16] {
     md5_hash(input).to_be_bytes()
 }
 

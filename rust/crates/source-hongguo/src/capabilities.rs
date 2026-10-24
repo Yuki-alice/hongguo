@@ -18,6 +18,8 @@ use guo_source_api::{
 pub const SUGGESTION_LIMIT: usize = 10;
 /// 弹幕每段上限。与 Go 版一致：90 条足够覆盖一小段，超出说明分段逻辑失效。
 pub const DANMAKU_LIMIT: usize = 90;
+/// 弹幕时间轴上限（24 小时，与 Go 版 danmakuMaxDurationMS 一致）。
+pub const DANMAKU_MAX_WINDOW_MS: i64 = 24 * 60 * 60 * 1000;
 
 /// 解析联想接口返回。
 ///
@@ -67,6 +69,104 @@ pub fn parse_suggestions(body: &str) -> Result<Vec<Suggestion>, SourceError> {
         if out.len() == SUGGESTION_LIMIT {
             break;
         }
+    }
+    Ok(out)
+}
+
+/// 从联想接口的返回里提取**可点开的剧集**。
+///
+/// 联想结果比「联想词」多一层信息：`word_type == "short_play_name"` 的行带
+/// 完整 `video_data`（`series_id` / 封面 / 集数 / 简介 / 分类）。网页搜索页
+/// 在 2026-10 改为客户端渲染后不可解析，这条路是当前的搜索数据来源。
+///
+/// 过滤规则与 Go 版 `fetchHongguoSearchNames` 一致：
+/// - 只要 `short_play_name`（其它类型是分类词 / 演员名，不可当剧集）；
+/// - `video_data.series_id` 必须是纯数字；
+/// - 标题不能等于 id（站点偶尔把 id 当标题回传）。
+pub fn parse_suggestion_dramas(body: &str) -> Result<Vec<guo_source_api::Drama>, SourceError> {
+    let root: Value = serde_json::from_str(body)
+        .map_err(|err| SourceError::parse("hongguo", format!("联想返回不是 JSON：{err}")))?;
+    let records = root
+        .get("suggest_list")
+        .and_then(Value::as_array)
+        .or_else(|| root.get("data").and_then(Value::as_array))
+        .or_else(|| root.get("suggest_words").and_then(Value::as_array))
+        .cloned()
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for record in records {
+        if record.get("word_type").and_then(Value::as_str) != Some("short_play_name") {
+            continue;
+        }
+        let Some(video) = record.get("video_data").and_then(Value::as_object) else {
+            continue;
+        };
+        let series_id = ["series_id_str", "series_id"]
+            .iter()
+            .find_map(|key| match video.get(*key) {
+                Some(Value::String(text)) => Some(text.clone()),
+                Some(Value::Number(number)) => Some(number.to_string()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        if series_id.is_empty()
+            || series_id.len() > 32
+            || !series_id.chars().all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        let title = ["series_title", "name"]
+            .iter()
+            .find_map(|key| video.get(*key).and_then(Value::as_str))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let fallback_title = record
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        let title = if title.is_empty() { fallback_title } else { title };
+        if title.is_empty() || title == series_id {
+            continue;
+        }
+        if !seen.insert(series_id.clone()) {
+            continue;
+        }
+        out.push(guo_source_api::Drama {
+            id: guo_source_api::Drama::identity("hongguo", &series_id),
+            source: "hongguo".into(),
+            source_id: series_id,
+            title,
+            description: video
+                .get("series_intro")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            cover: video
+                .get("series_cover")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            episodes: video
+                .get("episode_cnt")
+                .and_then(|value| match value {
+                    Value::Number(number) => number.as_u64(),
+                    Value::String(text) => text.trim().parse().ok(),
+                    _ => None,
+                })
+                .unwrap_or(0) as u32,
+            category: "短剧".into(),
+            heat: video
+                .get("hot_score_data")
+                .and_then(|value| value.get("text"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            ..Default::default()
+        });
     }
     Ok(out)
 }
@@ -174,57 +274,140 @@ pub fn parse_recommend_page(root: &Value) -> Result<RecommendPage, SourceError> 
     })
 }
 
-/// 解析弹幕接口返回。
+/// 解析弹幕接口返回（2026-10-24 实测形态）。
 ///
-/// 结构是 `{"data": {"comments": [{"create_time": ms, "text": "…", "label_text": "…"}]}}`。
-/// 只保留落在 `[start_ms, end_ms)` 的条目：站点不保证顺序，也不保证只返回请求区间。
-pub fn parse_danmaku(body: &str, start_ms: i64, end_ms: i64) -> Result<DanmakuPage, SourceError> {
+/// 结构是 `{"data": {"data_list": [{"comment": {"common": {...}, "expand":
+/// {"offset_time": ms}}}], "extra": {"next_query_danmaku_list_time": ms}}}`。
+/// 过滤规则与 Go 版 `parseHongguoDanmaku` 一致：
+/// - `common.group_id` 必须等于请求的 `video_id`；
+/// - `common.status` 必须是 1（运营插入的活动行 status 为 0，借此排除）；
+/// - `offset_time` 落在 `[start_ms, next)`；
+/// - `comment_id` 非空、去重；正文去控制字符、超长截断。
+///
+/// 返回的 `end_ms` 是服务端给的真实窗口结束（`next_query_danmaku_list_time`），
+/// 调用方必须用它推进游标——自己按 60s 估算会跳过服务端切成 30s 的段。
+pub fn parse_danmaku(
+    body: &str,
+    video_id: &str,
+    start_ms: i64,
+) -> Result<DanmakuPage, SourceError> {
     let root: Value = serde_json::from_str(body)
         .map_err(|err| SourceError::parse("hongguo", format!("弹幕返回不是 JSON：{err}")))?;
-    let comments = root
+    let code = root
+        .get("code")
+        .or_else(|| root.get("BaseResp").and_then(|base| base.get("StatusCode")))
+        .map(|value| match value {
+            Value::Number(number) => number.to_string(),
+            Value::String(text) => text.clone(),
+            _ => String::new(),
+        })
+        .unwrap_or_default();
+    if !code.is_empty() && code != "0" {
+        return Err(SourceError::parse(
+            "hongguo",
+            format!("弹幕接口返回 {code}"),
+        ));
+    }
+    let data = root
         .get("data")
-        .and_then(|data| data.get("comments"))
+        .ok_or_else(|| SourceError::parse("hongguo", "弹幕接口缺少 data"))?;
+    let rows = data
+        .get("data_list")
         .and_then(Value::as_array)
-        .ok_or_else(|| SourceError::parse("hongguo", "弹幕接口缺少 comments"))?;
-    let mut items = Vec::with_capacity(comments.len().min(DANMAKU_LIMIT));
-    for comment in comments {
-        let time_ms = comment
-            .get("create_time")
-            .and_then(|value| match value {
-                Value::Number(number) => number.as_i64(),
-                Value::String(text) => text.trim().parse().ok(),
-                _ => None,
-            })
-            .unwrap_or(-1);
-        let text = comment
-            .get("text")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        if time_ms < start_ms || time_ms >= end_ms || text.is_empty() {
+        .ok_or_else(|| SourceError::parse("hongguo", "弹幕接口缺少 data_list"))?;
+    let next = data
+        .get("extra")
+        .and_then(|extra| extra.get("next_query_danmaku_list_time"))
+        .and_then(value_to_i64)
+        .ok_or_else(|| SourceError::parse("hongguo", "弹幕接口缺少分段游标"))?;
+    if next <= start_ms || next > DANMAKU_MAX_WINDOW_MS {
+        return Err(SourceError::parse("hongguo", "弹幕时间段格式无效"));
+    }
+
+    let mut items = Vec::with_capacity(rows.len().min(DANMAKU_LIMIT));
+    let mut seen = std::collections::HashSet::new();
+    for row in rows {
+        let Some(comment) = row.get("comment") else {
+            continue;
+        };
+        let Some(common) = comment.get("common") else {
+            continue;
+        };
+        if text_field(common, &["group_id"]) != video_id {
             continue;
         }
+        // 活动插入行（「参与弹幕活动」）的 status 是 0；真实弹幕是 1。
+        let status = text_field(common, &["status"]);
+        if !status.is_empty() && status != "1" {
+            continue;
+        }
+        let Some(position) = comment
+            .get("expand")
+            .and_then(|expand| expand.get("offset_time"))
+            .and_then(value_to_i64)
+        else {
+            continue;
+        };
+        let text = common
+            .get("content")
+            .and_then(|content| content.get("text"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .chars()
+            .map(|c| if c.is_control() || c == '\u{2028}' || c == '\u{2029}' { ' ' } else { c })
+            .collect::<String>()
+            .trim()
+            .to_string();
+        let id = text_field(comment, &["comment_id"]);
+        if position < start_ms
+            || position >= next
+            || text.is_empty()
+            || id.is_empty()
+            || id.len() > 120
+            || !seen.insert(id.clone())
+        {
+            continue;
+        }
+        let text = if text.chars().count() > 180 {
+            let cut: String = text.chars().take(180).collect();
+            format!("{cut}…")
+        } else {
+            text
+        };
         items.push(Danmaku {
-            time_ms,
+            time_ms: position,
             text,
-            color: comment
-                .get("color")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_string(),
+            color: String::new(),
         });
         if items.len() == DANMAKU_LIMIT {
             break;
         }
     }
-    // 保持时间轴顺序，播放器按顺序排布不会跳。
     items.sort_by_key(|item| item.time_ms);
     Ok(DanmakuPage {
         items,
-        end_ms,
-        has_more: false,
+        end_ms: next,
+        has_more: next < DANMAKU_MAX_WINDOW_MS,
     })
+}
+
+fn value_to_i64(value: &Value) -> Option<i64> {
+    match value {
+        Value::Number(number) => number.as_i64(),
+        Value::String(text) => text.trim().parse().ok(),
+        _ => None,
+    }
+}
+
+fn text_field(value: &Value, keys: &[&str]) -> String {
+    for key in keys {
+        match value.get(*key) {
+            Some(Value::String(text)) => return text.clone(),
+            Some(Value::Number(number)) => return number.to_string(),
+            _ => {}
+        }
+    }
+    String::new()
 }
 
 /// 从标题里识别「第 N 季」。
@@ -466,26 +649,84 @@ mod tests {
         assert!(parse_recommend_page(&root).is_err());
     }
 
-    #[test]
-    fn danmaku_filters_window_and_sorts() {
-        let body = r#"{"data":{"comments":[
-            {"create_time":5000,"text":"后"},
-            {"create_time":1000,"text":"前"},
-            {"create_time":99,"text":"窗口外"},
-            {"create_time":1000,"text":""}
-        ]}}"#;
-        // 窗口从 500 开始：99 那条在窗口外，必须被丢掉；
-        // 空文本那条无论时间都要丢。
-        let page = parse_danmaku(body, 500, 6000).expect("解析成功");
-        assert_eq!(page.items.len(), 2);
-        assert_eq!(page.items[0].time_ms, 1000, "必须按时间排序");
-        assert_eq!(page.items[1].text, "后");
-        assert_eq!(page.end_ms, 6000);
+    /// 构造 2026-10-24 实测形态的弹幕夹具（用 json! 拼装，避免转义错误）。
+    fn danmaku_body(rows: &str, next: i64) -> String {
+        // rows 是多行 JSON 对象用逗号拼接的串，包上方括号才是合法数组。
+        let rows: Value = serde_json::from_str(&format!("[{rows}]")).expect("行数组");
+        serde_json::json!({
+            "code": 0,
+            "data": {"data_list": rows, "extra": {"next_query_danmaku_list_time": next}}
+        })
+        .to_string()
+    }
+
+    fn danmaku_row(id: &str, offset: i64, text: &str, status: i64) -> String {
+        serde_json::json!({
+            "data_type": 4,
+            "comment": {
+                "comment_id": id,
+                "common": {"group_id": "vid1", "status": status, "content": {"text": text}},
+                "expand": {"offset_time": offset},
+            }
+        })
+        .to_string()
     }
 
     #[test]
-    fn danmaku_rejects_missing_comments() {
-        assert!(parse_danmaku(r#"{"data":{}}"#, 0, 1000).is_err());
+    fn danmaku_filters_window_and_sorts() {
+        let body = danmaku_body(
+            &[
+                danmaku_row("b", 5000, "后", 1),
+                danmaku_row("a", 1000, "前", 1),
+                danmaku_row("c", 99, "窗口外", 1),
+                danmaku_row("d", 1200, "", 1),
+                danmaku_row("e", 1500, "活动插入", 0),
+                danmaku_row("a", 1000, "重复 id", 1),
+            ]
+            .join(","),
+            6000,
+        );
+        // 窗口从 500 开始：99 在窗口外、空文本丢弃、status=0 的活动行丢弃、
+        // 重复 comment_id 只留第一条；剩下的按时间排序。
+        let page = parse_danmaku(&body, "vid1", 500).expect("解析成功");
+        assert_eq!(page.items.len(), 2);
+        assert_eq!(page.items[0].time_ms, 1000, "必须按时间排序");
+        assert_eq!(page.items[0].text, "前");
+        assert_eq!(page.items[1].text, "后");
+        assert_eq!(page.end_ms, 6000, "窗口结束取服务端游标");
+    }
+
+    #[test]
+    fn danmaku_rejects_missing_or_invalid_windows() {
+        // 缺 data_list / 缺游标 / 游标不在 (start, 24h] 内，都要报错。
+        assert!(parse_danmaku(r#"{"data":{}}"#, "vid1", 0).is_err());
+        assert!(parse_danmaku(
+            &danmaku_body(&danmaku_row("a", 1, "x", 1), 0),
+            "vid1",
+            0
+        )
+        .is_err());
+        let too_far = DANMAKU_MAX_WINDOW_MS + 1;
+        assert!(parse_danmaku(
+            &danmaku_body(&danmaku_row("a", 1, "x", 1), too_far),
+            "vid1",
+            0
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn danmaku_rejects_business_error_code() {
+        let body = r#"{"Code":110001,"Message":"未知异常","BaseResp":{"StatusCode":110001}}"#;
+        assert!(parse_danmaku(body, "vid1", 0).is_err());
+    }
+
+    #[test]
+    fn danmaku_truncates_overlong_text() {
+        let long = "长".repeat(200);
+        let body = danmaku_body(&danmaku_row("a", 100, &long, 1), 1000);
+        let page = parse_danmaku(&body, "vid1", 0).expect("解析成功");
+        assert_eq!(page.items[0].text.chars().count(), 181, "180 字 + 省略号");
     }
 
     #[test]

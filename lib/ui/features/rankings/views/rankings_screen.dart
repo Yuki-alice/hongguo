@@ -12,6 +12,7 @@ import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class RankingsScreen extends StatefulWidget {
   const RankingsScreen({
@@ -101,7 +102,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
           )
           .toList();
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: AppMenuButton(
             enabled: groups.length > 1,
             menuChildren: [

@@ -66,6 +66,13 @@ class RepoEntry {
 class PluginRepository {
   PluginRepository({this.initialized = false});
 
+  /// 已初始化的实例：RustLib 与引擎在启动装配里就绪后使用。
+  ///
+  /// 生产入口（`pluginRepositoryProvider`）必须用它——默认构造的
+  /// `initialized = false` 会让 `installed()` 永远返回空列表，
+  /// 卸载 / 启停 / 回滚 / 重载注册表全部静默无效。
+  PluginRepository.ready() : initialized = true;
+
   bool initialized;
 
   static Future<PluginRepository> create() async {

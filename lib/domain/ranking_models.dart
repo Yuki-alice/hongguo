@@ -106,6 +106,16 @@ class DomainDanmaku {
   final String color;
 }
 
+/// 引擎返回的一页弹幕（含服务端窗口游标）。
+///
+/// `endMs` 是服务端给的真实窗口结束（红果按 30s 分段）；调用方必须
+/// 用它推进窗口，自己按 60s 估算会整段跳过 30s 分段里的条目。
+class DomainDanmakuPage {
+  const DomainDanmakuPage({required this.items, required this.endMs});
+  final List<DomainDanmaku> items;
+  final int endMs;
+}
+
 /// 同一部剧的一季。
 class SeriesSeason {
   const SeriesSeason({

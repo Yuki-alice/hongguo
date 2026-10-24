@@ -485,11 +485,15 @@ class DownloadJob {
   final int actualQuality;
   final String error;
   bool get completed => state == 'completed';
-  bool get active => state == 'queued' || state == 'downloading';
+
+  /// 「下载中」包括排队与执行：引擎把执行中状态叫 `running`
+  /// （旧 Go 版叫 `downloading`，两个都认，避免历史数据丢状态）。
+  bool get active =>
+      state == 'queued' || state == 'downloading' || state == 'running';
   bool get resumable => state == 'paused' || state == 'failed';
   String get stateLabel => switch (state) {
     'queued' => '等待下载',
-    'downloading' => '正在下载',
+    'downloading' || 'running' => '正在下载',
     'paused' => '已暂停',
     'failed' => '下载失败',
     'completed' => '已下载',

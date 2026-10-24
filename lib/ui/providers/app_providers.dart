@@ -15,13 +15,19 @@ final repositoryProvider = Provider<AppRepository>(
   (ref) => throw UnimplementedError('repositoryProvider 必须被 override'),
 );
 
-/// 插件仓库入口。引擎不可用时返回未初始化实例，页面仍可打开并显示原因。
+/// 插件仓库入口。
 ///
 /// 单独一个 Provider 而不是挂在 `AppRepository` 上：
 /// 插件管理属于「引擎能力」，与站源取数是两条独立的失败域，
 /// 插件装坏了不应该让站源列表也起不来。
+///
+/// 构造时直接标记已初始化：`RustLib` 与引擎在 `main()` 的启动装配里
+/// 已经初始化完成，`overrideWithValue` 注入的就是真实依赖。
+/// **不要**在这里调 `PluginRepository.create()`——它会再跑一次 `RustLib.init`；
+/// 也不返回未初始化实例：那会让插件页永远显示「没有已安装插件」，
+/// 卸载 / 启停 / 回滚全部静默无效。
 final pluginRepositoryProvider = Provider<PluginRepository>(
-  (ref) => PluginRepository(),
+  (ref) => PluginRepository.ready(),
 );
 
 /// 当前登录用户的数据仓库。

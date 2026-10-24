@@ -214,63 +214,124 @@ fn inline_args<'a>(data: &'a Value, loader_key: &str) -> Option<&'a Value> {
     None
 }
 
-/// 从 `mergeLoaderData` 脚本属性里取 `content`。
+/// 从脚本属性里取 loader 的 `content`。
 ///
-/// `raw` 是整页 HTML；`loader_key` 形如 `rank_hot-drama/page`。返回解析后的
-/// JSON 值（生命周期与调用方相同）。
+/// 站点换过三次承载形态，全部要认，否则榜单会退化成「数据尚未完整」：
+///
+/// 1. `data-fn-name="mergeLoaderData"` + `routerDataFnArgs` 里再套一层转义 JSON
+///    （2026-10 起的旧形态）；
+/// 2. `data-fn-name="r"` + `data-script-src="modern-run-router-data-fn"`，
+///    args 直接是 `[loaderKey, "content", {...}]`（2026-10-24 实测形态）；
+/// 3. `data-fn-name="s"`，args 是 `[loaderKey, [{key, routerDataFnArgs:[...]}]]`，
+///    与 mergeLoaderData 结构相同、只是函数名不同。
+///
+/// `raw` 是整页 HTML；`loader_key` 形如 `rank_hot-drama/page`。
+///
+/// 同一页里**每段脚本都会命中同一个 loader key**，但只有最后一段带真实行数据：
+/// 前面 `mergeLoaderData` 那段是占位（`[route, "content"]`，没有 payload），
+/// 真正的 `rankList` 在 `modern-run-router-data-fn` 段里。因此不能命中即返回，
+/// 要挑「有内容」的那一段。
 pub fn merge_loader_content(raw: &str, loader_key: &str) -> Option<Value> {
-    const MARKER: &str = "data-fn-name=\"mergeLoaderData\"";
-    let mut offset = 0;
-    while let Some(found) = raw[offset..].find(MARKER) {
-        let start = offset + found;
-        offset = start + MARKER.len();
-        // 属性都在同一个开始标签内，取到 `>` 为止即可。
-        let Some(tag_end) = raw[offset..].find('>') else {
-            continue;
-        };
-        let tag = &raw[start..offset + tag_end];
-        let Some(args) = attribute(tag, "data-fn-args") else {
-            continue;
-        };
-        let decoded = decode_entities(args);
-        let Ok(parsed) = serde_json::from_str::<Value>(&decoded) else {
-            continue;
-        };
-        let Some(array) = parsed.as_array() else {
-            continue;
-        };
-        if array.len() != 2 || array[0].as_str() != Some(loader_key) {
-            continue;
-        }
-        let Some(entries) = array[1].as_array() else {
-            continue;
-        };
-        for entry in entries {
-            if entry.get("key").and_then(Value::as_str) != Some("content") {
-                continue;
-            }
-            let Some(payload) = entry
-                .get("routerDataFnArgs")
-                .and_then(Value::as_array)
-                .and_then(|args| args.first())
-                .and_then(Value::as_str)
-            else {
+    let mut best: Option<Value> = None;
+    for marker in [
+        "data-fn-name=\"mergeLoaderData\"",
+        "data-fn-name=\"r\"",
+        "data-fn-name=\"s\"",
+    ] {
+        let mut offset = 0;
+        while let Some(found) = raw[offset..].find(marker) {
+            let start = offset + found;
+            offset = start + marker.len();
+            // 属性都在同一个开始标签内，取到 `>` 为止即可。
+            let Some(tag_end) = raw[offset..].find('>') else {
                 continue;
             };
-            if let Ok(value) = serde_json::from_str::<Value>(payload) {
+            let tag = &raw[start..offset + tag_end];
+            let Some(args) = attribute(tag, "data-fn-args") else {
+                continue;
+            };
+            let decoded = decode_entities(args);
+            let Ok(parsed) = serde_json::from_str::<Value>(&decoded) else {
+                continue;
+            };
+            let Some(value) = loader_content_from_args(&parsed, loader_key) else {
+                continue;
+            };
+            // 占位内容（空对象，或只有 isSuccess 没有正文）先记下，
+            // 后续若找到带正文的那段就替换。
+            let richer = best
+                .as_ref()
+                .map(|current| value.as_object().is_some_and(|map| map.len() > current.as_object().map_or(0, |m| m.len())))
+                .unwrap_or(true);
+            if richer {
+                best = Some(value);
+            }
+        }
+    }
+    best
+}
+
+/// 在已经解析的属性参数里按两种结构找 `content`。
+fn loader_content_from_args(parsed: &Value, loader_key: &str) -> Option<Value> {
+    let array = parsed.as_array()?;
+    if array.first().and_then(Value::as_str) != Some(loader_key) {
+        return None;
+    }
+    // 形态 2：`[loaderKey, "content", {...}]`
+    if array.len() == 3 && array[1].as_str() == Some("content") {
+        let content = array[2].clone();
+        if content.is_object() {
+            return Some(content);
+        }
+        // 少数页面把第三段再包成字符串。
+        if let Some(text) = content.as_str() {
+            if let Ok(value) = serde_json::from_str::<Value>(text) {
                 return Some(value);
             }
+        }
+        return None;
+    }
+    // 形态 1 / 3：`[loaderKey, [{key: "content", routerDataFnArgs: [...]}]]`
+    let entries = array.get(1)?.as_array()?;
+    for entry in entries {
+        if entry.get("key").and_then(Value::as_str) != Some("content") {
+            continue;
+        }
+        let payload = entry
+            .get("routerDataFnArgs")
+            .and_then(Value::as_array)
+            .and_then(|args| args.first());
+        match payload {
+            Some(Value::String(text)) => {
+                if let Ok(value) = serde_json::from_str::<Value>(text) {
+                    return Some(value);
+                }
+            }
+            // 形态 3 的 s 函数把内容直接放在 args 里（不再套字符串）。
+            Some(Value::Object(_)) => return payload.cloned(),
+            _ => {}
         }
     }
     None
 }
 
 /// 取标签里某个属性的原始值（未解码实体）。
+///
+/// 站点对同一个属性会混用双引号与单引号：`mergeLoaderData` 那段用
+/// `data-fn-args="..."`，`modern-run-router-data-fn` 那段用
+/// `data-fn-args='...'`（属性值里全是 `&quot;`，所以单引号不会冲突）。
+/// 只认双引号会让后者整段被跳过，表现为「榜单数据尚未完整」。
 fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
-    let needle = format!("{name}=\"");
-    let start = tag.find(&needle)? + needle.len();
-    let end = tag[start..].find('"')? + start;
-    Some(&tag[start..end])
+    for quote in ['"', '\''] {
+        let needle = format!("{name}={quote}");
+        if let Some(start) = tag.find(&needle) {
+            let start = start + needle.len();
+            if let Some(end) = tag[start..].find(quote) {
+                return Some(&tag[start..start + end]);
+            }
+        }
+    }
+    None
 }
 
 /// 只处理 JSON 里会出现的几个实体。
@@ -355,8 +416,7 @@ mod tests {
     #[test]
     fn parses_first_page() {
         let body = fixture("hot-drama", 1, "hongguo", &[(1, "111"), (2, "222")]);
-        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");
-        assert_eq!(page.items.len(), 2);
+        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");        assert_eq!(page.items.len(), 2);
         assert_eq!(page.items[0].rank, 1);
         assert_eq!(page.items[0].drama.id, "hongguo:111");
         assert_eq!(page.items[0].metric, "1万热度");
@@ -420,6 +480,86 @@ mod tests {
     fn board_path_omits_page_for_first_page() {
         assert_eq!(board_path("hot-drama", 1), "/rank/hot-drama");
         assert_eq!(board_path("hot-drama", 2), "/rank/hot-drama?page=2");
+    }
+
+    #[test]
+    fn parses_rows_from_modern_router_data_fn_script() {
+        // 2026-10-24 实测形态：行数据由 `data-fn-name="r"` +
+        // `data-script-src="modern-run-router-data-fn"` 注入，属性用单引号，
+        // 且同一页里 `mergeLoaderData` 只有占位内容（没有 rankList）。
+        use serde_json::json;
+        let rows: Vec<Value> = [(1, "111"), (2, "222")]
+            .iter()
+            .map(|(rank, id)| {
+                json!({
+                    "id": id,
+                    "seriesId": id,
+                    "rank": rank,
+                    "title": format!("剧 {rank}"),
+                    "heatText": format!("{rank}万热度"),
+                })
+            })
+            .collect();
+        let content = json!({
+            "isSuccess": true,
+            "rankList": rows,
+            "pagination": { "pageNum": 1, "totalPages": 2 },
+        });
+        let router = json!({
+            "loaderData": {
+                "rank_hot-drama/page": {
+                    "rankKey": "hongguo",
+                    "pageNum": 1,
+                    "content": {},
+                }
+            }
+        });
+        let placeholder = json!(["rank_hot-drama/page", [
+            {"key": "content", "routerDataFnName": "s", "routerDataFnArgs": []}
+        ]]);
+        let modern = json!(["rank_hot-drama/page", "content", content]);
+        let escape = |value: &Value| {
+            serde_json::to_string(value)
+                .expect("serialize")
+                .replace('"', "&quot;")
+        };
+        let body = format!(
+            "<script>window._ROUTER_DATA = {};</script>\
+             <script async data-fn-name=\"mergeLoaderData\" data-fn-args=\"{}\"></script>\
+             <script async data-fn-name=\"r\" data-script-src=\"modern-run-router-data-fn\" data-fn-args='{}'></script>",
+            serde_json::to_string(&router).expect("serialize"),
+            escape(&placeholder),
+            escape(&modern),
+        );
+        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");
+        assert_eq!(page.items.len(), 2);
+        assert_eq!(page.items[0].rank, 1);
+        assert_eq!(page.items[1].drama.id, "hongguo:222");
+    }
+
+    #[test]
+    fn prefers_script_with_rows_over_placeholder() {
+        // 占位段为空对象时不能被当成「已完整」，否则会退化成缺少 rankList。
+        use serde_json::json;
+        let content = json!({
+            "isSuccess": true,
+            "rankList": [{"id": "1", "seriesId": "1", "rank": 1, "title": "剧 1"}],
+            "pagination": { "pageNum": 1, "totalPages": 1 },
+        });
+        let escape = |value: &Value| {
+            serde_json::to_string(value)
+                .expect("serialize")
+                .replace('"', "&quot;")
+        };
+        let body = format!(
+            "<script>window._ROUTER_DATA = {{\"loaderData\":{{\"rank_hot-drama/page\":{{\"rankKey\":\"hongguo\",\"pageNum\":1,\"content\":{{}}}}}}}};</script>\
+             <script data-fn-name=\"mergeLoaderData\" data-fn-args=\"{}\"></script>\
+             <script data-fn-name=\"r\" data-fn-args='{}'></script>",
+            escape(&json!(["rank_hot-drama/page", [{"key": "content", "routerDataFnArgs": []}]])),
+            escape(&json!(["rank_hot-drama/page", "content", content])),
+        );
+        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");
+        assert_eq!(page.items.len(), 1);
     }
 
     #[test]

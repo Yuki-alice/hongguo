@@ -12,6 +12,8 @@ import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
+import 'package:hoshi/ui/routing/root_navigation.dart';
 
 Future<void> openPlaybackDirectly(
   BuildContext context, {
@@ -68,7 +70,9 @@ Future<void> openPlaybackDirectly(
     if (!context.mounted || profileEpoch != store.profileEpoch) return;
     final ref = DramaRef.fromDramaId(merged.drama.id);
     if (ref == null) return;
-    await context.push(
+    // 用根 Navigator 打开：从 tab 分支里直接 push 会把播放页压进分支，
+    // 于是它带着左侧 rail 出现。
+    context.pushFullscreen(
       AppRoutes.playerOf(ref),
       extra: PlayerRouteExtra(
         detail: merged,
@@ -217,7 +221,7 @@ class _PlaybackLaunchScreenState extends State<PlaybackLaunchScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.drama.title)),
+      appBar: DesktopAppBar(title: Text(widget.drama.title)),
       body: SafeArea(
         top: false,
         child: _error == null

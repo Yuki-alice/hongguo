@@ -11,6 +11,7 @@ import 'package:hoshi/ui/features/profiles/controllers/profiles_controller.dart'
 import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
+import 'package:hoshi/ui/shell/window_chrome.dart';
 
 class ProfilesScreen extends StatefulWidget {
   const ProfilesScreen({super.key, required this.store, this.locked = false});
@@ -120,7 +121,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(
             widget.locked ? l10n.unlockApp(appName) : l10n.userManagement,
           ),
@@ -373,7 +374,7 @@ class _ProfileEditorState extends State<ProfileEditor> {
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(
+        appBar: DesktopAppBar(
           title: Text(widget.profile == null ? l10n.addUser : l10n.editUser),
         ),
         body: Center(
