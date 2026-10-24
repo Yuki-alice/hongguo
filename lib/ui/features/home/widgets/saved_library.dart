@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/catalog_sort.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/core/drama_actions.dart';
@@ -8,7 +7,7 @@ import 'package:hoshi/domain/follow_state.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -21,9 +20,6 @@ class SavedLibrary extends StatefulWidget {
     required this.onOpen,
     required this.onContinue,
     this.onDownload,
-    this.remoteAutofocus = false,
-    this.onExitLeft,
-    this.onExitUp,
   });
 
   final AppRepository repository;
@@ -32,9 +28,6 @@ class SavedLibrary extends StatefulWidget {
   final ValueChanged<Drama> onOpen;
   final ValueChanged<Drama> onContinue;
   final ValueChanged<Drama>? onDownload;
-  final bool remoteAutofocus;
-  final VoidCallback? onExitLeft;
-  final VoidCallback? onExitUp;
 
   @override
   State<SavedLibrary> createState() => _SavedLibraryState();
@@ -86,12 +79,7 @@ class _SavedLibraryState extends State<SavedLibrary> {
         : () => widget.onDownload!(drama),
   );
 
-  Widget _tile(
-    Drama drama, {
-    required AppLocalizations l10n,
-    FocusNode? focusNode,
-    VoidCallback? onFocus,
-  }) {
+  Widget _tile(Drama drama, {required AppLocalizations l10n}) {
     final watched = widget.store.watched(drama.id);
     final state = widget.store.following(drama.id);
     final badge = state == null ? null : _followBadge(state, l10n);
@@ -99,14 +87,8 @@ class _SavedLibraryState extends State<SavedLibrary> {
       key: ValueKey('saved-${drama.id}'),
       drama: drama,
       repository: widget.repository,
-      focusNode: focusNode,
-      onFocus: onFocus,
       onTap: () => widget.onOpen(drama),
       onMore: () => _actions(drama),
-      actions: DramaActionButton(
-        drama: drama,
-        onPressed: () => _actions(drama),
-      ),
       badge: badge,
       subtitle: watched == null
           ? SourceSite.byId(drama.source).name
@@ -237,8 +219,7 @@ class _SavedLibraryState extends State<SavedLibrary> {
         if (resume != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Card(
-              margin: EdgeInsets.zero,
+            child: TonalCard(
               child: ListTile(
                 key: const ValueKey('continue-watching'),
                 leading: const Icon(Icons.play_circle_outline),
@@ -271,45 +252,6 @@ class _SavedLibraryState extends State<SavedLibrary> {
       );
       return LayoutBuilder(
         builder: (context, constraints) {
-          if (AppLayout.isTelevision(context)) {
-            final grid = remoteGridLayout(
-              context,
-              constraints.maxWidth,
-              withMeta: true,
-            );
-            return Column(
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight * .5,
-                  ),
-                  child: SingleChildScrollView(child: Column(children: header)),
-                ),
-                Expanded(
-                  child: items.isEmpty
-                      ? empty
-                      : RemoteGrid(
-                          key: ValueKey(
-                            'saved-tv-${widget.history}-$_filter-${_search.text}',
-                          ),
-                          itemKeys: items.map((item) => item.id).toList(),
-                          columns: grid.columns,
-                          spacing: Md3Grid.spacing,
-                          itemExtent: grid.itemExtent,
-                          autofocus: widget.remoteAutofocus,
-                          onExitLeft: widget.onExitLeft,
-                          onExitUp: widget.onExitUp,
-                          itemBuilder: (_, index, node, onFocus) => _tile(
-                            items[index],
-                            l10n: l10n,
-                            focusNode: node,
-                            onFocus: onFocus,
-                          ),
-                        ),
-                ),
-              ],
-            );
-          }
           // 与发现页同一套宽度策略：内容不随窗口无限铺开。
           final padding = Md3Spacing.contentInset(
             constraints.maxWidth,

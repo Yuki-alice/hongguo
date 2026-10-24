@@ -19,6 +19,7 @@ class Skeleton extends StatefulWidget {
     this.height = 16,
     this.radius = Md3Shape.small,
     this.child,
+    this.childRadius = Md3Shape.posterRadius,
   });
 
   /// 宽度；为空时撑满父级约束。
@@ -26,8 +27,13 @@ class Skeleton extends StatefulWidget {
   final double height;
   final double radius;
 
-  /// 自定义形状（例如海报占位）。给出时忽略 [width] / [height] / [radius]。
+  /// 自定义形状（例如海报占位）。给出时忽略 [width] / [height] / [radius]，
+  /// 圆角改用 [childRadius]。
   final Widget? child;
+
+  /// 自定义形状的圆角。默认与真实海报一致（12），否则骨架与成品的
+  /// 圆角对不上，加载完成的瞬间会「跳」一下。
+  final double childRadius;
 
   @override
   State<Skeleton> createState() => _SkeletonState();
@@ -65,15 +71,12 @@ class _SkeletonState extends State<Skeleton>
       colors.onSurface.withValues(alpha: .06),
       base,
     );
-    final box = widget.child ??
-        SizedBox(
-          width: widget.width,
-          height: widget.height,
-        );
+    final box =
+        widget.child ?? SizedBox(width: widget.width, height: widget.height);
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(
-          widget.child == null ? widget.radius : Md3Shape.cardRadius,
+          widget.child == null ? widget.radius : widget.childRadius,
         ),
         child: AnimatedBuilder(
           animation: _controller,
@@ -147,7 +150,10 @@ class _PosterSkeleton extends StatelessWidget {
       FractionallySizedBox(
         widthFactor: .85,
         alignment: Alignment.centerLeft,
-        child: Skeleton(height: Md3Type.bodyMedium, radius: Md3Shape.extraSmall),
+        child: Skeleton(
+          height: Md3Type.bodyMedium,
+          radius: Md3Shape.extraSmall,
+        ),
       ),
       SizedBox(height: Md3Spacing.xs),
       FractionallySizedBox(

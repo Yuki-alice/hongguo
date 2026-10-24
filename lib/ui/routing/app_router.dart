@@ -9,7 +9,9 @@ import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
 import 'package:hoshi/domain/download_preferences.dart';
 import 'package:hoshi/main.dart' show DuanjuBootstrap;
 import 'package:hoshi/ui/features/downloads/views/downloads_screen.dart';
+import 'package:hoshi/ui/features/home/views/history_screen.dart';
 import 'package:hoshi/ui/features/home/views/home_screen.dart';
+import 'package:hoshi/ui/features/my/views/my_screen.dart';
 import 'package:hoshi/data/engine_backed_repository.dart';
 import 'package:hoshi/data/local_profiles.dart';
 import 'package:hoshi/ui/features/media/views/local_media_screen.dart';
@@ -19,6 +21,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/ui/features/player/views/player_screen.dart';
 import 'package:hoshi/ui/features/profiles/views/profiles_screen.dart';
 import 'package:hoshi/ui/features/rankings/views/rankings_screen.dart';
+import 'package:hoshi/ui/features/search/views/search_screen.dart';
 import 'package:hoshi/ui/features/settings/views/resource_settings_screen.dart';
 import 'package:hoshi/ui/features/settings/views/theme_settings_screen.dart';
 import 'package:hoshi/ui/features/settings/views/engine_diagnostics_screen.dart';
@@ -35,20 +38,25 @@ final appNavigatorKey = GlobalKey<NavigatorState>();
 
 /// 路由路径常量。用常量避免改名时漏改。
 ///
-/// 结构：外壳（shell）下有 5 个分支——发现 / 追剧 / 历史 / 下载 / 设置，
-/// 每个分支有独立 Navigator，切分支不丢状态。详情、播放、选集弹层等
-/// 沉浸或模态页面挂在根 Navigator 上，盖住外壳。
+/// 结构：外壳（shell）下有 4 个分支——发现 / 榜单 / 追剧 / 我的，每个
+/// 分支有独立 Navigator，切分支不丢状态。
+///
+/// 历史与下载**不在外壳里**：它们是「我的」页的下级页面，进外壳会在
+/// 宽窗口里给一个完整列表只留很窄的内容区、还挂着侧栏。详情、播放、
+/// 选集弹层等沉浸或模态页面同样挂在根 Navigator 上，盖住外壳。
 abstract final class AppRoutes {
   /// 启动入口。重定向到发现分支。
   static const home = '/';
   static const discover = '/discover';
+  static const rankings = '/rankings';
   static const follows = '/follows';
-  static const history = '/history';
+  static const my = '/my';
 
   static const detail = '/detail/:source/:sourceId';
   static const player = '/player/:source/:sourceId';
 
-  /// 下载分支。
+  /// 历史与下载：根级全屏页，从「我的」进入。
+  static const history = '/history';
   static const downloads = '/downloads';
   static const localMedia = '/downloads/local';
   static const mergeQueue = '/downloads/merge';
@@ -69,7 +77,9 @@ abstract final class AppRoutes {
   /// 锁屏。独立于外壳，避免未解锁时能操作导航。
   static const unlock = '/unlock';
 
-  static const rankings = '/discover/rankings';
+  /// 独立搜索页。从 rail 顶部的搜索按钮进入。
+  static const search = '/search';
+
   static const batchDownload = '/batch';
   static const downloadPicker = '/picker/:source/:sourceId';
 
@@ -118,8 +128,7 @@ abstract final class AppRoutes {
       withQuery(sources, {'source': source});
 
   /// 用户页。`locked` 为真时走锁屏，否则进设置分支里的用户面板。
-  static String profilesOf({bool locked = false}) =>
-      locked ? unlock : profiles;
+  static String profilesOf({bool locked = false}) => locked ? unlock : profiles;
 }
 
 /// 无法从 URL 重建的对象（完整剧集详情等）通过 `extra` 传递。
@@ -214,266 +223,298 @@ class MergeQueueExtra {
 /// 抽成独立函数是为了让测试也能拿到**同一份**路由表：页面里的
 /// `context.push/go/replace` 要求祖先存在 `GoRouter`，测试若自行搭一个
 /// 替代路由就会绕过真实行为。
-GoRouter buildAppRouter(Ref ref, {String initialLocation = AppRoutes.home}) =>
-    GoRouter(
-      initialLocation: initialLocation,
-      navigatorKey: appNavigatorKey,
-      // 刻意不接 `refreshListenable`：go_router 收到刷新通知后会**按 URL
-      // 重新解析**当前路由，`extra` 随之丢失。用户数据就绪、锁定、切用户
-      // 这些变化改由各路由 builder 内部用 Riverpod 响应式处理，
-      // 路由对象因此保持稳定，`extra` 也能可靠传递。
-      redirect: (context, state) => _redirect(ref, state),
-      routes: [
-        // ---- 外壳：5 个分支 ----
-        StatefulShellRoute.indexedStack(
-          builder: (context, state, shell) => _ShellRoute(shell: shell),
-          branches: [
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppRoutes.discover,
-                  builder: (context, state) =>
-                      _home(ref, tabIndex: 0, shell: true),
-                ),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppRoutes.follows,
-                  builder: (context, state) =>
-                      _home(ref, tabIndex: 1, shell: true),
-                ),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppRoutes.history,
-                  builder: (context, state) =>
-                      _home(ref, tabIndex: 2, shell: true),
-                ),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: AppRoutes.downloads,
-                  builder: (context, state) => DownloadsScreen(
-                    repository: ref.read(repositoryProvider),
-                    store: ref.read(readyStoreProvider),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-
-        // ---- 设置与它的面板 ----
-        // 除 4 个 tab 外的页面都不进外壳：独立全屏 + 顶部返回，避免
-        // 「在大窗口里用一小块内容区看一个完整页面」的别扭感。
-        GoRoute(
-          path: AppRoutes.settings,
-          builder: (context, state) => SettingsScreen(
-            repository: ref.read(repositoryProvider),
-            store: ref.read(readyStoreProvider),
-          ),
+GoRouter buildAppRouter(
+  Ref ref, {
+  String initialLocation = AppRoutes.home,
+}) => GoRouter(
+  initialLocation: initialLocation,
+  navigatorKey: appNavigatorKey,
+  // 刻意不接 `refreshListenable`：go_router 收到刷新通知后会**按 URL
+  // 重新解析**当前路由，`extra` 随之丢失。用户数据就绪、锁定、切用户
+  // 这些变化改由各路由 builder 内部用 Riverpod 响应式处理，
+  // 路由对象因此保持稳定，`extra` 也能可靠传递。
+  redirect: (context, state) => _redirect(ref, state),
+  routes: [
+    // ---- 外壳：4 个分支 ----
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, shell) => _ShellRoute(shell: shell),
+      branches: [
+        StatefulShellBranch(
           routes: [
             GoRoute(
-              path: 'theme',
-              builder: (context, state) => ThemeSettingsScreen(
-                store: ref.read(readyStoreProvider),
-              ),
-            ),
-            GoRoute(
-              path: 'resources',
-              builder: (context, state) => ResourceSettingsScreen(
-                repository: ref.read(repositoryProvider),
-                store: ref.read(readyStoreProvider),
-              ),
-            ),
-            GoRoute(
-              path: 'downloads',
-              builder: (context, state) => DownloadPreferencesScreen(
-                store: ref.read(readyStoreProvider),
-              ),
-            ),
-            GoRoute(
-              path: 'storage',
-              builder: (context, state) => StorageScreen(
-                repository: ref.read(repositoryProvider),
-                store: ref.read(readyStoreProvider),
-              ),
-            ),
-            GoRoute(
-              path: 'diagnostics',
-              builder: (context, state) => _diagnostics(ref, context),
-            ),
-            GoRoute(
-              path: 'sources',
-              builder: (context, state) => SourcesScreen(
-                repository: ref.read(repositoryProvider),
-                store: ref.read(readyStoreProvider),
-                initialSource: state.uri.queryParameters['source'],
-                // 从详情页进入「站源诊断」时带上剧集，用于播放检测；
-                // 普通入口没有 extra，走默认行为。
-                drama: state.extra is Drama ? state.extra as Drama : null,
-              ),
-              routes: [
-                GoRoute(
-                  path: 'plugins',
-                  builder: (context, state) => PluginsScreen(
-                    repository: ref.read(pluginRepositoryProvider),
-                  ),
-                ),
-              ],
-            ),
-            GoRoute(
-              path: 'profiles',
-              builder: (context, state) => ProfilesScreen(
-                store: ref.read(readyStoreProvider),
-              ),
-              routes: [
-                GoRoute(
-                  path: 'editor',
-                  builder: (context, state) {
-                    final extra = state.extra;
-                    return ProfileEditor(
-                      store: ref.read(readyStoreProvider),
-                      profile:
-                          extra is ProfileEditorExtra ? extra.profile : null,
-                    );
-                  },
-                ),
-              ],
+              path: AppRoutes.discover,
+              builder: (context, state) => _home(ref, tabIndex: 0, shell: true),
             ),
           ],
         ),
-
-        // ---- 根级页面 ----
-        // ---- 榜单 / 本地媒体 / 合并队列：独立全屏 ----
-        GoRoute(
-          path: AppRoutes.rankings,
-          builder: (context, state) => RankingsScreen(
-            repository: ref.read(repositoryProvider),
-            store: ref.read(readyStoreProvider),
-            initialGroup: state.uri.queryParameters['group'] ?? 'hongguo',
-          ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.rankings,
+              builder: (context, state) {
+                // 外壳分支的 URL 可能带 `?group=`（`rankingsOf` 生成），
+                // 也可能不带（点 rail 进入）。缺省落到红果。
+                final group = state.uri.queryParameters['group'];
+                return RankingsScreen(
+                  repository: ref.read(repositoryProvider),
+                  store: ref.read(readyStoreProvider),
+                  initialGroup: group ?? 'hongguo',
+                );
+              },
+            ),
+          ],
         ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.follows,
+              builder: (context, state) => _home(ref, tabIndex: 1, shell: true),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.my,
+              builder: (context, state) =>
+                  MyScreen(store: ref.read(readyStoreProvider)),
+            ),
+          ],
+        ),
+      ],
+    ),
+
+    // ---- 搜索：根级全屏，从 rail 顶部的搜索按钮进入 ----
+    GoRoute(
+      path: AppRoutes.search,
+      builder: (context, state) => SearchScreen(
+        repository: ref.read(repositoryProvider),
+        store: ref.read(readyStoreProvider),
+        initialQuery: state.uri.queryParameters['q'] ?? '',
+      ),
+    ),
+
+    // ---- 历史与下载：根级全屏，从「我的」进入 ----
+    GoRoute(
+      path: AppRoutes.history,
+      builder: (context, state) => HistoryScreen(
+        repository: ref.read(repositoryProvider),
+        store: ref.read(readyStoreProvider),
+      ),
+    ),
+    GoRoute(
+      path: AppRoutes.downloads,
+      builder: (context, state) => DownloadsScreen(
+        repository: ref.read(repositoryProvider),
+        store: ref.read(readyStoreProvider),
+      ),
+      routes: [
         GoRoute(
-          path: AppRoutes.localMedia,
+          path: 'local',
           builder: (context, state) => LocalMediaScreen(
             repository: ref.read(repositoryProvider),
             store: ref.read(readyStoreProvider),
           ),
         ),
         GoRoute(
-          path: AppRoutes.mergeQueue,
+          path: 'merge',
           builder: (context, state) => _mergeQueue(ref, state),
         ),
+      ],
+    ),
 
+    // ---- 设置与它的面板 ----
+    // 除 4 个 tab 外的页面都不进外壳：独立全屏 + 顶部返回，避免
+    // 「在大窗口里用一小块内容区看一个完整页面」的别扭感。
+    GoRoute(
+      path: AppRoutes.settings,
+      builder: (context, state) => SettingsScreen(
+        repository: ref.read(repositoryProvider),
+        store: ref.read(readyStoreProvider),
+      ),
+      routes: [
         GoRoute(
-          path: AppRoutes.unlock,
-          builder: (context, state) => ProfilesScreen(
-            store: ref.read(readyStoreProvider),
-            locked: true,
+          path: 'theme',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            ThemeSettingsScreen(store: ref.read(readyStoreProvider)),
           ),
         ),
         GoRoute(
-          path: AppRoutes.detail,
-          builder: (context, state) {
-            final target = _parseTarget(state);
-            if (target == null) return const _InvalidRoute();
-            // 应用内跳转时携带完整 `Drama`，避免只靠标识重建导致标题、
-            // 封面等字段缺失；深链进入时 extra 为空，回落到标识重建。
-            final extra = state.extra;
-            final drama = extra is Drama ? extra : _drama(ref, target);
-            return DetailScreen(
-              // 同一路由模式在不同剧集间跳转（例如切换季）时，Flutter 会复用
-              // 同一个 State；用剧集标识当 key 强制重建，`initState` 才会重新
-              // 取数。否则页面会停留在上一部剧的内容。
-              key: ValueKey('detail-${drama.id}'),
-              drama: drama,
+          path: 'resources',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            ResourceSettingsScreen(
               repository: ref.read(repositoryProvider),
               store: ref.read(readyStoreProvider),
-              resumeOnOpen: state.uri.queryParameters['resume'] == '1',
-              downloadOnOpen: state.uri.queryParameters['download'] == '1',
-            );
-          },
+            ),
+          ),
         ),
         GoRoute(
-          path: AppRoutes.player,
-          builder: (context, state) {
-            final target = _parseTarget(state);
-            if (target == null) return const _InvalidRoute();
-            final extra = state.extra;
-            if (extra is! PlayerRouteExtra) {
-              // 深链进入且没有详情对象：先落到详情页，由它负责取数。
-              return DetailScreen(
-                drama: _drama(ref, target),
-                repository: ref.read(repositoryProvider),
-                store: ref.read(readyStoreProvider),
-              );
-            }
-            final builder = extra.playerBuilder;
-            if (builder != null) {
-              return builder(
-                extra.detail,
-                extra.initialIndex,
-                extra.initialPosition,
-              );
-            }
-            return PlayerScreen(
-              detail: extra.detail,
-              initialIndex: extra.initialIndex,
-              initialPosition: extra.initialPosition,
-              localOnly: extra.localOnly,
-              allowOnlineFallback: extra.allowOnlineFallback,
-              mediaId: extra.mediaId,
-              repository: extra.repository ?? ref.read(repositoryProvider),
-              store: ref.read(readyStoreProvider),
-            );
-          },
+          path: 'downloads',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            DownloadPreferencesScreen(store: ref.read(readyStoreProvider)),
+          ),
         ),
         GoRoute(
-          path: AppRoutes.downloadPicker,
-          builder: (context, state) {
-            // 选集需要完整剧集详情，无法从 URL 重建；深链进入时无 extra，
-            // 视为非法入口。用 `push` 打开，`Navigator.pop` 回传选择结果。
-            final extra = state.extra;
-            if (extra is! DownloadPickerExtra) {
-              return _InvalidRoute(
-                message: AppLocalizations.of(context).invalidEpisodeEntry,
-              );
-            }
-            return DownloadPicker(
-              detail: extra.detail,
-              preferences: extra.preferences,
-            );
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.batchDownload,
-          builder: (context, state) {
-            final extra = state.extra;
-            final dramas = extra is BatchDownloadExtra
-                ? extra.dramas
-                : const <Drama>[];
-            if (dramas.isEmpty) {
-              return _InvalidRoute(
-                message: AppLocalizations.of(context).noBatchDramas,
-              );
-            }
-            return BatchDownloadScreen(
+          path: 'storage',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            StorageScreen(
               repository: ref.read(repositoryProvider),
               store: ref.read(readyStoreProvider),
-              dramas: dramas,
-            );
-          },
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'diagnostics',
+          pageBuilder: (context, state) =>
+              _fadeForwards(state.pageKey, _diagnostics(ref, context)),
+        ),
+        GoRoute(
+          path: 'sources',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            SourcesScreen(
+              repository: ref.read(repositoryProvider),
+              store: ref.read(readyStoreProvider),
+              initialSource: state.uri.queryParameters['source'],
+              // 从详情页进入「站源诊断」时带上剧集，用于播放检测；
+              // 普通入口没有 extra，走默认行为。
+              drama: state.extra is Drama ? state.extra as Drama : null,
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: 'plugins',
+              builder: (context, state) =>
+                  PluginsScreen(repository: ref.read(pluginRepositoryProvider)),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: 'profiles',
+          pageBuilder: (context, state) => _fadeForwards(
+            state.pageKey,
+            ProfilesScreen(store: ref.read(readyStoreProvider)),
+          ),
+          routes: [
+            GoRoute(
+              path: 'editor',
+              builder: (context, state) {
+                final extra = state.extra;
+                return ProfileEditor(
+                  store: ref.read(readyStoreProvider),
+                  profile: extra is ProfileEditorExtra ? extra.profile : null,
+                );
+              },
+            ),
+          ],
         ),
       ],
-    );
+    ),
+
+    // ---- 根级页面 ----
+    GoRoute(
+      path: AppRoutes.unlock,
+      builder: (context, state) =>
+          ProfilesScreen(store: ref.read(readyStoreProvider), locked: true),
+    ),
+    GoRoute(
+      path: AppRoutes.detail,
+      builder: (context, state) {
+        final target = _parseTarget(state);
+        if (target == null) return const _InvalidRoute();
+        // 应用内跳转时携带完整 `Drama`，避免只靠标识重建导致标题、
+        // 封面等字段缺失；深链进入时 extra 为空，回落到标识重建。
+        final extra = state.extra;
+        final drama = extra is Drama ? extra : _drama(ref, target);
+        return DetailScreen(
+          // 同一路由模式在不同剧集间跳转（例如切换季）时，Flutter 会复用
+          // 同一个 State；用剧集标识当 key 强制重建，`initState` 才会重新
+          // 取数。否则页面会停留在上一部剧的内容。
+          key: ValueKey('detail-${drama.id}'),
+          drama: drama,
+          repository: ref.read(repositoryProvider),
+          store: ref.read(readyStoreProvider),
+          resumeOnOpen: state.uri.queryParameters['resume'] == '1',
+          downloadOnOpen: state.uri.queryParameters['download'] == '1',
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.player,
+      builder: (context, state) {
+        final target = _parseTarget(state);
+        if (target == null) return const _InvalidRoute();
+        final extra = state.extra;
+        if (extra is! PlayerRouteExtra) {
+          // 深链进入且没有详情对象：先落到详情页，由它负责取数。
+          return DetailScreen(
+            drama: _drama(ref, target),
+            repository: ref.read(repositoryProvider),
+            store: ref.read(readyStoreProvider),
+          );
+        }
+        final builder = extra.playerBuilder;
+        if (builder != null) {
+          return builder(
+            extra.detail,
+            extra.initialIndex,
+            extra.initialPosition,
+          );
+        }
+        return PlayerScreen(
+          detail: extra.detail,
+          initialIndex: extra.initialIndex,
+          initialPosition: extra.initialPosition,
+          localOnly: extra.localOnly,
+          allowOnlineFallback: extra.allowOnlineFallback,
+          mediaId: extra.mediaId,
+          repository: extra.repository ?? ref.read(repositoryProvider),
+          store: ref.read(readyStoreProvider),
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.downloadPicker,
+      builder: (context, state) {
+        // 选集需要完整剧集详情，无法从 URL 重建；深链进入时无 extra，
+        // 视为非法入口。用 `push` 打开，`Navigator.pop` 回传选择结果。
+        final extra = state.extra;
+        if (extra is! DownloadPickerExtra) {
+          return _InvalidRoute(
+            message: AppLocalizations.of(context).invalidEpisodeEntry,
+          );
+        }
+        return DownloadPicker(
+          detail: extra.detail,
+          preferences: extra.preferences,
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.batchDownload,
+      builder: (context, state) {
+        final extra = state.extra;
+        final dramas = extra is BatchDownloadExtra
+            ? extra.dramas
+            : const <Drama>[];
+        if (dramas.isEmpty) {
+          return _InvalidRoute(
+            message: AppLocalizations.of(context).noBatchDramas,
+          );
+        }
+        return BatchDownloadScreen(
+          repository: ref.read(repositoryProvider),
+          store: ref.read(readyStoreProvider),
+          dramas: dramas,
+        );
+      },
+    ),
+  ],
+);
 
 /// 启动入口与旧路径的重定向。
 ///
@@ -492,6 +533,9 @@ String? _redirect(Ref ref, GoRouterState state) {
 
   // 旧路径 → 新路径。
   switch (path) {
+    // S1：榜单从发现的下级提升为外壳分支。旧深链与备份里的路径仍可用。
+    case '/discover/rankings':
+      return AppRoutes.withQuery(AppRoutes.rankings, query);
     case AppRoutes.legacySources:
       return AppRoutes.withQuery(AppRoutes.sources, query);
     case AppRoutes.legacyPlugins:
@@ -563,7 +607,6 @@ Widget _diagnostics(Ref ref, BuildContext context) {
   );
 }
 
-
 /// 路由实例。
 ///
 /// 通过 provider 暴露，测试可直接读取同一份配置。
@@ -594,7 +637,9 @@ class _ShellRoute extends ConsumerWidget {
     return AppShell(
       shell: shell,
       store: store,
-      onOpenSearch: () => shell.goBranch(0),
+      // 打开独立搜索页（参照应用也是 `context.pushNamed('/search/')`），
+      // 而不是切到发现分支再展开内联搜索框。
+      onOpenSearch: () => context.push(AppRoutes.search),
     );
   }
 }
@@ -603,6 +648,29 @@ DramaRef? _parseTarget(GoRouterState state) => DramaRef.tryParse(
   state.pathParameters['source'],
   state.pathParameters['sourceId'],
 );
+
+/// 设置子页统一用 FadeForwards。
+///
+/// 设置是「就地换一层」的信息结构，横移会让用户误以为换到了另一个板块；
+/// 淡入前进只改变前后层级，不暗示横向位置变化（V1-2）。
+Page<void> _fadeForwards(LocalKey key, Widget child) =>
+    CustomTransitionPage<void>(
+      key: key,
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final route = ModalRoute.of(context);
+        if (route is! PageRoute) {
+          return FadeTransition(opacity: animation, child: child);
+        }
+        return const FadeForwardsPageTransitionsBuilder().buildTransitions(
+          route,
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        );
+      },
+    );
 
 /// 用标识重建一个最小 `Drama`；详情页会用它去取完整资料。
 ///

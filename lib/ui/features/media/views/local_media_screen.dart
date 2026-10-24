@@ -10,11 +10,12 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/data/media/media_library.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/media/controllers/local_media_controller.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/settings/views/settings_screen.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class LocalMediaScreen extends StatefulWidget {
   const LocalMediaScreen({
@@ -40,7 +41,6 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
       repository: widget.repository,
       library: library,
     );
-    ensureTelevisionFocus(context);
     _controller.load();
   }
 
@@ -276,78 +276,72 @@ class _LocalMediaScreenState extends State<LocalMediaScreen> {
                       itemCount: items.length,
                       itemBuilder: (context, index) {
                         final item = items[index];
-                        return Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                        return TonalCard(
+                          padding: const EdgeInsets.all(Md3Spacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.drama.title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${item.merged
+                                    ? l10n.mergedEpisodes(item.episodes.length)
+                                    : item.special
+                                    ? l10n.specialRange(item.specialNumber, item.episodes.first, item.episodes.last)
+                                    : l10n.episodeSingle(item.episodes.first)} · ${storageSize(item.bytes, l10n)}',
+                              ),
+                              if (item.merged)
                                 Text(
-                                  item.drama.title,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '${item.merged
-                                      ? l10n.mergedEpisodes(item.episodes.length)
-                                      : item.special
-                                      ? l10n.specialRange(item.specialNumber, item.episodes.first, item.episodes.last)
-                                      : l10n.episodeSingle(item.episodes.first)} · ${storageSize(item.bytes, l10n)}',
-                                ),
-                                if (item.merged)
-                                  Text(
-                                    l10n.transcodeSummary(
-                                      item.videoTranscodes,
-                                      item.audioTranscodes,
-                                    ),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
+                                  l10n.transcodeSummary(
+                                    item.videoTranscodes,
+                                    item.audioTranscodes,
                                   ),
-                                if (item.merged)
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              if (item.merged)
+                                TextButton.icon(
+                                  onPressed: library.busy
+                                      ? null
+                                      : () => _exportMerged(item),
+                                  icon: const Icon(Icons.output_rounded),
+                                  label: Text(l10n.exportToEmbySpecial),
+                                ),
+                              Row(
+                                children: [
                                   TextButton.icon(
+                                    onPressed: () => _play(item),
+                                    icon: const Icon(Icons.play_arrow),
+                                    label: Text(
+                                      item.merged &&
+                                              item.episodes.length ==
+                                                  item.drama.episodes
+                                          ? l10n.playAll
+                                          : l10n.localPlay,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    tooltip: l10n.copyFilePath,
+                                    onPressed: () => Clipboard.setData(
+                                      ClipboardData(
+                                        text: library.fileFor(item),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.copy),
+                                  ),
+                                  IconButton(
+                                    tooltip: l10n.deleteProduct,
                                     onPressed: library.busy
                                         ? null
-                                        : () => _exportMerged(item),
-                                    icon: const Icon(Icons.output_rounded),
-                                    label: Text(l10n.exportToEmbySpecial),
+                                        : () => _remove(item),
+                                    icon: const Icon(Icons.delete_outline),
                                   ),
-                                Row(
-                                  children: [
-                                    TextButton.icon(
-                                      onPressed: () => _play(item),
-                                      icon: const Icon(Icons.play_arrow),
-                                      label: Text(
-                                        item.merged &&
-                                                item.episodes.length ==
-                                                    item.drama.episodes
-                                            ? l10n.playAll
-                                            : l10n.localPlay,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      tooltip: l10n.copyFilePath,
-                                      onPressed: () => Clipboard.setData(
-                                        ClipboardData(
-                                          text: library.fileFor(item),
-                                        ),
-                                      ),
-                                      icon: const Icon(Icons.copy),
-                                    ),
-                                    IconButton(
-                                      tooltip: l10n.deleteProduct,
-                                      onPressed: library.busy
-                                          ? null
-                                          : () => _remove(item),
-                                      icon: const Icon(Icons.delete_outline),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },

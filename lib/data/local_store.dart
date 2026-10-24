@@ -237,10 +237,6 @@ class LocalStore extends ChangeNotifier {
 
   bool get hideVip =>
       _configurationError == null ? _bool(_key('hideVip')) ?? true : true;
-  String get displayMode {
-    final value = _configurationError == null ? _string('displayMode') : null;
-    return {'auto', 'television', 'standard'}.contains(value) ? value! : 'auto';
-  }
 
   String get themeMode {
     final value = _configurationError == null ? _string('themeMode') : null;
@@ -277,11 +273,14 @@ class LocalStore extends ChangeNotifier {
   Future<void> setOledEnhance(bool value) => _setting('oledEnhance', value);
 
   /// 是否使用系统字体（关闭时用内置中文字体）。
+  ///
+  /// 默认 **false**：内置 MiSans 是品牌视觉的一部分，系统字体只在用户
+  /// 显式选择时才用。改这个默认值不会影响已有用户——他们的偏好已经
+  /// 落盘；但 `TestStore` 与全新安装会落到内置字体。
   bool get useSystemFont =>
-      _configurationError == null && (_bool('useSystemFont') ?? true);
+      _configurationError == null && (_bool('useSystemFont') ?? false);
 
-  Future<void> setUseSystemFont(bool value) =>
-      _setting('useSystemFont', value);
+  Future<void> setUseSystemFont(bool value) => _setting('useSystemFont', value);
 
   /// 窗口边界（桌面端）。
   ///
@@ -488,10 +487,6 @@ class LocalStore extends ChangeNotifier {
     return _setting(_key('source'), value);
   }
 
-  Future<void> setDisplayMode(String value) =>
-      {'auto', 'television', 'standard'}.contains(value)
-      ? _setting('displayMode', value)
-      : Future.value();
   Future<void> setThemeMode(String value) =>
       {'light', 'dark', 'system'}.contains(value)
       ? _setting('themeMode', value)
@@ -940,7 +935,6 @@ class LocalStore extends ChangeNotifier {
       'schema': 1,
       'app': 'hoshi',
       'profiles': _profiles.map((profile) => profile.toJson()).toList(),
-      'displayMode': displayMode,
       'themeMode': themeMode,
       'themeSeed': themeSeed,
       'useDynamicColor': useDynamicColor,
@@ -1073,10 +1067,6 @@ class LocalStore extends ChangeNotifier {
         profiles.map((profile) => profile.toJson()).toList(),
       ),
       'activeProfile': profiles.firstWhere((profile) => profile.admin).id,
-      'displayMode':
-          {'auto', 'television', 'standard'}.contains(data['displayMode'])
-          ? data['displayMode'] as String
-          : 'auto',
       'themeMode': data['themeMode'] as String? ?? themeMode,
       if (data['themeSeed'] != null) 'themeSeed': '${data['themeSeed']}',
       'useDynamicColor': data['useDynamicColor'] == true,

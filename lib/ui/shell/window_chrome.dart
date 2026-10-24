@@ -6,8 +6,8 @@ import 'package:window_manager/window_manager.dart';
 
 /// 桌面窗口 chrome 的判定。
 ///
-/// 只在真正的桌面平台生效；Android / iOS / 电视模式全部为 false，
-/// 因此移动端与 TV 的布局不受任何影响。
+/// 只在真正的桌面平台生效；Android / iOS 全部为 false，
+/// 因此移动端的布局不受任何影响。
 abstract final class WindowChrome {
   /// 是否启用自绘标题栏。
   ///
@@ -113,10 +113,7 @@ class DragArea extends StatelessWidget {
         if (!WindowChrome._interactive) return;
         windowManager.startDragging();
       },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.grab,
-        child: child,
-      ),
+      child: MouseRegion(cursor: SystemMouseCursors.grab, child: child),
     );
   }
 }

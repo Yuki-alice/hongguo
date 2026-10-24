@@ -8,8 +8,8 @@ import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -34,7 +34,6 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
   @override
   void initState() {
     super.initState();
-    ensureTelevisionFocus(context);
     _batch = BatchDownloads(widget.repository, widget.store, widget.dramas);
     unawaited(_batch.prepare());
   }
@@ -82,7 +81,9 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
                 )
               : Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: Md3Spacing.contentMaxWidth,
+                    ),
                     child: Column(
                       children: [
                         if (_batch.busy)
@@ -151,7 +152,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
                                   ),
                                 ),
                               for (final item in _batch.items)
-                                Card(
+                                TonalCard(
                                   child: CheckboxListTile(
                                     key: ValueKey(
                                       'batch-drama-${item.drama.id}',

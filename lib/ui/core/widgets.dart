@@ -1,12 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:hoshi/data/app_contract.dart';
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/models.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
@@ -332,10 +329,18 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
         File(snapshot.data!),
         fit: BoxFit.cover,
         cacheWidth: 440,
-        // 海报未解码完成时下面垫着同色占位块，因此是硬切而不是淡入：
-        // 这个 Flutter 版本已经移除了 `Image` 的 fadeDuration，
-        // 想要 120ms 淡入得自己写 frameBuilder + AnimationController。
         excludeFromSemantics: true,
+        // 解码完成后的 120ms 淡入：占位块先垫底，图片再浮上来。
+        // 系统开启「减少动态」时直接硬切。
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: Md3Motion.of(context, Md3Motion.image),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
         errorBuilder: (_, error, stack) => _failed(snapshot.data),
       );
     },
@@ -349,9 +354,6 @@ class DramaTile extends StatelessWidget {
     required this.repository,
     required this.onTap,
     this.subtitle,
-    this.focusNode,
-    this.onFocus,
-    this.actions,
     this.badge,
     this.selected,
     this.onMore,
@@ -363,11 +365,6 @@ class DramaTile extends StatelessWidget {
 
   /// 标题下方元信息行的备选文字（进度、站点名等）。
   final String? subtitle;
-  final FocusNode? focusNode;
-  final VoidCallback? onFocus;
-
-  /// 封面右上角的操作按钮；多选态由 [selected] 接管。
-  final Widget? actions;
 
   /// 元信息行优先使用的文字（追剧状态、更新提示）。
   final String? badge;
@@ -376,11 +373,10 @@ class DramaTile extends StatelessWidget {
   final VoidCallback? onLongPress;
 
   /// 标题样式：Kazumi 的卡片标题是 14px、w500、letterSpacing 0.3。
-  /// 电视遥控场景放大一号，保证远距离可读。
   static TextStyle _titleStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.titleSmall;
     return (base ?? const TextStyle()).copyWith(
-      fontSize: AppLayout.isTelevision(context) ? 17 : 14,
+      fontSize: 14,
       fontWeight: FontWeight.w500,
       letterSpacing: .3,
       height: 1.3,
@@ -390,7 +386,7 @@ class DramaTile extends StatelessWidget {
   static TextStyle _metaStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.bodySmall;
     return (base ?? const TextStyle()).copyWith(
-      fontSize: AppLayout.isTelevision(context) ? 14 : 12,
+      fontSize: 12,
       height: 1.3,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
@@ -421,8 +417,8 @@ class DramaTile extends StatelessWidget {
   /// （[Md3Grid.textReserve]，随字号缩放）+ 可选的一行元信息。
   ///
   /// [width] 必须是卡片**实际**会被摆成的宽度（见 [Md3Grid.tileWidth]），
-  /// 两者不一致时行高会差出几个像素。网格、电视遥控列表、首屏骨架屏
-  /// 都从这里取行高，三者必须给同一个 `withMeta`。
+  /// 两者不一致时行高会差出几个像素。网格、首屏骨架屏
+  /// 都从这里取行高，两者必须给同一个 `withMeta`。
   static double extentFor(
     BuildContext context,
     double width, {
@@ -447,7 +443,6 @@ class DramaTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final television = AppLayout.isTelevision(context);
     final colors = Theme.of(context).colorScheme;
     final meta = _metaText();
     // Kazumi 的卡片就是 `Card(elevation: 0, margin: 0)`：一张海报加标题，
@@ -464,13 +459,13 @@ class DramaTile extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                DramaCover(drama: drama, repository: repository),
-                // 封面上只留必要的东西：VIP 标记（关系到能不能播）与
-                // 交互件（多选勾选、「更多」）。集数 / 更新状态这类信息
-                // 一律走标题下方的元信息行，海报不再被压暗。
-                if (drama.vip) const Positioned(left: 6, top: 6, child: _VipChip()),
-                if (actions != null && selected == null)
-                  Positioned(top: 4, right: 4, child: actions!),
+                // 与参照应用 `BangumiCardV` 一致：海报本身参与 Hero 转场，
+                // 详情页用同一个标签 'cover-${drama.id}' 接住。
+                DramaCover(
+                  drama: drama,
+                  repository: repository,
+                  heroTag: 'cover-${drama.id}',
+                ),
                 if (selected != null)
                   Positioned(
                     top: 4,
@@ -481,9 +476,7 @@ class DramaTile extends StatelessWidget {
                           ? colors.primary
                           : Colors.black.withValues(alpha: .64),
                       child: Icon(
-                        selected!
-                            ? Icons.check_rounded
-                            : Icons.circle_outlined,
+                        selected! ? Icons.check_rounded : Icons.circle_outlined,
                         size: 22,
                         color: selected! ? colors.onPrimary : Colors.white,
                       ),
@@ -538,25 +531,6 @@ class DramaTile extends StatelessWidget {
         ],
       ),
     );
-    if (television) {
-      return CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.contextMenu): ?onMore,
-        },
-        child: RemoteTarget(
-          focusNode: focusNode,
-          onFocus: onFocus,
-          onPressed: onTap,
-          selected: selected ?? false,
-          label: AppLocalizations.of(context).dramaSemantic(
-            drama.title,
-            drama.episodes,
-            meta == null ? '' : '，$meta',
-          ),
-          child: content,
-        ),
-      );
-    }
     return _HoverTile(
       onTap: onTap,
       onLongPress: onLongPress ?? onMore,
@@ -574,43 +548,11 @@ class DramaTile extends StatelessWidget {
   }
 }
 
-/// 海报左上角的 VIP 标记。
-///
-/// Kazumi 的卡片没有任何叠字，这里是一处**刻意偏离**：VIP 决定「能不能播、
-/// 要不要下载试看」，藏进标题行会让人在网格里挑完才发现。
-class _VipChip extends StatelessWidget {
-  const _VipChip();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.tertiaryContainer,
-        borderRadius: Md3Shape.chip,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-        child: Text(
-          'VIP',
-          style: TextStyle(
-            fontSize: Md3Type.labelSmall,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-            letterSpacing: .3,
-            color: colors.onTertiaryContainer,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 桌面端卡片的 hover / focus 反馈。
 ///
 /// 三件事：
 /// - 鼠标悬停时封面轻微放大并加一圈描边，提示「这是可点的」；
-/// - 键盘 Tab 聚焦时用 2px 主色环，与电视模式的 3px 环区分；
+/// - 键盘 Tab 聚焦时用 2px 主色环；
 /// - 按压缩放 0.98，给点击一个物理感。
 ///
 /// 全部受 `MediaQuery.disableAnimationsOf` 控制。
@@ -723,7 +665,6 @@ class StatusPanel extends StatelessWidget {
     actions: [
       if (onRetry != null)
         FilledButton.icon(
-          autofocus: AppLayout.isTelevision(context),
           onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded),
           label: Text(action ?? AppLocalizations.of(context).retry),
@@ -754,31 +695,6 @@ SliverGridDelegate dramaGridDelegate(
       Md3Grid.tileWidth(width, columns),
       withMeta: withMeta,
     ),
-  );
-}
-
-/// 电视遥控网格的列数与行高。
-///
-/// 推算与桌面网格同源（[Md3Grid]），差别只在列数封顶 8：遥控焦点左右移动
-/// 的路径必须短，宁可卡片大一些。[width] 是 `RemoteGrid` 的可用宽度，
-/// 内部会扣掉它左右各 18 的内边距；返回的 `itemExtent` 已含一行间距，
-/// 与 `RemoteGrid.spacing` 一起使用。
-({int columns, double itemExtent}) remoteGridLayout(
-  BuildContext context,
-  double width, {
-  bool withMeta = false,
-}) {
-  const inset = 36.0;
-  final columns = Md3Grid.columns(width - inset, min: 1, max: 8);
-  return (
-    columns: columns,
-    itemExtent:
-        DramaTile.extentFor(
-          context,
-          Md3Grid.tileWidth(width - inset, columns),
-          withMeta: withMeta,
-        ) +
-        Md3Grid.spacing,
   );
 }
 

@@ -7,8 +7,9 @@ import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/data/media/media_library.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class MergeQueueScreen extends StatefulWidget {
   const MergeQueueScreen({
@@ -35,7 +36,6 @@ class _MergeQueueScreenState extends State<MergeQueueScreen> {
   @override
   void initState() {
     super.initState();
-    ensureTelevisionFocus(context);
     _load();
   }
 
@@ -224,91 +224,87 @@ class _MergeQueueScreenState extends State<MergeQueueScreen> {
                               final processing =
                                   job.state == 'running' ||
                                   job.state == 'cleanup';
-                              return Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        job.drama.title,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleMedium,
+                              return TonalCard(
+                                padding: const EdgeInsets.all(Md3Spacing.lg),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      job.drama.title,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      l10n.mergeEpisodeRange(
+                                        job.episodes.first,
+                                        job.episodes.last,
+                                        job.label,
+                                        job.cleanup
+                                            ? ' · ${l10n.mergeCleaned}'
+                                            : '',
+                                      ),
+                                    ),
+                                    if (processing) ...[
+                                      const SizedBox(height: 10),
+                                      LinearProgressIndicator(
+                                        value: widget.library.progress > 0
+                                            ? widget.library.progress
+                                            : null,
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        l10n.mergeEpisodeRange(
-                                          job.episodes.first,
-                                          job.episodes.last,
-                                          job.label,
-                                          job.cleanup
-                                              ? ' · ${l10n.mergeCleaned}'
-                                              : '',
-                                        ),
-                                      ),
-                                      if (processing) ...[
-                                        const SizedBox(height: 10),
-                                        LinearProgressIndicator(
-                                          value: widget.library.progress > 0
-                                              ? widget.library.progress
-                                              : null,
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(widget.library.status),
-                                      ],
-                                      if (job.error.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 8,
-                                          ),
-                                          child: Text(job.error),
-                                        ),
-                                      Wrap(
-                                        spacing: 8,
-                                        children: [
-                                          if (job.active)
-                                            TextButton.icon(
-                                              onPressed: () =>
-                                                  _control(job, 'pause'),
-                                              icon: const Icon(
-                                                Icons.pause_rounded,
-                                              ),
-                                              label: Text(l10n.pause),
-                                            ),
-                                          if (job.state == 'paused' ||
-                                              job.state == 'failed')
-                                            TextButton.icon(
-                                              onPressed: () =>
-                                                  _control(job, 'resume'),
-                                              icon: const Icon(
-                                                Icons.play_arrow_rounded,
-                                              ),
-                                              label: Text(
-                                                job.state == 'failed'
-                                                    ? l10n.retry
-                                                    : l10n.resume,
-                                              ),
-                                            ),
-                                          if (job.state != 'completed' &&
-                                              job.state != 'cancelled')
-                                            TextButton(
-                                              onPressed: () =>
-                                                  _control(job, 'cancel'),
-                                              child: Text(l10n.cancelTask),
-                                            ),
-                                          if (job.state == 'completed' ||
-                                              job.state == 'cancelled')
-                                            TextButton(
-                                              onPressed: () =>
-                                                  _control(job, 'forget'),
-                                              child: Text(l10n.cleanRecords),
-                                            ),
-                                        ],
-                                      ),
+                                      Text(widget.library.status),
                                     ],
-                                  ),
+                                    if (job.error.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(job.error),
+                                      ),
+                                    Wrap(
+                                      spacing: 8,
+                                      children: [
+                                        if (job.active)
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                _control(job, 'pause'),
+                                            icon: const Icon(
+                                              Icons.pause_rounded,
+                                            ),
+                                            label: Text(l10n.pause),
+                                          ),
+                                        if (job.state == 'paused' ||
+                                            job.state == 'failed')
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                _control(job, 'resume'),
+                                            icon: const Icon(
+                                              Icons.play_arrow_rounded,
+                                            ),
+                                            label: Text(
+                                              job.state == 'failed'
+                                                  ? l10n.retry
+                                                  : l10n.resume,
+                                            ),
+                                          ),
+                                        if (job.state != 'completed' &&
+                                            job.state != 'cancelled')
+                                          TextButton(
+                                            onPressed: () =>
+                                                _control(job, 'cancel'),
+                                            child: Text(l10n.cancelTask),
+                                          ),
+                                        if (job.state == 'completed' ||
+                                            job.state == 'cancelled')
+                                          TextButton(
+                                            onPressed: () =>
+                                                _control(job, 'forget'),
+                                            child: Text(l10n.cleanRecords),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               );
                             },

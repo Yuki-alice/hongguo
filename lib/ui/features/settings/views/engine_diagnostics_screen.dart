@@ -115,81 +115,84 @@ class _EngineDiagnosticsScreenState extends State<EngineDiagnosticsScreen> {
             vertical: Md3Spacing.lg,
           ),
           children: [
-        _Section(
-          title: l10n.engineDiagnosticsRuntime,
-          children: [
-            _Row(label: l10n.engineDiagnosticsVersion, value: snapshot.version),
-            _Row(
-              label: l10n.engineDiagnosticsData,
-              value: snapshot.dataDirectory,
+            _Section(
+              title: l10n.engineDiagnosticsRuntime,
+              children: [
+                _Row(
+                  label: l10n.engineDiagnosticsVersion,
+                  value: snapshot.version,
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsData,
+                  value: snapshot.dataDirectory,
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsPlugins,
+                  value: snapshot.pluginDirectory,
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsUptime,
+                  value: _duration(snapshot.uptime),
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsRequests,
+                  value: '${snapshot.requestCount}',
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsSessions,
+                  value: '${snapshot.sessionKeys} · ${snapshot.activeSessions}',
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsCache,
+                  value: '${snapshot.cachedCatalogs}',
+                ),
+                _Row(
+                  label: l10n.engineDiagnosticsJobs,
+                  value:
+                      '${snapshot.queuedJobs} / ${snapshot.runningJobs} / '
+                      '${snapshot.completedJobs} / ${snapshot.failedJobs}',
+                ),
+              ],
             ),
-            _Row(
-              label: l10n.engineDiagnosticsPlugins,
-              value: snapshot.pluginDirectory,
+            const SizedBox(height: 16),
+            _Section(
+              title: l10n.engineDiagnosticsCapabilities,
+              children: _capabilityRows(l10n),
             ),
-            _Row(
-              label: l10n.engineDiagnosticsUptime,
-              value: _duration(snapshot.uptime),
+            const SizedBox(height: 16),
+            _Section(
+              title: l10n.engineDiagnosticsSources,
+              children: [
+                for (final source in snapshot.sources)
+                  _Row(
+                    label: '${source.name}（${source.id}）',
+                    value: source.capabilities.join(' · '),
+                  ),
+              ],
             ),
-            _Row(
-              label: l10n.engineDiagnosticsRequests,
-              value: '${snapshot.requestCount}',
-            ),
-            _Row(
-              label: l10n.engineDiagnosticsSessions,
-              value: '${snapshot.sessionKeys} · ${snapshot.activeSessions}',
-            ),
-            _Row(
-              label: l10n.engineDiagnosticsCache,
-              value: '${snapshot.cachedCatalogs}',
-            ),
-            _Row(
-              label: l10n.engineDiagnosticsJobs,
-              value:
-                  '${snapshot.queuedJobs} / ${snapshot.runningJobs} / '
-                  '${snapshot.completedJobs} / ${snapshot.failedJobs}',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          title: l10n.engineDiagnosticsCapabilities,
-          children: _capabilityRows(l10n),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          title: l10n.engineDiagnosticsSources,
-          children: [
-            for (final source in snapshot.sources)
-              _Row(
-                label: '${source.name}（${source.id}）',
-                value: source.capabilities.join(' · '),
+            if (snapshot.pluginsLoaded.isNotEmpty ||
+                snapshot.pluginsFailed.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _Section(
+                title: l10n.engineDiagnosticsPluginReport,
+                children: [
+                  for (final id in snapshot.pluginsLoaded)
+                    _Row(label: id, value: l10n.engineDiagnosticsPluginLoaded),
+                  for (final failure in snapshot.pluginsFailed)
+                    _Row(label: failure.id, value: failure.detail),
+                ],
               ),
-          ],
-        ),
-        if (snapshot.pluginsLoaded.isNotEmpty ||
-            snapshot.pluginsFailed.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _Section(
-            title: l10n.engineDiagnosticsPluginReport,
-            children: [
-              for (final id in snapshot.pluginsLoaded)
-                _Row(label: id, value: l10n.engineDiagnosticsPluginLoaded),
-              for (final failure in snapshot.pluginsFailed)
-                _Row(label: failure.id, value: failure.detail),
             ],
-          ),
-        ],
-        if (snapshot.recentErrors.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _Section(
-            title: l10n.engineDiagnosticsRecentErrors,
-            children: [
-              for (final failure in snapshot.recentErrors)
-                _Row(label: failure.kind.name, value: failure.message),
+            if (snapshot.recentErrors.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _Section(
+                title: l10n.engineDiagnosticsRecentErrors,
+                children: [
+                  for (final failure in snapshot.recentErrors)
+                    _Row(label: failure.kind.name, value: failure.message),
+                ],
+              ),
             ],
-          ),
-        ],
           ],
         ),
       ),

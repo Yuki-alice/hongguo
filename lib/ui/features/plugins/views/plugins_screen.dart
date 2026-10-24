@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:hoshi/data/plugin_repository.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
+import 'package:hoshi/ui/core/rule_card.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/features/plugins/controllers/plugins_controller.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -22,6 +24,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
   final _repoField = TextEditingController(
     text: 'https://raw.githubusercontent.com/guoapp-rules/repo/main/repo.toml',
   );
+  final _search = TextEditingController();
+  String _query = '';
+  bool _updatesOnly = false;
 
   @override
   void initState() {
@@ -36,6 +41,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
   void dispose() {
     _controller.dispose();
     _repoField.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -45,42 +51,96 @@ class _PluginsScreenState extends State<PluginsScreen> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
+        final colors = Theme.of(context).colorScheme;
+        final query = _query.trim().toLowerCase();
+        final updates = _controller.installed
+            .where(_controller.hasUpdate)
+            .length;
+        final installed = _controller.installed.where((entry) {
+          final matches =
+              query.isEmpty ||
+              entry.name.toLowerCase().contains(query) ||
+              entry.id.toLowerCase().contains(query);
+          return matches && (!_updatesOnly || _controller.hasUpdate(entry));
+        }).toList();
+        // 版式照参照应用 `plugin_view_page.dart`：顶部介绍块 → 搜索框 →
+        // 「全部 / 可更新」筛选片 → 规则卡片列表。不是左侧导航 + 右栏的形态。
         return Scaffold(
           appBar: AppBar(
-            title: Text(l10n.pluginsTitle),
+            title: Text(l10n.pluginsManageTitle),
             actions: [
               IconButton(
                 tooltip: l10n.pluginsRefresh,
                 onPressed: _controller.loading ? null : _controller.refresh,
                 icon: const Icon(Icons.refresh),
               ),
+              const SizedBox(width: 8),
             ],
           ),
-          body: Center(
+          body: Align(
+            alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+              constraints: const BoxConstraints(maxWidth: 1000),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(l10n.pluginsIntro),
+                  _intro(l10n),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _search,
+                    onChanged: (value) => setState(() => _query = value),
+                    decoration: InputDecoration(
+                      hintText: l10n.pluginsSearchHint,
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: l10n.clearSearch,
+                              onPressed: () {
+                                _search.clear();
+                                setState(() => _query = '');
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
-                  _repoSection(l10n),
-                  const SizedBox(height: 24),
-                  Text(
-                    l10n.pluginsInstalled,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilterChip(
+                        label: Text(
+                          l10n.pluginsAllCount(_controller.installed.length),
+                        ),
+                        selected: !_updatesOnly,
+                        onSelected: (_) => setState(() => _updatesOnly = false),
+                      ),
+                      FilterChip(
+                        label: Text(l10n.pluginsUpdatesCount(updates)),
+                        selected: _updatesOnly,
+                        onSelected: (value) =>
+                            setState(() => _updatesOnly = value),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  if (_controller.installed.isEmpty)
+                  const SizedBox(height: 12),
+                  if (installed.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(l10n.pluginsEmpty),
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        query.isEmpty && !_updatesOnly
+                            ? l10n.pluginsEmpty
+                            : l10n.pluginsNoMatch,
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      ),
                     )
                   else
-                    for (final entry in _controller.installed)
-                      _installedCard(entry, l10n),
+                    for (final entry in installed) _installedCard(entry, l10n),
+                  const SizedBox(height: 24),
+                  _repoSection(l10n),
                   if (_controller.available.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
@@ -100,55 +160,132 @@ class _PluginsScreenState extends State<PluginsScreen> {
     );
   }
 
+  /// 顶部介绍块，照参照应用 `RulePageIntro`：primaryContainer 底、32 圆角、
+  /// 24 内边距、headlineMedium 标题、右上角 32 图标。
+  Widget _intro(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.pluginsMyRules,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Icon(
+                Icons.extension_rounded,
+                size: 32,
+                color: colors.onPrimaryContainer,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.pluginsRulesDescription,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colors.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size(120, 48)),
+                onPressed: _controller.loading
+                    ? null
+                    : () => _controller.loadRepository(_repoField.text.trim()),
+                icon: const Icon(Icons.add_rounded),
+                label: Text(l10n.pluginsAddRule),
+              ),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(minimumSize: const Size(120, 48)),
+                onPressed: () => _scrollToRepo(),
+                icon: const Icon(Icons.travel_explore_rounded),
+                label: Text(l10n.pluginsRuleStore),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _scrollToRepo() {
+    // 仓库地址就在卡片列表下方，直接滚过去，不做额外的弹层。
+    Scrollable.ensureVisible(
+      _repoKey.currentContext ?? context,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  final _repoKey = GlobalKey();
+
   Widget _repoSection(AppLocalizations l10n) {
     final repoKey = 'repo:${_repoField.text.trim()}';
     final busy = _controller.busy(repoKey);
     final error = _controller.errorOf(repoKey);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.pluginsRepoSection),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _repoField,
-              decoration: InputDecoration(
-                labelText: l10n.pluginsRepoUrl,
-                border: const OutlineInputBorder(),
+    return TonalCard(
+      key: _repoKey,
+      padding: const EdgeInsets.all(Md3Spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.pluginsRepoSection),
+          const SizedBox(height: Md3Spacing.sm),
+          TextField(
+            controller: _repoField,
+            decoration: InputDecoration(
+              labelText: l10n.pluginsRepoUrl,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: Md3Spacing.sm),
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => _controller.loadRepository(_repoField.text.trim()),
+                icon: const Icon(Icons.cloud_download_outlined),
+                label: Text(l10n.pluginsLoadRepo),
+              ),
+              const SizedBox(width: Md3Spacing.md),
+              if (busy)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: Md3Spacing.sm),
+              child: Text(
+                error,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                FilledButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () =>
-                            _controller.loadRepository(_repoField.text.trim()),
-                  icon: const Icon(Icons.cloud_download_outlined),
-                  label: Text(l10n.pluginsLoadRepo),
-                ),
-                const SizedBox(width: 12),
-                if (busy)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  error,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -156,50 +293,67 @@ class _PluginsScreenState extends State<PluginsScreen> {
   Widget _installedCard(PluginEntry entry, AppLocalizations l10n) {
     final busy = _controller.busy(entry.id);
     final error = _controller.errorOf(entry.id);
-    return Card(
-      child: ListTile(
-        title: Text(entry.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.pluginsVersionLine(
-                entry.version,
-                entry.isCode
-                    ? l10n.pluginsKindCode
-                    : l10n.pluginsKindDeclarative,
-                entry.signed ? l10n.pluginsSigned : l10n.pluginsUnsigned,
-              ),
-            ),
-            if (error != null)
-              Text(
-                error,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-          ],
+    final colors = Theme.of(context).colorScheme;
+    final tagStyle = (colors.surfaceContainerHighest, colors.onSurfaceVariant);
+    return RuleCard(
+      title: entry.name,
+      installed: true,
+      subtitle: entry.isCode
+          ? l10n.pluginsKindCode
+          : l10n.pluginsKindDeclarative,
+      tags: [
+        RuleTag(
+          label: entry.version,
+          background: tagStyle.$1,
+          foreground: tagStyle.$2,
         ),
-        trailing: busy
-            ? const SizedBox(
-                width: 16,
-                height: 16,
+        RuleTag(
+          label: entry.signed ? l10n.pluginsSigned : l10n.pluginsUnsigned,
+          background: tagStyle.$1,
+          foreground: tagStyle.$2,
+        ),
+        RuleTag(
+          label: entry.enabled ? l10n.pluginStateOn : l10n.pluginStateOff,
+          background: entry.enabled
+              ? colors.secondaryContainer
+              : colors.surfaceContainerHighest,
+          foreground: entry.enabled
+              ? colors.onSecondaryContainer
+              : colors.onSurfaceVariant,
+        ),
+      ],
+      caption: error,
+      trailing: busy
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox.square(
+                dimension: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Switch(
-                    value: entry.enabled,
-                    onChanged: (value) =>
-                        _controller.setEnabled(entry.id, value),
-                  ),
-                  IconButton(
-                    tooltip: l10n.pluginsUninstall,
-                    onPressed: () => _confirmUninstall(entry, l10n),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
               ),
-      ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: entry.enabled,
+                  onChanged: (value) => _controller.setEnabled(entry.id, value),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: l10n.more,
+                  onSelected: (value) {
+                    if (value == 'uninstall') {
+                      _confirmUninstall(entry, l10n);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'uninstall',
+                      child: Text(l10n.pluginsUninstall),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -207,33 +361,48 @@ class _PluginsScreenState extends State<PluginsScreen> {
     final busy = _controller.busy(entry.id);
     final update = _controller.hasUpdate(entry);
     final installed = _controller.installed.any((item) => item.id == entry.id);
-    return Card(
-      child: ListTile(
-        title: Text(entry.name),
-        subtitle: Text(
-          l10n.pluginsVersionLine(
-            entry.version,
-            entry.isCode ? l10n.pluginsKindCode : l10n.pluginsKindDeclarative,
-            entry.signed ? l10n.pluginsSigned : l10n.pluginsUnsigned,
-          ),
+    final colors = Theme.of(context).colorScheme;
+    return RuleCard(
+      title: entry.name,
+      subtitle: entry.isCode
+          ? l10n.pluginsKindCode
+          : l10n.pluginsKindDeclarative,
+      tags: [
+        RuleTag(
+          label: entry.version,
+          background: colors.surfaceContainerHighest,
+          foreground: colors.onSurfaceVariant,
         ),
-        trailing: busy
-            ? const SizedBox(
-                width: 16,
-                height: 16,
+        RuleTag(
+          label: entry.signed ? l10n.pluginsSigned : l10n.pluginsUnsigned,
+          background: colors.surfaceContainerHighest,
+          foreground: colors.onSurfaceVariant,
+        ),
+        if (update)
+          RuleTag(
+            label: l10n.pluginsUpdate,
+            background: colors.secondaryContainer,
+            foreground: colors.onSecondaryContainer,
+          ),
+      ],
+      trailing: busy
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox.square(
+                dimension: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : TextButton(
-                onPressed: installed && !update ? null : () => _install(entry),
-                child: Text(
-                  update
-                      ? l10n.pluginsUpdate
-                      : installed
-                      ? l10n.pluginsInstalledAction
-                      : l10n.pluginsInstall,
-                ),
               ),
-      ),
+            )
+          : TextButton(
+              onPressed: installed && !update ? null : () => _install(entry),
+              child: Text(
+                update
+                    ? l10n.pluginsUpdate
+                    : installed
+                    ? l10n.pluginsInstalledAction
+                    : l10n.pluginsInstall,
+              ),
+            ),
     );
   }
 

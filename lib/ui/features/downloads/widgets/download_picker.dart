@@ -4,7 +4,6 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/domain/download_preferences.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/episode_browser.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 class DownloadSelection {
@@ -42,7 +41,6 @@ class _DownloadPickerState extends State<DownloadPicker> {
   @override
   void initState() {
     super.initState();
-    ensureTelevisionFocus(context);
   }
 
   void _select(Iterable<Episode> episodes) {
@@ -108,7 +106,9 @@ class _DownloadPickerState extends State<DownloadPicker> {
       top: false,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+          constraints: const BoxConstraints(
+            maxWidth: Md3Spacing.contentMaxWidth,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

@@ -15,7 +15,7 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/data/batch_downloads.dart';
 import 'package:hoshi/ui/features/player/views/playback_launch_screen.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/features/discover/controllers/catalog_controller.dart';
 import 'package:hoshi/ui/features/discover/views/discover_view.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
@@ -52,7 +52,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final CatalogController _catalog;
   late final LibraryUpdater _updater;
-  final _search = TextEditingController();
   final _scroll = ScrollController();
   final _selectedDramas = <String, Drama>{};
   bool _selectionMode = false;
@@ -65,11 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _cacheReadError;
   bool _catalogLoadScheduled = false;
 
-  final _filtersKey = GlobalKey<RemoteRowState>();
-  final _gridKey = GlobalKey<RemoteGridState>();
-  final _navKey = GlobalKey<RemoteListState>();
-  final _appBarFocus = FocusNode(debugLabel: 'tv-appbar');
-  final _selectionFocus = FocusNode(debugLabel: 'tv-selection');
+  final _appBarFocus = FocusNode(debugLabel: 'app-bar');
+  final _selectionFocus = FocusNode(debugLabel: 'selection');
 
   @override
   void initState() {
@@ -103,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(widget.repository.cancelSuggestions());
     _catalog.removeListener(_onCatalogChanged);
     _catalog.dispose();
-    _search.dispose();
     _scroll.removeListener(_onCatalogScroll);
     _scroll.dispose();
     _appBarFocus.dispose();
@@ -215,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted &&
             !_catalog.loading &&
             !_catalog.loadingMore &&
-            (!_catalog.onlineSearch || _search.text.trim().isEmpty)) {
+            (!_catalog.onlineSearch || _catalog.searchQuery.isEmpty)) {
           await _catalog.load(cacheOnly: true);
         }
       }
@@ -253,65 +248,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _changeCategory(String category) {
-    _search.clear();
     _catalog.changeCategory(category);
   }
 
+  /// 搜索与 Kazumi 一致：进独立搜索页，不在目录顶栏展开内联搜索框。
   void _toggleSearch() {
-    if (AppLayout.isTelevision(context)) {
-      unawaited(_televisionSearch());
-      return;
-    }
-    if (_catalog.showRecommendations) _catalog.changeCategory('');
-    _catalog.toggleSearch();
-    if (!_catalog.searchVisible) _search.clear();
-  }
-
-  void _searchChanged(String query) {
-    setState(() {
-      _selectionMode = false;
-      _selectedDramas.clear();
-    });
-    _catalog.searchChanged(query);
-  }
-
-  void _submitSearch(String query) {
-    setState(() {
-      _selectionMode = false;
-      _selectedDramas.clear();
-    });
-    _search.text = query.trim();
-    if (_search.text.isNotEmpty) {
-      unawaited(
-        saveUserChange(
-          context,
-          () => widget.store.rememberSearch(_search.text),
-        ),
-      );
-    }
-    _catalog.submitSearch(query);
-  }
-
-  Future<void> _televisionSearch() async {
-    final l10n = AppLocalizations.of(context);
-    final group = _catalog.group;
-    final query = await showDialog<String>(
-      context: context,
-      builder: (_) => TelevisionSearchDialog(
-        initialValue: _search.text,
-        title: group.id == 'all'
-            ? l10n.searchOpenSources
-            : _catalog.onlineSearch
-            ? l10n.searchGroup(group.name)
-            : l10n.filterLoadedDramas,
-        recentSearches: widget.store.recentSearches,
-        onCancel: () => unawaited(widget.repository.cancelSuggestions()),
-        suggestions: _catalog.searchSuggestions
-            ? widget.repository.suggestions
-            : null,
-      ),
-    );
-    if (query != null && mounted) _submitSearch(query);
+    _pauseCatalog();
+    context.push(AppRoutes.search);
   }
 
   void _changeTab(int tab) => setState(() {
@@ -370,9 +313,25 @@ class _HomeScreenState extends State<HomeScreen> {
     final ref = DramaRef.fromDramaId(drama.id);
     if (ref == null) return;
     if (download) {
-      context.go(
+      context.push(
         AppRoutes.withQuery(AppRoutes.detailOf(ref), {'download': true}),
         extra: drama,
+      );
+      return;
+    }
+    // 与 Kazumi 一致：点卡片先进详情页；在分支 Navigator 内 push，
+    // 让卡片的封面 Hero 能飞到详情页。
+    if (!resume) {
+      unawaited(
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DetailScreen(
+              drama: drama,
+              repository: widget.repository,
+              store: widget.store,
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -424,6 +383,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _moreMenu(String value) async {
     final l10n = AppLocalizations.of(context);
     switch (value) {
+      case 'rankings':
+        _openRankings();
+      case 'select':
+        _enterSelectionMode();
+      case 'vip':
+        _toggleVip();
       case 'update':
         await _refreshCatalog();
       case 'sources':
@@ -434,8 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'users':
         if (!mounted) return;
         await context.push(AppRoutes.profiles);
-      case 'display':
-        await _chooseDisplayMode();
       case 'about':
         if (!mounted) return;
         showAboutDialog(
@@ -452,43 +415,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _chooseDisplayMode() async {
-    final l10n = AppLocalizations.of(context);
-    final selection = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(l10n.displayMode),
-        children: [
-          RadioGroup<String>(
-            groupValue: widget.store.displayMode,
-            onChanged: (value) => Navigator.pop(context, value),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final mode in {
-                  'auto': l10n.autoDetectDevice,
-                  'television': l10n.displayTelevision,
-                  'standard': l10n.displayPhoneComputer,
-                }.entries)
-                  RadioListTile<String>(
-                    value: mode.key,
-                    autofocus: mode.key == widget.store.displayMode,
-                    title: Text(mode.value),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-    if (selection != null && mounted) {
-      await saveUserChange(
-        context,
-        () => widget.store.setDisplayMode(selection),
-      );
-    }
-  }
-
   void _toggleVip() => unawaited(
     saveUserChange(
       context,
@@ -496,20 +422,12 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 
-  void _clearRecentSearches() =>
-      unawaited(saveUserChange(context, widget.store.clearRecentSearches));
-
-  bool get _updatesBusy =>
-      _catalog.group.sources.any((source) => _updater.busy(source.id));
-
   @override
   Widget build(BuildContext context) {
     final catalog = _catalog;
-    final television = AppLayout.isTelevision(context);
     final view = DiscoverView(
       controller: catalog,
       store: widget.store,
-      searchController: _search,
       scrollController: _scroll,
       tabIndex: _tab,
       selectionMode: _selectionMode,
@@ -517,9 +435,6 @@ class _HomeScreenState extends State<HomeScreen> {
       maxSelection: BatchDownloads.maxDramas,
       appBarFocus: _appBarFocus,
       selectionFocus: _selectionFocus,
-      filtersKey: _filtersKey,
-      gridKey: _gridKey,
-      navKey: _navKey,
       onChangeTab: _changeTab,
       onCancelSelection: _cancelSelection,
       onClearSelection: _clearSelection,
@@ -529,8 +444,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onSelectDrama: _selectDrama,
       onConfirmSelection: _confirmSelection,
       onToggleSearch: _toggleSearch,
-      onSearchChanged: _searchChanged,
-      onSubmitSearch: _submitSearch,
       onChangeGroup: _changeGroup,
       onChangeCategory: _changeCategory,
       onSwipeCategory: catalog.swipeCategory,
@@ -540,21 +453,16 @@ class _HomeScreenState extends State<HomeScreen> {
       onManageSources: () => unawaited(_manageSources()),
       onOpenRankings: _openRankings,
       onChooseCatalogView: () => unawaited(_chooseCatalogView()),
-      onClearRecentSearches: _clearRecentSearches,
       onToggleVip: _toggleVip,
       onMoreMenu: (value) => unawaited(_moreMenu(value)),
-      onCancelSuggestions: () =>
-          unawaited(widget.repository.cancelSuggestions()),
-      updatesBusy: _updatesBusy,
       cacheReadError: _cacheReadError,
       shell: widget.shell,
     );
-    if (!television && !_selectionMode) return view;
+    if (!_selectionMode) return view;
     return PopScope(
-      canPop:
-          !_selectionMode && (!television || _tab == 0 && _search.text.isEmpty),
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _televisionBack();
+        if (!didPop) _cancelSelection();
       },
       child: CallbackShortcuts(
         bindings: {
@@ -564,16 +472,5 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Focus(autofocus: true, child: view),
       ),
     );
-  }
-
-  void _televisionBack() {
-    if (_selectionMode) {
-      _cancelSelection();
-    } else if (_tab != 0) {
-      setState(() => _localTab = 0);
-    } else if (_search.text.isNotEmpty) {
-      _search.clear();
-      _searchChanged('');
-    }
   }
 }

@@ -16,7 +16,9 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   const AppScrollBehavior();
 
   static bool get _desktop => switch (defaultTargetPlatform) {
-    TargetPlatform.macOS || TargetPlatform.windows || TargetPlatform.linux => true,
+    TargetPlatform.macOS ||
+    TargetPlatform.windows ||
+    TargetPlatform.linux => true,
     _ => false,
   };
 
@@ -36,8 +38,9 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   }
 
   @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      _desktop ? const ClampingScrollPhysics() : super.getScrollPhysics(context);
+  ScrollPhysics getScrollPhysics(BuildContext context) => _desktop
+      ? const ClampingScrollPhysics()
+      : super.getScrollPhysics(context);
 
   @override
   Set<PointerDeviceKind> get dragDevices => {

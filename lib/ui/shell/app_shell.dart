@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:hoshi/data/local_store.dart';
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/ui/shell/app_sidebar.dart';
 import 'package:hoshi/ui/shell/window_chrome.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
@@ -36,15 +35,11 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final television = AppLayout.isTelevision(context);
     final destinations = shellDestinations(
       context,
       canDownload: store.canDownload,
     );
     final index = shell.currentIndex.clamp(0, destinations.length - 1);
-
-    // 电视模式保持旧行为：导航在页面内部，外壳不介入。
-    if (television) return _chrome(context, child: shell);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -52,7 +47,7 @@ class AppShell extends StatelessWidget {
         if (portrait) {
           return _chrome(
             context,
-            child: shell,
+            child: ContentShelf(rounded: false, child: shell),
             bottomBar: AppBottomBar(
               destinations: destinations,
               selectedIndex: index,
@@ -63,25 +58,24 @@ class AppShell extends StatelessWidget {
 
         // 横屏：rail + 圆角内容书架。
         //
-        // 外壳底色用 `surfaceContainer`（与 rail 同色），内容区用
-        // `primaryContainer` 并裁左侧两角，于是左上 / 左下各露出一条
-        // 窄边——这就是 Kazumi 那种「内容浮在导航上」的层次。
+        // 层次是「染色内容 + 素净导航」（参照应用 2.4.2 的 ScaffoldMenu）：
+        // 左 rail 用 `surfaceContainer`，右侧书架混 15% `primaryContainer`
+        // 并裁左侧两角，于是左上 / 左下各露出一条窄边。
+        //
+        // 15% 是折中值：参照应用把内容整片染满，这里压到 15%，避免整片
+        // 染色让封面颜色失真。
         return _chrome(
           context,
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surfaceContainer,
-            child: Row(
-              children: [
-                AppRail(
-                  destinations: destinations,
-                  selectedIndex: index,
-                  onSelected: (next) => _goBranch(shell, next),
-                  onSearch: onOpenSearch,
-                  onSettings: () => context.go('/settings'),
-                ),
-                Expanded(child: ContentShelf(child: shell)),
-              ],
-            ),
+          child: Row(
+            children: [
+              AppRail(
+                destinations: destinations,
+                selectedIndex: index,
+                onSelected: (next) => _goBranch(shell, next),
+                onSearch: onOpenSearch,
+              ),
+              Expanded(child: ContentShelf(child: shell)),
+            ],
           ),
         );
       },
@@ -98,7 +92,7 @@ class AppShell extends StatelessWidget {
 
   /// 桌面窗口 chrome：标题栏拖拽区 + 自绘按钮。
   ///
-  /// 移动端与 TV 直接返回 [child]，不引入任何额外层级。
+  /// 移动端直接返回 [child]，不引入任何额外层级。
   Widget _chrome(
     BuildContext context, {
     required Widget child,
@@ -106,7 +100,12 @@ class AppShell extends StatelessWidget {
   }) {
     final body = bottomBar == null
         ? child
-        : Column(children: [Expanded(child: child), bottomBar]);
+        : Column(
+            children: [
+              Expanded(child: child),
+              bottomBar,
+            ],
+          );
     if (!WindowChrome.enabled) return body;
     if (WindowChrome.drawsWindowButtons) {
       return Column(

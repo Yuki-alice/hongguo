@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/window_manager.dart';
@@ -15,8 +14,6 @@ import 'package:hoshi/ui/core/app_theme.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/ui/features/player/danmaku/danmaku_controller.dart';
 import 'package:hoshi/ui/features/player/danmaku/danmaku_overlay.dart';
-import 'package:hoshi/ui/features/downloads/widgets/download_picker.dart';
-import 'package:hoshi/domain/follow_state.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
@@ -30,9 +27,8 @@ import 'package:hoshi/ui/features/player/controllers/playback_session_controller
 import 'package:hoshi/ui/features/player/widgets/player_controls.dart';
 import 'package:hoshi/ui/features/player/widgets/player_interactions.dart';
 import 'package:hoshi/ui/features/player/widgets/player_menu.dart';
-import 'package:hoshi/ui/features/player/widgets/television_controls.dart';
-import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/core/widgets.dart';
+import 'package:hoshi/ui/theme/md3_tokens.dart';
 import 'package:hoshi/ui/features/sources/views/sources_screen.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
 import 'package:hoshi/data/video_enhancement/video_output_size.dart';
@@ -75,6 +71,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   late final VideoEnhancementController _enhancement;
   late final PlaybackLoader _loader;
   late final PlaybackPreloader _preloader;
+  late final PlaybackPreloader _preloadPrev;
   late final DanmakuController _danmaku;
   int _seekSequence = 0;
   late final PlayerInteractions _interactions;
@@ -94,9 +91,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   Future<void> _operations = Future<void>.value();
   late final int _profileEpoch;
   bool _fullscreen = false;
-  bool _automaticFullscreenSuppressed = false;
   bool _panelOpen = false;
-  int _mobileTab = 0;
   bool? _systemFullscreen;
   Orientation? _lastOrientation;
   bool _closed = false;
@@ -111,19 +106,16 @@ class _PlayerScreenState extends State<PlayerScreen>
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
   double _aspectRatio = 9 / 16;
   bool _rotating = false;
-  bool _television = false;
   bool _bootstrapped = false;
   AppOrientationController? _orientationController;
   bool get _pictureInPictureVisible =>
       _pictureInPictureActive || _pictureInPictureRequested;
   bool get _canUsePictureInPicture =>
-      !_television &&
       defaultTargetPlatform == TargetPlatform.android &&
       _pictureInPictureSupported;
   bool get _mobile =>
-      !_television &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
   VideoEnhancementController? get _enhancementForUi =>
       _enhancement.supported ? _enhancement : null;
   PlaybackPreferences get _preferences => PlaybackPreferences(
@@ -167,6 +159,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     )..addListener(_progressChanged);
     _loader = PlaybackLoader(widget.repository);
     _preloader = PlaybackPreloader(widget.repository);
+    _preloadPrev = PlaybackPreloader(widget.repository);
     _danmaku = DanmakuController(widget.repository)
       ..setEnabled(_prefs.danmakuEnabled);
     widget.store.addListener(_accessChanged);
@@ -321,7 +314,26 @@ class _PlayerScreenState extends State<PlayerScreen>
       );
     } else {
       _play(_playback.index, position: widget.initialPosition);
+      _lockPortrait();
     }
+  }
+
+  /// 播放页默认锁竖屏：横屏影院只能由全屏按钮进入（Q12）。
+  void _lockPortrait() {
+    if (!_mobile) return;
+    unawaited(
+      (_orientationController?.setPlayback(
+                this,
+                fullscreen: false,
+                aspectRatio: _aspectRatio,
+                portraitLock: true,
+              ) ??
+              SystemChrome.setPreferredOrientations(const [
+                DeviceOrientation.portraitUp,
+                DeviceOrientation.portraitDown,
+              ]))
+          .catchError((Object _) {}),
+    );
   }
 
   void _progressChanged() {
@@ -340,6 +352,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (!_closed &&
         (widget.store.profileEpoch != _profileEpoch || widget.store.locked)) {
       _preloader.clear();
+      _preloadPrev.clear();
       _enhancement.suspend();
       _playIntent = false;
       unawaited(_player.pause());
@@ -533,22 +546,25 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   void _syncPreload() {
     if (_closed) return;
-    if (!_prefs.preloadEnabled ||
-        !_foreground ||
-        widget.localOnly ||
-        _playback.plan?.local == true ||
-        _playback.loading ||
-        _playback.error != null ||
-        _progress.openedIndex != _playback.index ||
-        widget.store.profileEpoch != _profileEpoch ||
-        widget.store.locked ||
-        _playback.index + 1 >= widget.detail.episodes.length) {
+    final ready =
+        _prefs.preloadEnabled &&
+        _foreground &&
+        !widget.localOnly &&
+        _playback.plan?.local != true &&
+        !_playback.loading &&
+        _playback.error == null &&
+        _progress.openedIndex == _playback.index &&
+        widget.store.profileEpoch == _profileEpoch &&
+        !widget.store.locked;
+    if (!ready) {
       _preloader.clear();
+      _preloadPrev.clear();
       return;
     }
     final state = _player.state;
     if (!state.playing || state.buffering || !_playIntent) {
       _preloader.pause();
+      _preloadPrev.pause();
       return;
     }
     final duration = state.duration.inMilliseconds;
@@ -559,11 +575,26 @@ class _PlayerScreenState extends State<PlayerScreen>
         state.buffer.inMilliseconds - position < 5000) {
       return;
     }
-    _preloader.prepare(
-      widget.detail.drama,
-      widget.detail.episodes[_playback.index + 1],
-      quality: _playback.requestedQuality,
-    );
+    // 竖屏滑动两个方向都能换集，因此前后相邻集各留一个预加载槽；
+    // 首尾没有相邻集时清掉对应槽位，避免旧结果被误用。
+    if (_playback.index + 1 < widget.detail.episodes.length) {
+      _preloader.prepare(
+        widget.detail.drama,
+        widget.detail.episodes[_playback.index + 1],
+        quality: _playback.requestedQuality,
+      );
+    } else {
+      _preloader.clear();
+    }
+    if (_playback.index > 0) {
+      _preloadPrev.prepare(
+        widget.detail.drama,
+        widget.detail.episodes[_playback.index - 1],
+        quality: _playback.requestedQuality,
+      );
+    } else {
+      _preloadPrev.clear();
+    }
   }
 
   void _syncDanmaku({bool discontinuity = false}) {
@@ -590,17 +621,9 @@ class _PlayerScreenState extends State<PlayerScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final television = AppLayout.isTelevision(context);
-    if (_television != television) {
-      _fullscreen = false;
-      _automaticFullscreenSuppressed = false;
-      _interactions.cancel();
-    }
-    _television = television;
     _orientationController = AppOrientationScope.maybeOf(context);
     final orientation = MediaQuery.orientationOf(context);
     if (_lastOrientation != null && _lastOrientation != orientation) {
-      _automaticFullscreenSuppressed = false;
       _interactions.cancel();
     }
     _lastOrientation = orientation;
@@ -613,7 +636,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   void _scheduleSystemUi() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _closed || (!_mobile && !_television)) return;
+      if (!mounted || _closed || !_mobile) return;
       final fullscreen = _showFullscreen;
       if (_systemFullscreen == fullscreen) return;
       _systemFullscreen = fullscreen;
@@ -762,13 +785,20 @@ class _PlayerScreenState extends State<PlayerScreen>
     final warmed =
         (recoveryAction == null && _prefs.preloadEnabled && !widget.localOnly
         ? _preloader.take(
-            widget.detail.drama,
-            widget.detail.episodes[index],
-            quality: _playback.requestedQuality,
-            online: _playback.forceOnline,
-          )
+                widget.detail.drama,
+                widget.detail.episodes[index],
+                quality: _playback.requestedQuality,
+                online: _playback.forceOnline,
+              ) ??
+              _preloadPrev.take(
+                widget.detail.drama,
+                widget.detail.episodes[index],
+                quality: _playback.requestedQuality,
+                online: _playback.forceOnline,
+              )
         : null);
     _preloader.clear();
+    _preloadPrev.clear();
     _enhancement.suspend();
     _seekSequence++;
     _danmaku.setPlan(null);
@@ -924,27 +954,17 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
   }
 
-  bool get _showFullscreen =>
-      _television ||
-      _fullscreen ||
-      (_mobile &&
-          !_automaticFullscreenSuppressed &&
-          _aspectRatio >= 1 &&
-          MediaQuery.orientationOf(context) == Orientation.landscape);
+  bool get _showFullscreen => _fullscreen;
 
   Future<void> _rotate() async {
-    if (_rotating || _television) {
+    if (_rotating) {
       return;
     }
     final fullscreen = !_showFullscreen;
     final previous = _fullscreen;
-    final previousSuppressed = _automaticFullscreenSuppressed;
     _interactions.cancel();
     _rotating = true;
-    setState(() {
-      _fullscreen = fullscreen;
-      _automaticFullscreenSuppressed = !fullscreen;
-    });
+    setState(() => _fullscreen = fullscreen);
     try {
       if (Platform.isWindows) {
         await windowManager.setFullScreen(fullscreen);
@@ -956,7 +976,6 @@ class _PlayerScreenState extends State<PlayerScreen>
             ) ??
             SystemChrome.setPreferredOrientations(
               AppOrientationController.orientations(
-                television: _television,
                 fullscreen: fullscreen,
                 aspectRatio: _aspectRatio,
               ),
@@ -964,10 +983,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       }
     } catch (_) {
       if (mounted && !_closed) {
-        setState(() {
-          _fullscreen = previous;
-          _automaticFullscreenSuppressed = previousSuppressed;
-        });
+        setState(() => _fullscreen = previous);
         _notice(l10n.playerFullscreenFailed);
       }
     } finally {
@@ -988,10 +1004,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       throw StateError(l10n.playerUserChanged);
     }
     _interactions.cancel();
-    final nextPreferences = preferences.copyWith(
-      autoAdvance: true,
-      preload: true,
-    );
+    final nextPreferences = preferences.copyWith(preload: true);
     if (!await _prefs.save(nextPreferences)) return;
     if (!mounted || _closed || widget.store.profileEpoch != _profileEpoch)
       return;
@@ -1001,21 +1014,15 @@ class _PlayerScreenState extends State<PlayerScreen>
     _playback.setRequestedQuality(nextPreferences.quality);
     _danmaku.setEnabled(_prefs.danmakuEnabled);
     _syncDanmaku();
-    if (qualityChanged) _preloader.clear();
+    if (qualityChanged) {
+      _preloader.clear();
+      _preloadPrev.clear();
+    }
     _syncPreload();
     _menuRevision.value++;
     await _interactions.applySpeed();
     if (qualityChanged && _playback.plan?.local != true) {
       await _retry(quality: nextPreferences.quality);
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
-    try {
-      await widget.store.toggleFavorite(widget.detail.drama);
-      if (mounted && !_closed) setState(() {});
-    } catch (_) {
-      _notice(l10n.playerFollowSaveFailed);
     }
   }
 
@@ -1037,32 +1044,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     } catch (_) {
       _notice(l10n.playerDanmakuRetryFailed);
     }
-  }
-
-  Future<void> _submitDownloadSelection(DownloadSelection selection) async {
-    if (!widget.repository.supportsDownloads ||
-        !widget.store.canDownload ||
-        widget.store.profileEpoch != _profileEpoch ||
-        widget.mediaId != null) {
-      return;
-    }
-    final added = await widget.repository.enqueueDownloads(
-      widget.detail,
-      selection.episodes,
-      quality: selection.quality,
-    );
-    if (!mounted || _closed) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          added == 0 ? l10n.detailAlreadyQueued : l10n.detailAdded(added),
-        ),
-        action: SnackBarAction(
-          label: l10n.detailView,
-          onPressed: () => context.push(AppRoutes.downloads),
-        ),
-      ),
-    );
   }
 
   Future<void> _openPanel(PlayerMenuSection section) async {
@@ -1141,95 +1122,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
   }
 
-  void _seek(int seconds) {
-    final desired = _player.state.position + Duration(seconds: seconds);
-    final maxDuration = _player.state.duration;
-    final target = desired < Duration.zero
-        ? Duration.zero
-        : maxDuration > Duration.zero && desired > maxDuration
-        ? maxDuration
-        : desired;
-    unawaited(_seekTo(target));
-  }
-
-  Future<void> _televisionEpisodes(BuildContext context) async {
-    if (_panelOpen || _closed) return;
-    setState(() => _panelOpen = true);
-    int? index;
-    try {
-      index = await showDialog<int>(
-        context: context,
-        builder: (_) => Theme(
-          data: televisionTheme(AppTheme.dark),
-          child: TelevisionEpisodeDialog(
-            episodes: widget.detail.episodes,
-            currentIndex: _playback.index,
-          ),
-        ),
-      );
-    } finally {
-      if (mounted && !_closed) setState(() => _panelOpen = false);
-    }
-    if (index != null && mounted && !_closed && index != _playback.index) {
-      await _play(index);
-    }
-  }
-
-  Future<void> _televisionSettings(BuildContext context) async {
-    if (_panelOpen || _closed) return;
-    setState(() => _panelOpen = true);
-    TelevisionPlaybackSetting? selection;
-    try {
-      selection = await showDialog<TelevisionPlaybackSetting>(
-        context: context,
-        builder: (menuContext) => AnimatedBuilder(
-          animation: Listenable.merge([_danmaku, _preloader]),
-          builder: (_, _) => Theme(
-            data: televisionTheme(AppTheme.dark),
-            child: TelevisionSettingsDialog(
-              speed: _prefs.speed,
-              quality: _playback.requestedQuality,
-              qualities: _playback.plan?.qualities ?? [],
-              favorite: widget.store.isFavorite(widget.detail.drama.id),
-              onFavorite: _toggleFavorite,
-              autoAdvance: _prefs.autoAdvance,
-              danmaku: _prefs.danmakuEnabled,
-              showDanmaku: widget.detail.drama.source == 'hongguo',
-              danmakuStatus: _danmaku.status,
-              onRetryDanmaku: _danmaku.canRetry ? _danmaku.retry : null,
-              preload: _prefs.preloadEnabled,
-              preloadStatus: _preloader.status,
-              enhancement: _enhancementForUi,
-              onCompareEnhancement: () {
-                unawaited(_enhancement.toggleCompare());
-                Navigator.pop(menuContext);
-              },
-            ),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted && !_closed) setState(() => _panelOpen = false);
-    }
-    if (selection == null || !mounted || _closed) return;
-    try {
-      await _setPreferences(
-        _preferences.copyWith(
-          speed: selection.speed,
-          quality: selection.quality,
-          autoAdvance: true,
-          danmaku: selection.danmaku,
-          preload: true,
-          enhancement: selection.enhancement,
-        ),
-      );
-    } catch (_) {
-      _notice(l10n.playerPrefFailed);
-    }
-  }
-
   void _back() {
-    if (_showFullscreen && !_television) {
+    if (_showFullscreen) {
       _rotate();
     } else {
       Navigator.of(context).maybePop();
@@ -1246,6 +1140,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     widget.store.removeListener(_accessChanged);
     _danmaku.dispose();
     _preloader.dispose();
+    _preloadPrev.dispose();
     _playback.invalidate();
     WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
@@ -1276,13 +1171,11 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
     if (Platform.isWindows) {
       unawaited(windowManager.setFullScreen(false));
-    } else if (_mobile || _television && Platform.isAndroid) {
+    } else if (_mobile) {
       unawaited(
         (_orientationController?.releasePlayback(this) ??
                 SystemChrome.setPreferredOrientations(
-                  AppOrientationController.orientations(
-                    television: _television,
-                  ),
+                  AppOrientationController.orientations(),
                 ))
             .catchError((Object _) {}),
       );
@@ -1291,18 +1184,11 @@ class _PlayerScreenState extends State<PlayerScreen>
     super.dispose();
   }
 
-  String _followStatusLabel(FollowStatus status) => switch (status) {
-    FollowStatus.planned => l10n.followPlanned,
-    FollowStatus.watching => l10n.followWatching,
-    FollowStatus.watched => l10n.followWatched,
-  };
-
   @override
   Widget build(BuildContext context) {
     final inherited = Theme.of(context);
-    final theme = _television ? televisionTheme(inherited) : inherited;
     return Theme(
-      data: theme,
+      data: inherited,
       child: Builder(
         builder: (context) {
           final fullscreen = _showFullscreen;
@@ -1320,13 +1206,12 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   Widget _buildPlayer(BuildContext context) {
     final theme = Theme.of(context);
-    final title = widget.detail.drama.title;
     final fullscreen = _showFullscreen;
     final pictureInPicture = _pictureInPictureVisible;
     return PopScope(
-      canPop: _television || !fullscreen,
+      canPop: !fullscreen,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && fullscreen && !_television) {
+        if (!didPop && fullscreen) {
           _rotate();
         }
       },
@@ -1338,41 +1223,24 @@ class _PlayerScreenState extends State<PlayerScreen>
         child: Focus(
           focusNode: _playerFocus,
           onKeyEvent: (_, event) {
-            if (_television ||
-                _panelOpen ||
+            if (_panelOpen ||
                 !_playerFocus.hasPrimaryFocus ||
                 !(ModalRoute.of(context)?.isCurrent ?? true)) {
               return KeyEventResult.ignored;
             }
             return _interactions.key(event);
           },
-          autofocus: !_television,
-          canRequestFocus: !_television,
-          skipTraversal: _television,
+          autofocus: true,
           child: Scaffold(
             backgroundColor: fullscreen || pictureInPicture
                 ? Colors.black
                 : theme.scaffoldBackgroundColor,
-            appBar: pictureInPicture || fullscreen || _mobile
-                ? null
-                : AppBar(
-                    title: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    actions: [
-                      IconButton(
-                        tooltip: l10n.rotateFullscreen,
-                        onPressed: _rotate,
-                        icon: const Icon(Icons.screen_rotation_alt_rounded),
-                      ),
-                    ],
-                  ),
+            // 与参照应用一致：播放页没有独立 AppBar，标题与返回都在
+            // 视频覆盖层的顶栏里。
             body: pictureInPicture
                 ? _videoPane(context)
                 : SafeArea(
-                    top: !_television && (fullscreen || _mobile),
+                    top: fullscreen || _mobile,
                     bottom: !fullscreen,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -1380,38 +1248,18 @@ class _PlayerScreenState extends State<PlayerScreen>
                         if (fullscreen) {
                           return _videoPane(context);
                         }
+                        // 竖屏沉浸流：单集铺满整屏，选集 / 倍速 / 弹幕都叠在
+                        // 画面上，不再在下方留一条分类面板（Q6 / V6-1）。
+                        if (_mobile &&
+                            constraints.maxWidth <= constraints.maxHeight) {
+                          return _videoPane(context);
+                        }
                         if (desktop ||
                             constraints.maxWidth >
                                 constraints.maxHeight * 1.3) {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Expanded(child: _videoPane(context)),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(
-                                width: desktop ? 312 : 210,
-                                child: _episodePanel(),
-                              ),
-                            ],
-                          );
-                        }
-                        if (_mobile) {
-                          final height = (constraints.maxWidth / _aspectRatio)
-                              .clamp(0.0, constraints.maxHeight * .56);
-                          return Column(
-                            children: [
-                              SizedBox(
-                                height: height,
-                                width: double.infinity,
-                                child: _videoPane(context),
-                              ),
-                              Expanded(child: _mobilePlaybackPanel()),
-                            ],
-                          );
+                          // 参照应用：横屏 / 桌面播放页是整块视频 + 覆盖式控件，
+                          // 选集走「选集」面板，不在右侧常驻一条剧集栏。
+                          return _videoPane(context);
                         }
                         final height = (constraints.maxWidth / _aspectRatio)
                             .clamp(0.0, constraints.maxHeight * .64);
@@ -1435,9 +1283,11 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Widget _videoPane(BuildContext context) {
-    final videoTheme = _television
-        ? televisionTheme(AppTheme.dark)
-        : AppTheme.dark;
+    final videoTheme = AppTheme.dark;
+    // 竖屏沉浸流：上下滑换集只在竖屏生效；横屏影院用面板里的上一集 /
+    // 下一集按钮，避免与全屏手势冲突。
+    final portraitSwipe =
+        _mobile && MediaQuery.orientationOf(context) == Orientation.portrait;
     final title =
         '${widget.detail.drama.title}'
         '${l10n.playerEpisodePrefix}'
@@ -1449,25 +1299,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     final hideOverlayForPictureInPicture = _pictureInPictureVisible;
     final Widget controls = hideOverlayForPictureInPicture
         ? const SizedBox.shrink()
-        : _television
-        ? TelevisionControls(
-            player: _player,
-            title: title,
-            enabled: !_playback.loading && _playback.error == null,
-            showOnPlaybackReady: _playback.showControlsOnPlaybackReady,
-            enhancement: _enhancementForUi,
-            onTogglePlayback: _togglePlayback,
-            onSeek: _seek,
-            onPrevious: _playback.index > 0
-                ? () => _play(_playback.index - 1)
-                : null,
-            onNext: _playback.index + 1 < widget.detail.episodes.length
-                ? () => _play(_playback.index + 1)
-                : null,
-            onEpisodes: () => _televisionEpisodes(context),
-            onSettings: () => _televisionSettings(context),
-            onBack: _back,
-          )
         : PlayerControls(
             player: _player,
             interactions: _interactions,
@@ -1478,7 +1309,7 @@ class _PlayerScreenState extends State<PlayerScreen>
             showOnPlaybackReady: _playback.showControlsOnPlaybackReady,
             title: title,
             onTogglePlayback: _togglePlayback,
-            swipeEnabled: _mobile,
+            swipeEnabled: portraitSwipe,
             onFullscreen: _rotate,
             onBack: _back,
             onFocusSurface: _playerFocus.requestFocus,
@@ -1500,6 +1331,14 @@ class _PlayerScreenState extends State<PlayerScreen>
             onPictureInPicture: _canUsePictureInPicture
                 ? _enterPictureInPicture
                 : null,
+            favorite: widget.store.isFavorite(widget.detail.drama.id),
+            onFavorite: () async {
+              await saveUserChange(
+                context,
+                () => widget.store.toggleFavorite(widget.detail.drama),
+              );
+              if (mounted && !_closed) setState(() {});
+            },
             onPrevious: _playback.index > 0
                 ? () => _play(_playback.index - 1)
                 : null,
@@ -1526,7 +1365,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && !_closed) {
-              _enhancement.setViewport(pixels, television: _television);
+              _enhancement.setViewport(pixels);
             }
           });
           return Stack(
@@ -1538,26 +1377,36 @@ class _PlayerScreenState extends State<PlayerScreen>
               else
                 Video(
                   controller: _video!,
-                  fit: BoxFit.contain,
+                  // 竖屏沉浸流铺满屏幕；横屏影院保留完整画面（contain）。
+                  fit: portraitSwipe ? BoxFit.cover : BoxFit.contain,
                   controls: (_) => layeredControls,
                 ),
               if (_playback.loading && !hideOverlayForPictureInPicture)
-                ColoredBox(
-                  color: Colors.black.withValues(alpha: .78),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(_playback.loadingMessage),
-                      ],
-                    ),
+                const IgnorePointer(
+                  child: ColoredBox(color: Color(0xC7000000)),
+                ),
+              if (_playback.loading && !hideOverlayForPictureInPicture)
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _playback.loadingMessage,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
                   ),
                 ),
+              // 遮罩本身不吃点击：否则错误态会把顶栏的返回键与退出全屏一起
+              // 盖住，用户只能停在错误页。只有中间的 StatusPanel 可点。
               if (_playback.error != null && !hideOverlayForPictureInPicture)
-                ColoredBox(
-                  color: Colors.black.withValues(alpha: .9),
+                const IgnorePointer(
+                  child: ColoredBox(color: Color(0xE6000000)),
+                ),
+              if (_playback.error != null && !hideOverlayForPictureInPicture)
+                Center(
                   child: StatusPanel(
                     title: l10n.playerCannotPlay,
                     message: _playback.error!,
@@ -1586,8 +1435,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 ),
               if ((_playback.loading || _playback.error != null) &&
                   !hideOverlayForPictureInPicture &&
-                  _showFullscreen &&
-                  !_television)
+                  _showFullscreen)
                 SafeArea(
                   child: Align(
                     alignment: Alignment.topCenter,
@@ -1616,8 +1464,8 @@ class _PlayerScreenState extends State<PlayerScreen>
                   child: SafeArea(
                     bottom: false,
                     child: Material(
-                      color: const Color(0xE6322424),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Md3Surface.videoBanner,
+                      borderRadius: BorderRadius.circular(Md3Shape.small),
                       child: Padding(
                         padding: const EdgeInsets.all(8),
                         child: Wrap(
@@ -1641,248 +1489,6 @@ class _PlayerScreenState extends State<PlayerScreen>
           );
         },
       ),
-    );
-  }
-
-  Widget _mobilePlaybackPanel() {
-    final colors = Theme.of(context).colorScheme;
-    return ColoredBox(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            _mobileTabs(colors),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _mobileTab == 0
-                      ? _episodePanel(compact: true)
-                      : _mobileTab == 1
-                      ? _mobileSynopsis()
-                      : _mobileDownload(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _mobileTabs(ColorScheme colors) => Padding(
-    padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-    child: SizedBox(
-      height: 42,
-      child: Row(
-        children: [
-          _mobileTabButton(0, l10n.episodes),
-          _mobileTabButton(1, l10n.playerSynopsis),
-          _mobileTabButton(2, l10n.playerDownload),
-        ],
-      ),
-    ),
-  );
-
-  Widget _mobileTabButton(int value, String label) {
-    final selected = _mobileTab == value;
-    final colors = Theme.of(context).colorScheme;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _mobileTab = value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: selected ? colors.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? colors.onSurface : colors.onSurfaceVariant,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _mobileSynopsis() {
-    final drama = widget.detail.drama;
-    final colors = Theme.of(context).colorScheme;
-    final meta = [
-      SourceSite.byId(drama.source).name,
-      if (drama.episodes > 0) l10n.detailTotalEpisodes(drama.episodes),
-      if (drama.releaseStatus.isNotEmpty && drama.releaseStatus != 'unknown')
-        drama.releaseLabel,
-      if (drama.category.isNotEmpty) drama.category,
-    ];
-    final body = drama.description.trim().isEmpty
-        ? l10n.playerNoSynopsis
-        : drama.description;
-    return ColoredBox(
-      color: colors.surface,
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 82,
-                height: 123,
-                child: DramaCover(drama: drama, repository: widget.repository),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      drama.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (meta.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        meta.join(' · '),
-                        style: TextStyle(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                    if (drama.onlineDate.isNotEmpty ||
-                        drama.heat.isNotEmpty ||
-                        drama.views.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        [
-                          if (drama.onlineDate.isNotEmpty)
-                            l10n.detailOnlineDate(drama.onlineDate),
-                          if (drama.heat.isNotEmpty)
-                            l10n.detailHeat(drama.heat),
-                          if (drama.views.isNotEmpty)
-                            l10n.detailPlayViews(drama.views),
-                        ].join(' · '),
-                        style: TextStyle(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _mobileFollowControl(drama),
-          if (drama.tags.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final tag in drama.tags.take(12))
-                  Chip(label: Text(tag), visualDensity: VisualDensity.compact),
-              ],
-            ),
-          ],
-          const SizedBox(height: 12),
-          Text(body, style: const TextStyle(height: 1.55)),
-          if (widget.detail.warning.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(widget.detail.warning, style: TextStyle(color: colors.error)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _mobileFollowControl(Drama drama) {
-    final state = widget.store.following(drama.id);
-    return PopupMenuButton<String>(
-      key: const ValueKey('player-follow-status'),
-      tooltip: l10n.detailFollowStatus,
-      onSelected: (value) async {
-        if (_profileEpoch != widget.store.profileEpoch) return;
-        if (value == 'remove') {
-          await saveUserChange(
-            context,
-            () => widget.store.toggleFavorite(drama),
-          );
-        } else {
-          final status = FollowStatus.values.firstWhere(
-            (status) => status.name == value,
-          );
-          await saveUserChange(
-            context,
-            () => widget.store.setFollowStatus(drama, status),
-          );
-        }
-        if (mounted && !_closed) setState(() {});
-      },
-      itemBuilder: (_) => [
-        for (final status in FollowStatus.values)
-          CheckedPopupMenuItem(
-            value: status.name,
-            checked: state?.status == status,
-            child: Text(_followStatusLabel(status)),
-          ),
-        if (state != null)
-          PopupMenuItem(value: 'remove', child: Text(l10n.detailUnfollow)),
-      ],
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 36),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: state == null
-              ? Theme.of(context).colorScheme.surfaceContainerHighest
-              : Theme.of(context).colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              state == null
-                  ? Icons.bookmark_add_outlined
-                  : Icons.bookmark_rounded,
-              size: 18,
-            ),
-            const SizedBox(width: 6),
-            Text(state?.label ?? l10n.detailFollow),
-            const SizedBox(width: 2),
-            const Icon(Icons.expand_more_rounded, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _mobileDownload() {
-    final colors = Theme.of(context).colorScheme;
-    if (!widget.repository.supportsDownloads || !widget.store.canDownload) {
-      return ColoredBox(
-        color: colors.surface,
-        child: StatusPanel(
-          title: l10n.playerDownloadUnavailable,
-          message: l10n.playerLocalDownloadUnavailable,
-          icon: Icons.download_outlined,
-        ),
-      );
-    }
-    return DownloadPicker(
-      detail: widget.detail,
-      preferences: widget.store.downloadPreferences,
-      embedded: true,
-      onSubmit: _submitDownloadSelection,
     );
   }
 

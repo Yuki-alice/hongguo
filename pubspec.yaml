@@ -41,17 +41,21 @@ dependencies:
 
   # 状态管理：Notifier / AsyncNotifier + 依赖注入，替代手写 setState。
   flutter_riverpod: 3.4.3
+  # M3 Expressive 形状几何：空态徽标与加载器共用一套 shape 定义。
+  material_new_shapes: ^1.0.0
+
   # 声明式路由：类型安全参数与深链。刻意停在 17.x：
   # 18.x 起依赖 material_ui / cupertino_ui 拆分包，与当前 SDK 的
   # MaterialApp 不是同一个类，会让 Hero 与页面构造静默降级。
   go_router: 17.5.0
 dev_dependencies:
+  # 保留 SDK 测试依赖：前端套件已移除，但偶尔仍需写一次性冒烟用例
+  # 验证某个交互，不必每次都改 pubspec。
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  shared_preferences_platform_interface: ^2.4.2
 
 dependency_overrides:
   media_kit_libs_windows_video:
@@ -64,6 +68,13 @@ flutter:
   config:
     enable-swift-package-manager: false
   uses-material-design: true
+  fonts:
+    # 内置中文字体。只有 Regular 一个字重，w500 以上由 Flutter 合成——
+    # 这与参照应用的做法一致，额外引入 Bold 会让字重梯度对不上。
+    # 约 7.75MB，是包体里最大的一项非代码资产。
+    - family: MiSans
+      fonts:
+        - asset: assets/fonts/MiSans-Regular.ttf
   assets:
     - assets/images/logo/
     - assets/video_enhancement/

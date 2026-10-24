@@ -212,7 +212,9 @@ class SplitListRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: Md3Type.bodyLarge,
                         color: foreground,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w400,
                       ),
                     ),
                     if (description != null) ...[

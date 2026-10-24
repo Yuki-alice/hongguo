@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:material_new_shapes/material_new_shapes.dart';
 
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 /// 空态 / 错误态的统一展示。
 ///
 /// 结构是「形状徽标 + 标题 + 说明 + 按钮组」。与旧的 `StatusPanel` 相比：
-/// - 徽标不是普通圆形，而是一个手绘的圆角星形，用 `CustomPaint` 画，
-///   不依赖图片资源，也不受字体缩放影响；
+/// - 徽标是 M3 Expressive 的几何形状（cookie4Sided / softBurst），与加载器
+///   共用同一套 shape 定义，因此整站的「形状语言」只有一个来源；
 /// - 按钮用 `Wrap` 而不是固定行，窄屏或大字号时自动换行；
 /// - 标题带 `Semantics(header)`，读屏可以按标题跳转。
 class EmptyState extends StatelessWidget {
@@ -36,7 +37,10 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final (background, foreground) = switch (tone) {
-      EmptyStateTone.neutral => (colors.secondaryContainer, colors.onSecondaryContainer),
+      EmptyStateTone.neutral => (
+        colors.secondaryContainer,
+        colors.onSecondaryContainer,
+      ),
       EmptyStateTone.error => (colors.errorContainer, colors.onErrorContainer),
     };
     final badge = compact ? 56.0 : 84.0;
@@ -54,11 +58,11 @@ class EmptyState extends StatelessWidget {
             children: [
               ExcludeSemantics(
                 child: CustomPaint(
-                  painter: _StarBadgePainter(
+                  painter: ShapeBadgePainter(
                     color: background,
                     shape: tone == EmptyStateTone.error
-                        ? _BadgeShape.softBurst
-                        : _BadgeShape.cookie,
+                        ? MaterialShapes.softBurst
+                        : MaterialShapes.cookie4Sided,
                   ),
                   child: SizedBox.square(
                     dimension: badge,
@@ -119,87 +123,45 @@ class EmptyState extends StatelessWidget {
 
 enum EmptyStateTone { neutral, error }
 
-enum _BadgeShape { cookie, softBurst }
-
-/// 手绘徽标。
+/// 形状徽标。
 ///
-/// cookie：8 段圆弧组成的圆角花瓣；softBurst：12 个不等长尖角。
-/// 两者都是闭合路径，直接填充，不需要图片。
-class _StarBadgePainter extends CustomPainter {
-  const _StarBadgePainter({required this.color, required this.shape});
+/// 直接使用 M3 Expressive 的 `RoundedPolygon`：空态、错误态与加载器因此
+/// 共享同一套几何定义，不会出现「手绘的八瓣花」和「包里的 cookie」两种
+/// 风格并存。
+class ShapeBadgePainter extends CustomPainter {
+  const ShapeBadgePainter({required this.color, required this.shape});
 
   final Color color;
-  final _BadgeShape shape;
+  final RoundedPolygon shape;
+
+  /// 归一化后的路径缓存在实例上：`normalized()` 每次都要算一遍边界，
+  /// 而徽标在空态里是不动的，重复算没有意义。
+  static final _cache = <RoundedPolygon, Path>{};
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2;
-    canvas.drawPath(_path(center, radius), paint);
-  }
-
-  Path _path(Offset center, double radius) {
-    final path = Path();
-    switch (shape) {
-      case _BadgeShape.cookie:
-        // 8 瓣：每瓣用二次贝塞尔外凸，瓣间内凹到 0.86R。
-        const petals = 8;
-        final inner = radius * .86;
-        for (var index = 0; index < petals * 2; index++) {
-          final angle = math.pi / petals * index - math.pi / 2;
-          final r = index.isEven ? radius : inner;
-          final point = center + Offset(math.cos(angle) * r, math.sin(angle) * r);
-          if (index == 0) {
-            path.moveTo(point.dx, point.dy);
-          } else {
-            final previousAngle =
-                math.pi / petals * (index - 1) - math.pi / 2;
-            final previousR = (index - 1).isEven ? radius : inner;
-            final controlAngle = (previousAngle + angle) / 2;
-            final controlR = (previousR + r) / 2 * 1.06;
-            final control = center +
-                Offset(
-                  math.cos(controlAngle) * controlR,
-                  math.sin(controlAngle) * controlR,
-                );
-            path.quadraticBezierTo(
-              control.dx,
-              control.dy,
-              point.dx,
-              point.dy,
-            );
-          }
-        }
-        path.close();
-      case _BadgeShape.softBurst:
-        const spikes = 12;
-        for (var index = 0; index < spikes * 2; index++) {
-          final angle = math.pi / spikes * index - math.pi / 2;
-          final r = index.isEven ? radius : radius * .78;
-          final point = center + Offset(math.cos(angle) * r, math.sin(angle) * r);
-          if (index == 0) {
-            path.moveTo(point.dx, point.dy);
-          } else {
-            path.lineTo(point.dx, point.dy);
-          }
-        }
-        path.close();
-    }
-    return path;
+    final side = size.shortestSide;
+    final path = _cache.putIfAbsent(shape, () => shape.normalized().toPath());
+    canvas
+      ..save()
+      ..translate((size.width - side) / 2, (size.height - side) / 2)
+      ..scale(side)
+      ..drawPath(path, Paint()..color = color)
+      ..restore();
   }
 
   @override
-  bool shouldRepaint(_StarBadgePainter oldDelegate) =>
+  bool shouldRepaint(ShapeBadgePainter oldDelegate) =>
       color != oldDelegate.color || shape != oldDelegate.shape;
 }
 
 /// 加载指示器。
 ///
-/// 一个圆角形状在若干「cookie」形之间连续变形并缓慢旋转。相比转圈，
-/// 它在长等待时更耐看，也更能表达「正在处理」而不是「卡住了」。
+/// 一个形状在 7 个 M3 Expressive 形状之间连续变形，整体同时缓慢自转。
+/// 相比转圈，它在长等待时更耐看，也更能表达「正在处理」而不是「卡住了」。
 ///
-/// 变形路径预先算好并静态共享，多个实例不会重复计算。
+/// 7 段 × 650ms = 4550ms 一轮，与参照应用一致。morph 对象与形状列表都是
+/// 静态共享的：构造 `Morph` 要做顶点匹配，逐帧或逐实例算都很贵。
 class AppLoadingIndicator extends StatefulWidget {
   const AppLoadingIndicator({
     super.key,
@@ -216,11 +178,33 @@ class AppLoadingIndicator extends StatefulWidget {
   State<AppLoadingIndicator> createState() => _AppLoadingIndicatorState();
 }
 
+/// 变形序列。顺序有讲究：顶点数差太远的两个形状直接相邻时，中间帧会
+/// 出现明显的「折叠」，因此从瓣多的往瓣少的逐步过渡。
+final _loadingShapes = [
+  MaterialShapes.softBurst,
+  MaterialShapes.cookie9Sided,
+  MaterialShapes.pill,
+  MaterialShapes.sunny,
+  MaterialShapes.cookie4Sided,
+  MaterialShapes.oval,
+  MaterialShapes.cookie7Sided,
+];
+
+const _morphDuration = Duration(milliseconds: 650);
+
+final _loadingMorphs = List<Morph>.generate(
+  _loadingShapes.length,
+  (index) => Morph(
+    _loadingShapes[index],
+    _loadingShapes[(index + 1) % _loadingShapes.length],
+  ),
+);
+
 class _AppLoadingIndicatorState extends State<AppLoadingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2400),
+    duration: _morphDuration * _loadingShapes.length,
   );
 
   @override
@@ -243,6 +227,22 @@ class _AppLoadingIndicatorState extends State<AppLoadingIndicator>
   @override
   Widget build(BuildContext context) {
     final color = widget.color ?? Theme.of(context).colorScheme.primary;
+    // 静态帧（关闭动画时）取第一个形状，而不是空白：一个静止的花形仍然
+    // 能读出「这里有个指示器」，比什么都不画好。
+    if (!_controller.isAnimating) {
+      return Semantics(
+        label: widget.semanticsLabel,
+        child: RepaintBoundary(
+          child: CustomPaint(
+            size: Size.square(widget.size),
+            painter: ShapeBadgePainter(
+              color: color,
+              shape: _loadingShapes.first,
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       label: widget.semanticsLabel,
       child: RepaintBoundary(
@@ -251,10 +251,7 @@ class _AppLoadingIndicatorState extends State<AppLoadingIndicator>
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) => CustomPaint(
-              painter: _MorphPainter(
-                progress: _controller.value,
-                color: color,
-              ),
+              painter: _MorphPainter(progress: _controller.value, color: color),
             ),
           ),
         ),
@@ -263,64 +260,38 @@ class _AppLoadingIndicatorState extends State<AppLoadingIndicator>
   }
 }
 
-/// 三种形状之间连续变形：圆角方形 → 八瓣 → 圆角三角。
+/// 在 [_loadingMorphs] 之间连续变形并整体自转。
 class _MorphPainter extends CustomPainter {
-  const _MorphPainter({required this.progress, required this.color});
+  _MorphPainter({required this.progress, required this.color})
+    : super(repaint: null);
 
   final double progress;
   final Color color;
+  final Path _path = Path();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2;
-    // 三段循环，段内用 smoothstep 缓动。
-    final segment = progress * 3;
-    final index = segment.floor() % 3;
-    final t = _smooth(segment - segment.floor());
-    final from = _shapePoints(index, radius);
-    final to = _shapePoints((index + 1) % 3, radius);
-    final path = Path();
-    for (var i = 0; i < from.length; i++) {
-      final x = from[i].dx + (to[i].dx - from[i].dx) * t;
-      final y = from[i].dy + (to[i].dy - from[i].dy) * t;
-      if (i == 0) {
-        path.moveTo(center.dx + x, center.dy + y);
-      } else {
-        path.lineTo(center.dx + x, center.dy + y);
-      }
-    }
-    path.close();
-    // 整体缓慢自转，让变形看起来更「活」。
+    final position = progress * _loadingMorphs.length;
+    final index = position.floor() % _loadingMorphs.length;
+    final t = _emphasized(position % 1);
+    final path = _loadingMorphs[index].toPath(progress: t, path: _path);
+
+    // 形状本身画在 1×1 的空间里，先按最短边缩放，再把对角线缩到 √2
+    // 以内，这样旋转时不会被裁掉。
+    final scale = size.shortestSide / math.sqrt2;
     canvas
       ..save()
-      ..translate(center.dx, center.dy)
+      ..translate(size.width / 2, size.height / 2)
       ..rotate(progress * math.pi * 2)
-      ..translate(-center.dx, -center.dy)
+      ..scale(scale)
+      ..translate(-.5, -.5)
       ..drawPath(path, Paint()..color = color)
       ..restore();
   }
 
-  double _smooth(double t) => t * t * (3 - 2 * t);
-
-  /// 三个形状共用 24 个采样点，保证变形时点对点对应。
-  List<Offset> _shapePoints(int shape, double radius) {
-    const samples = 24;
-    final points = <Offset>[];
-    for (var i = 0; i < samples; i++) {
-      final angle = math.pi * 2 / samples * i - math.pi / 2;
-      final r = switch (shape) {
-        // 圆角方形：半径随角度在 R 与 .78R 之间变化。
-        0 => radius * (.78 + .22 * math.pow(math.cos(angle * 4).abs(), .6)),
-        // 八瓣花：8 个外凸。
-        1 => radius * (.82 + .18 * math.cos(angle * 8)),
-        // 圆角三角。
-        _ => radius * (.78 + .22 * math.pow(math.cos(angle * 3).abs(), .5)),
-      };
-      points.add(Offset(math.cos(angle) * r, math.sin(angle) * r));
-    }
-    return points;
-  }
+  /// 与 M3 的 `easeInOutCubicEmphasized` 同形的缓动。
+  double _emphasized(double t) =>
+      t < .5 ? 4 * t * t * t : 1 - math.pow(-2 * t + 2, 3) / 2;
 
   @override
   bool shouldRepaint(_MorphPainter oldDelegate) =>

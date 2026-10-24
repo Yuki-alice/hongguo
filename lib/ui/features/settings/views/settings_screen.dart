@@ -10,11 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/app_theme.dart';
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/data/local_store.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/core/widgets.dart';
-import 'package:hoshi/ui/core/app_page.dart';
 import 'package:hoshi/ui/core/split_list.dart';
 import 'package:hoshi/domain/window_bounds.dart';
 import 'package:hoshi/ui/shell/window_chrome.dart';
@@ -45,11 +42,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _listKey = GlobalKey<RemoteListState>();
   late final SettingsController _controller;
 
-  /// 桌面两栏当前选中的分组下标。
-  int _pane = 0;
+  /// 窄屏当前打开的分组；null 表示停留在分组索引页。
+  String? _opened;
+  String _selected = 'appearance';
 
   @override
   void initState() {
@@ -102,62 +99,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _chooseTheme() async {
-    final l10n = AppLocalizations.of(context);
-    if (AppLayout.isTelevision(context)) {
-      final selected = await showDialog<String>(
-        context: context,
-        builder: (_) => TelevisionActionDialog(
-          title: l10n.appearanceTheme,
-          options: [
-            for (final mode in ['light', 'dark', 'system'])
-              TelevisionAction(
-                value: mode,
-                label: AppTheme.label(mode, l10n),
-                description: mode == 'system' ? l10n.followSystemTheme : null,
-                icon: Icons.brightness_6_rounded,
-              ),
-          ],
-        ),
-      );
-      if (selected != null && mounted) {
-        await saveUserChange(
-          context,
-          () => widget.store.setThemeMode(selected),
-        );
-      }
-      return;
-    }
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(l10n.appearanceTheme),
-        children: [
-          RadioGroup<String>(
-            groupValue: widget.store.themeMode,
-            onChanged: (value) => Navigator.pop(context, value),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final mode in ['light', 'dark', 'system'])
-                  RadioListTile<String>(
-                    value: mode,
-                    title: Text(AppTheme.label(mode, l10n)),
-                    subtitle: mode == 'system'
-                        ? Text(l10n.followSystemTheme)
-                        : null,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-    if (selected != null && mounted) {
-      await saveUserChange(context, () => widget.store.setThemeMode(selected));
-    }
-  }
-
   Future<void> _backup(bool restore) async {
     final l10n = AppLocalizations.of(context);
     if (!restore) {
@@ -180,45 +121,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final summary = l10n.backupProfilesSummary(
         (data['profiles'] as List).length,
       );
-      final bool accepted;
-      if (AppLayout.isTelevision(context)) {
-        accepted =
-            await showDialog<String>(
-              context: context,
-              builder: (_) => TelevisionActionDialog(
-                title: l10n.restoreConfirmTitle,
-                options: [
-                  TelevisionAction(
-                    value: 'restore',
-                    label: l10n.restoreThisBackup,
-                    description: summary,
-                    icon: Icons.restore_rounded,
-                  ),
-                ],
-              ),
-            ) ==
-            'restore';
-      } else {
-        accepted =
-            await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text(l10n.restoreConfirmTitle),
-                content: Text(summary),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(l10n.cancel),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(l10n.restore),
-                  ),
-                ],
-              ),
-            ) ??
-            false;
-      }
+      final accepted =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(l10n.restoreConfirmTitle),
+              content: Text(summary),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(l10n.restore),
+                ),
+              ],
+            ),
+          ) ??
+          false;
       if (!accepted || !mounted) return;
       final restored = await _controller.restoreBackup(content);
       if (restored && mounted) {
@@ -237,259 +158,108 @@ class _SettingsScreenState extends State<SettingsScreen> {
     () => widget.store.setExportPosters(!widget.store.exportPosters),
   );
 
-  List<
-    ({
-      String id,
-      IconData icon,
-      String title,
-      String subtitle,
-      VoidCallback? onPressed,
-    })
-  >
-  _televisionEntries(AppLocalizations l10n) => [
-    if (widget.repository.supportsSourceManagement)
-      (
-        id: 'sources',
-        icon: Icons.dns_outlined,
-        title: l10n.sourceManagement,
-        subtitle: l10n.sourceManageHint,
-        onPressed: () => context.push(AppRoutes.sources),
-      ),
-    (
-      id: 'theme',
-      icon: Icons.palette_outlined,
-      title: l10n.appearanceTheme,
-      subtitle: AppTheme.label(widget.store.themeMode, l10n),
-      onPressed: _chooseTheme,
-    ),
-    (
-      id: 'profiles',
-      icon: Icons.people_outline,
-      title: l10n.userManagement,
-      subtitle: l10n.currentProfile(widget.store.profile.name),
-      onPressed: () => context.push(AppRoutes.profiles),
-    ),
-    if (widget.store.canDownload)
-      (
-        id: 'download-preferences',
-        icon: Icons.download_outlined,
-        title: l10n.downloadPrefsTitle,
-        subtitle: widget.store.downloadPreferences.qualityLabel,
-        onPressed: () => context.push(AppRoutes.downloadPreferences),
-      ),
-    if (widget.store.canDownload)
-      (
-        id: 'storage',
-        icon: Icons.folder_outlined,
-        title: l10n.storageTitle,
-        subtitle: l10n.storageEntryHint,
-        onPressed: () => context.push(AppRoutes.storage),
-      ),
-    // 诊断页始终可达：它同时承担「未支持能力可见」的职责。
-    (
-      id: 'diagnostics',
-      icon: Icons.monitor_heart_outlined,
-      title: l10n.engineDiagnosticsEntry,
-      subtitle: l10n.engineDiagnosticsRuntime,
-      onPressed: () => context.push(AppRoutes.engineDiagnostics),
-    ),
-    if (widget.store.profile.admin) ...[
-      // 代理 / DNS / CDN 属于首发不做的高级网络设置（PLAN.md §5）。
-      if (widget.repository.capabilities.resourceSettings)
-        (
-          id: 'resources',
-          icon: Icons.settings_ethernet_rounded,
-          title: l10n.resourceSettingsTitle,
-          subtitle: l10n.networkResourcesHint,
-          onPressed: () => context.push(AppRoutes.resourceSettings),
-        ),
-      (
-        id: 'auto-export',
-        icon: Icons.movie_filter_outlined,
-        title: l10n.autoExportEmbyShort,
-        subtitle: widget.store.autoExport
-            ? l10n.autoExportOn
-            : l10n.autoExportOff,
-        onPressed: _controller.busy ? null : _toggleAutoExport,
-      ),
-      (
-        id: 'export-posters',
-        icon: Icons.image_outlined,
-        title: l10n.exportPosters,
-        subtitle: widget.store.exportPosters
-            ? l10n.exportPostersOn
-            : l10n.exportPostersOff,
-        onPressed: _controller.busy ? null : _toggleExportPosters,
-      ),
-      (
-        id: 'backup',
-        icon: Icons.backup_outlined,
-        title: l10n.exportBackupTitle,
-        subtitle: l10n.exportBackupHint,
-        onPressed: _controller.busy ? null : () => _backup(false),
-      ),
-      (
-        id: 'restore',
-        icon: Icons.restore,
-        title: l10n.restoreBackupTitle,
-        subtitle: l10n.restoreBackupHint,
-        onPressed: _controller.busy ? null : () => _backup(true),
-      ),
-    ],
-  ];
-
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: Listenable.merge([widget.store, _controller]),
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
-      final television = AppLayout.isTelevision(context);
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final wide =
-              !television && Md3WindowClass.usesTwoPane(constraints.maxWidth);
-          return Scaffold(
-            // 设置现在是独立全屏页（不进外壳），两种形态都要 AppBar，
-            // 否则宽屏两栏模式下没有返回入口。
-            appBar: AppBar(title: Text(l10n.settingsTitle)),
-            body: wide
-                ? _wideBody(l10n)
-                : Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: Md3Spacing.contentMaxWidth,
-                      ),
-                      child: television
-                          ? _televisionBody(l10n)
-                          : _listBody(l10n),
-                    ),
+      final sections = _sections(
+        l10n,
+      ).where((section) => section.title.isNotEmpty).toList();
+      final wide = MediaQuery.sizeOf(context).width >= Md3WindowClass.expanded;
+      final current = sections.firstWhere(
+        (section) => section.id == _selected,
+        orElse: () => sections.first,
+      );
+      // 与参照应用一致：窄屏是「设置索引 → 分组页」二级列表；宽屏左栏
+      // 是分组导航，右栏只显示当前分组。
+      if (wide) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.settingsNav),
+            leading: BackButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 280,
+                child: _SettingsRail(
+                  sections: sections,
+                  selected: current.id,
+                  onSelected: (id) => setState(() => _selected = id),
+                ),
+              ),
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              Expanded(child: _CategoryList(section: current, embedded: true)),
+            ],
+          ),
+        );
+      }
+      final opened = _opened == null
+          ? null
+          : sections.firstWhere(
+              (section) => section.id == _opened,
+              orElse: () => current,
+            );
+      if (opened != null) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(opened.title),
+            leading: BackButton(
+              onPressed: () => setState(() => _opened = null),
+            ),
+          ),
+          body: _CategoryList(section: opened),
+        );
+      }
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.settingsTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            Md3Spacing.lg,
+            Md3Spacing.sm,
+            Md3Spacing.lg,
+            Md3Spacing.xl,
+          ),
+          children: [
+            SectionHeader(title: l10n.settingsTitle),
+            const SizedBox(height: Md3Spacing.sm),
+            SplitListGroup(
+              children: [
+                for (final section in sections)
+                  SplitListRow(
+                    key: ValueKey('settings-category-${section.id}'),
+                    leading: section.icon,
+                    title: section.title,
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => setState(() => _opened = section.id),
                   ),
-          );
-        },
+              ],
+            ),
+          ],
+        ),
       );
     },
   );
 
-  /// 桌面两栏：左侧分组导航，右侧只显示当前分组。
-  ///
-  /// 选中态由 [_pane] 记录（默认第一组）。右侧不再是全部设置的放大版：
-  /// 那样左侧导航就失去意义了。
-  Widget _wideBody(AppLocalizations l10n) {
-    final sections = _sections(l10n);
-    final index = _pane.clamp(0, sections.length - 1);
-    final current = sections[index];
-    // 设置已移出外壳、成为独立全屏页，需要自己提供页面留白。
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: Md3Spacing.pageInset(MediaQuery.sizeOf(context).width),
-        vertical: Md3Spacing.sm,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: Md3Spacing.settingsPaneWidth,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                Md3Spacing.md,
-                Md3Spacing.md,
-                Md3Spacing.md,
-                Md3Spacing.xl,
-              ),
-              children: [
-                for (final (position, section) in sections.indexed)
-                  _PaneEntry(
-                    key: ValueKey('settings-pane-${section.id}'),
-                    entry: SettingsEntry(
-                      id: section.id,
-                      icon: section.icon,
-                      title: section.title,
-                      subtitle: '',
-                      onPressed: () => setState(() => _pane = position),
-                    ),
-                    selected: position == index,
-                    onPressed: () => setState(() => _pane = position),
-                  ),
-              ],
-            ),
-          ),
-          VerticalDivider(
-            width: 1,
-            thickness: 1,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-          Expanded(
-            child: AppPage(
-              child: ListView(
-                // 切分组时回到顶部，否则会停在上一组的位置。
-                key: PageStorageKey('settings-pane-${current.id}'),
-                padding: const EdgeInsets.symmetric(vertical: Md3Spacing.lg),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Md3Spacing.md,
-                    ),
-                    child: Text(
-                      current.title,
-                      style: TextStyle(
-                        fontSize: Md3Type.headlineSmall,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Md3Spacing.md),
-                  ...current.children,
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _televisionBody(AppLocalizations l10n) {
-    final entries = _televisionEntries(l10n);
-    return RemoteList(
-      key: _listKey,
-      itemKeys: [for (final entry in entries) entry.id],
-      itemExtent: RemoteListTile.extent,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-      autofocus: true,
-      itemBuilder: (_, index, node, onFocus) => RemoteListTile(
-        title: entries[index].title,
-        subtitle: entries[index].subtitle,
-        leading: Icon(entries[index].icon, size: 26),
-        focusNode: node,
-        onFocus: onFocus,
-        onPressed: entries[index].onPressed,
-      ),
-    );
-  }
-
-  Widget _listBody(AppLocalizations l10n) => ListView(
-    padding: const EdgeInsets.all(Md3Spacing.lg),
-    children: [
-      for (final section in _sections(l10n))
-        if (section.title.isNotEmpty) ...[
-          SectionHeader(title: section.title),
-          ...section.children,
-        ] else
-          ...section.children,
-    ],
-  );
-
+  /// 窄屏分组页。
   /// 桌面两栏的分组。每项自带图标与内容，左侧导航与右侧面板都由它生成。
   List<_SettingsSection> _sections(AppLocalizations l10n) => [
-    if (widget.repository.supportsSourceManagement)
-      _SettingsSection(
-        id: 'sources',
-        icon: Icons.dns_outlined,
-        title: l10n.sourceManagement,
-        children: [
-          SplitListGroup(
-            children: [
+    _SettingsSection(
+      id: 'resources',
+      icon: Icons.extension_outlined,
+      title: l10n.settingsResourceSection,
+      children: [
+        SplitListGroup(
+          children: [
+            if (widget.repository.supportsSourceManagement)
               SplitListRow(
                 leading: Icons.dns_outlined,
                 title: l10n.sourceManagement,
@@ -497,10 +267,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => context.push(AppRoutes.sources),
               ),
-            ],
-          ),
-        ],
-      ),
+            SplitListRow(
+              leading: Icons.extension_outlined,
+              title: l10n.pluginsManageTitle,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push(AppRoutes.plugins),
+            ),
+          ],
+        ),
+      ],
+    ),
     _SettingsSection(
       id: 'appearance',
       icon: Icons.palette_outlined,
@@ -720,6 +496,135 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ];
 }
 
+/// 桌面左栏：分组导航。
+class _SettingsRail extends StatelessWidget {
+  const _SettingsRail({
+    required this.sections,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<_SettingsSection> sections;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(4, 0, 0, 12),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 16, 28, 8),
+          child: SectionHeader(title: AppLocalizations.of(context).settingsNav),
+        ),
+        for (final section in sections)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            child: Material(
+              color: section.id == selected
+                  ? colors.secondaryContainer
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(Md3Shape.extraLarge),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onSelected(section.id),
+                child: SizedBox(
+                  height: 56,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: Md3Spacing.md),
+                      Icon(
+                        section.icon,
+                        size: 24,
+                        color: section.id == selected
+                            ? colors.onSecondaryContainer
+                            : colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: Md3Spacing.md),
+                      Expanded(
+                        child: Text(
+                          section.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: Md3Type.labelLarge,
+                            fontWeight: section.id == selected
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                            color: section.id == selected
+                                ? colors.onSecondaryContainer
+                                : colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 分组页内容（宽屏右栏 / 窄屏二级页共用）。
+class _CategoryList extends StatelessWidget {
+  const _CategoryList({required this.section, this.embedded = false});
+
+  final _SettingsSection section;
+
+  /// 宽屏右栏：标题画在内容里（参照应用 `SettingsDetailScaffold` 的嵌入
+  /// AppBar：透明、64 高、标题 `headlineSmall`、左边距 24）。窄屏由外层
+  /// AppBar 承担标题，这里不再重复。
+  final bool embedded;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.symmetric(vertical: Md3Spacing.md),
+    children: [
+      Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Md3Spacing.lg,
+              0,
+              Md3Spacing.lg,
+              Md3Spacing.xl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (embedded)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 8,
+                      bottom: Md3Spacing.sm,
+                    ),
+                    child: SizedBox(
+                      height: 64,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          section.title,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                    ),
+                  ),
+                ...section.children,
+              ],
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 /// 桌面两栏的一个分组：左侧导航项 + 右侧内容。
 class _SettingsSection {
   const _SettingsSection({
@@ -733,204 +638,6 @@ class _SettingsSection {
   final IconData icon;
   final String title;
   final List<Widget> children;
-}
-
-/// 设置分组侧栏里的一行。
-class _PaneEntry extends StatefulWidget {
-  const _PaneEntry({
-    super.key,
-    required this.entry,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final SettingsEntry entry;
-  final bool selected;
-  final VoidCallback? onPressed;
-
-  @override
-  State<_PaneEntry> createState() => _PaneEntryState();
-}
-
-class _PaneEntryState extends State<_PaneEntry> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final enabled = widget.onPressed != null;
-    final selected = widget.selected;
-    final foreground = !enabled
-        ? colors.onSurface.withValues(alpha: Md3State.disabled)
-        : selected
-        ? colors.onSecondaryContainer
-        : colors.onSurface;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Md3Spacing.xxs),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Material(
-          color: selected
-              ? colors.secondaryContainer
-              : _hovered
-              ? Md3State.layer(colors.surface, colors.onSurface, Md3State.hover)
-              : Colors.transparent,
-          borderRadius: Md3Shape.pill,
-          child: InkWell(
-            borderRadius: Md3Shape.pill,
-            onTap: widget.onPressed,
-            child: SizedBox(
-              height: 44,
-              child: Row(
-                children: [
-                  const SizedBox(width: Md3Spacing.md),
-                  Icon(widget.entry.icon, size: 20, color: foreground),
-                  const SizedBox(width: Md3Spacing.md),
-                  Expanded(
-                    child: Text(
-                      widget.entry.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: Md3Type.bodyMedium,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w400,
-                        color: foreground,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Md3Spacing.sm),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 设置入口。移动端列表、桌面分组栏、电视列表都由它生成。
-class SettingsEntry {
-  const SettingsEntry({
-    required this.id,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.onPressed,
-  });
-
-  final String id;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onPressed;
-}
-
-class SettingsGroup {
-  const SettingsGroup({required this.title, required this.entries});
-  final String title;
-  final List<SettingsEntry> entries;
-}
-
-/// 设置入口分组。
-///
-/// 这里是设置项的唯一清单：桌面分组栏与移动端列表都从它派生，
-/// 避免加一项设置要改两处（改造前正是如此）。
-List<SettingsGroup> settingsGroups(
-  BuildContext context, {
-  required LocalStore store,
-  required AppRepository repository,
-  required ValueChanged<String> onNavigate,
-}) {
-  final l10n = AppLocalizations.of(context);
-  return [
-    if (repository.supportsSourceManagement)
-      SettingsGroup(
-        title: l10n.sourceManagement,
-        entries: [
-          SettingsEntry(
-            id: 'sources',
-            icon: Icons.dns_outlined,
-            title: l10n.sourceManagement,
-            subtitle: l10n.sourceManageHint,
-            onPressed: () => onNavigate(AppRoutes.sources),
-          ),
-        ],
-      ),
-    SettingsGroup(
-      title: l10n.appearanceTheme,
-      entries: [
-        SettingsEntry(
-          id: 'theme',
-          icon: Icons.palette_outlined,
-          title: l10n.appearanceTheme,
-          subtitle: AppTheme.label(store.themeMode, l10n),
-          onPressed: () => onNavigate(AppRoutes.settingsTheme),
-        ),
-      ],
-    ),
-    SettingsGroup(
-      title: l10n.userManagement,
-      entries: [
-        SettingsEntry(
-          id: 'profiles',
-          icon: Icons.people_outline,
-          title: l10n.userManagement,
-          subtitle: l10n.currentProfile(store.profile.name),
-          onPressed: () => onNavigate(AppRoutes.profiles),
-        ),
-      ],
-    ),
-    if (store.canDownload)
-      SettingsGroup(
-        title: l10n.downloadsTitle,
-        entries: [
-          SettingsEntry(
-            id: 'download-preferences',
-            icon: Icons.download_outlined,
-            title: l10n.downloadPrefsTitle,
-            subtitle: store.downloadPreferences.qualityLabel,
-            onPressed: () => onNavigate(AppRoutes.downloadPreferences),
-          ),
-          SettingsEntry(
-            id: 'storage',
-            icon: Icons.folder_outlined,
-            title: l10n.storageTitle,
-            subtitle: l10n.storageEntryHint,
-            onPressed: () => onNavigate(AppRoutes.storage),
-          ),
-        ],
-      ),
-    SettingsGroup(
-      title: l10n.engineDiagnosticsEntry,
-      entries: [
-        SettingsEntry(
-          id: 'diagnostics',
-          icon: Icons.monitor_heart_outlined,
-          title: l10n.engineDiagnosticsEntry,
-          subtitle: l10n.engineDiagnosticsRuntime,
-          onPressed: () => onNavigate(AppRoutes.engineDiagnostics),
-        ),
-      ],
-    ),
-    if (store.profile.admin)
-      SettingsGroup(
-        title: l10n.settingsAdvanced,
-        entries: [
-          if (repository.capabilities.resourceSettings)
-            SettingsEntry(
-              id: 'resources',
-              icon: Icons.settings_ethernet_rounded,
-              title: l10n.resourceSettingsTitle,
-              subtitle: l10n.networkResourcesHint,
-              onPressed: () => onNavigate(AppRoutes.resourceSettings),
-            ),
-        ],
-      ),
-  ];
 }
 
 class StorageScreen extends StatefulWidget {

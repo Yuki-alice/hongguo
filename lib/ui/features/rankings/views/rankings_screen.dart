@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/ui/core/catalog_filters.dart';
 import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/domain/ranking_models.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/rankings/controllers/rankings_controller.dart';
-import 'package:hoshi/ui/routing/app_router.dart';
-import 'package:hoshi/ui/routing/route_args.dart';
+import 'package:hoshi/ui/features/detail/views/detail_screen.dart';
 import 'package:hoshi/ui/core/widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -32,8 +28,6 @@ class RankingsScreen extends StatefulWidget {
 
 class _RankingsScreenState extends State<RankingsScreen> {
   final _scroll = ScrollController();
-  final _boardsKey = GlobalKey<RemoteRowState>();
-  final _listKey = GlobalKey<RemoteListState>();
   late final RankingsController _controller;
 
   @override
@@ -80,7 +74,6 @@ class _RankingsScreenState extends State<RankingsScreen> {
     listenable: _controller,
     builder: (context, _) {
       final l10n = AppLocalizations.of(context);
-      final television = AppLayout.isTelevision(context);
       final groups = SourceGroup.fromSources(
         _controller.boards
             .map((board) => SourceSite.byId(board.source))
@@ -153,11 +146,6 @@ class _RankingsScreenState extends State<RankingsScreen> {
                       CatalogCategory(board.id, board.name),
                   ],
                   category: _controller.board!.id,
-                  remoteKey: _boardsKey,
-                  remoteAutofocus: television,
-                  onExitDown: television
-                      ? () => _listKey.currentState?.focusCurrent()
-                      : null,
                   onCategory: (id) =>
                       _select(boards.firstWhere((board) => board.id == id)),
                   onRetry: () => _controller.load(force: true),
@@ -227,56 +215,48 @@ class _RankingsScreenState extends State<RankingsScreen> {
                             ? _controller.initialize
                             : () => _controller.load(force: true),
                       )
-                    : television
-                    ? RemoteList(
-                        key: _listKey,
-                        itemKeys: [
-                          for (final item in items)
-                            '${item.rank}-${item.drama.id}',
-                        ],
-                        itemExtent: 140,
-                        spacing: 10,
-                        controller: _scroll,
-                        onExitUp: () => _boardsKey.currentState?.focusCurrent(),
-                        itemBuilder: (_, index, node, onFocus) => _rankTile(
-                          items[index],
-                          focusNode: node,
-                          onFocus: onFocus,
-                        ),
-                      )
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          // 宽屏双列：榜单是短行内容，单列在 1280 以上会
-                          // 出现极长的横向空白。
-                          final columns =
-                              constraints.maxWidth >= Md3WindowClass.large
-                              ? 2
-                              : 1;
+                          // 榜单沿用目录的响应式海报网格（手机 3 列），
+                          // 不再做单列排行或宽屏双列——Q14 已定。
                           final padding = Md3Spacing.contentInset(
                             constraints.maxWidth,
-                            maxWidth: Md3Spacing.contentMaxWidth,
+                            maxWidth: Md3Spacing.wideMaxWidth,
+                          );
+                          final contentWidth =
+                              constraints.maxWidth - 2 * padding;
+                          final withMeta = items.any(
+                            (item) => item.metric.isNotEmpty,
                           );
                           return RefreshIndicator(
                             onRefresh: () => _controller.load(force: true),
-                            child: ListView.builder(
-                              key: ValueKey(
-                                'ranking-${_controller.board!.id}',
-                              ),
+                            child: CustomScrollView(
+                              key: ValueKey('ranking-${_controller.board!.id}'),
                               controller: _scroll,
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding: EdgeInsets.fromLTRB(
-                                padding,
-                                0,
-                                padding,
-                                24,
-                              ),
-                              itemCount:
-                                  (items.length / columns).ceil() +
-                                  (columns == 1 ? 1 : 1),
-                              itemBuilder: (context, rowIndex) {
-                                final start = rowIndex * columns;
-                                if (start >= items.length) {
-                                  return Center(
+                              slivers: [
+                                SliverPadding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    padding,
+                                    0,
+                                    padding,
+                                    8,
+                                  ),
+                                  sliver: SliverGrid(
+                                    gridDelegate: dramaGridDelegate(
+                                      context,
+                                      contentWidth,
+                                      withMeta: withMeta,
+                                    ),
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) =>
+                                          _rankCard(items[index]),
+                                      childCount: items.length,
+                                    ),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: Center(
                                     child: _controller.more
                                         ? const Padding(
                                             padding: EdgeInsets.all(16),
@@ -292,32 +272,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
                                             padding: const EdgeInsets.all(16),
                                             child: Text(l10n.allRankingsShown),
                                           ),
-                                  );
-                                }
-                                if (columns == 1) {
-                                  return _rankTile(items[start]);
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      for (var column = 0;
-                                          column < columns;
-                                          column++) ...[
-                                        if (column > 0)
-                                          const SizedBox(width: 12),
-                                        Expanded(
-                                          child: start + column < items.length
-                                              ? _rankTile(items[start + column])
-                                              : const SizedBox.shrink(),
-                                        ),
-                                      ],
-                                    ],
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -330,111 +287,52 @@ class _RankingsScreenState extends State<RankingsScreen> {
     },
   );
 
-  Widget _rankTile(
-    RankingItem item, {
-    FocusNode? focusNode,
-    VoidCallback? onFocus,
-  }) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+  Widget _rankCard(RankingItem item) {
     void open() {
-      final ref = DramaRef.fromDramaId(item.drama.id);
-      if (ref == null) return;
-      context.push(AppRoutes.detailOf(ref), extra: item.drama);
-    }
-
-    final body = Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 36,
-            child: Text(
-              '${item.rank}',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: item.rank <= 3
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 72,
-            height: 108,
-            child: DramaCover(
-              drama: item.drama,
-              repository: widget.repository,
-              radius: 8,
-              // 榜单与详情同在根 Navigator，Hero 能生效。
-              heroTag: 'cover-${item.drama.id}',
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.drama.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-                if (item.drama.category.isNotEmpty)
-                  Text(
-                    item.drama.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (item.metric.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      item.metric,
-                      style: TextStyle(color: theme.colorScheme.primary),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded),
-        ],
-      ),
-    );
-    if (focusNode == null && onFocus == null) {
-      return Builder(
-        builder: (itemContext) => Card(
-          child: InkWell(
-            key: ValueKey('rank-${item.rank}-${item.drama.id}'),
-            borderRadius: BorderRadius.circular(12),
-            onFocusChange: (focused) {
-              if (focused) {
-                Scrollable.ensureVisible(itemContext, alignment: .4);
-              }
-            },
-            onTap: open,
-            child: body,
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DetailScreen(
+            drama: item.drama,
+            repository: widget.repository,
+            store: widget.store,
           ),
         ),
       );
     }
-    return RemoteTarget(
-      key: ValueKey('rank-${item.rank}-${item.drama.id}'),
-      focusNode: focusNode,
-      onFocus: onFocus,
-      outlined: true,
-      borderWidth: 2,
-      radius: 12,
-      padding: EdgeInsets.zero,
-      onPressed: open,
-      label: l10n.rankLabel(
-        item.rank,
-        item.drama.title,
-        item.metric.isEmpty ? '' : '，${item.metric}',
-      ),
-      child: Card(margin: EdgeInsets.zero, child: body),
+
+    final colors = Theme.of(context).colorScheme;
+    final top = item.rank <= 3;
+    return Stack(
+      children: [
+        DramaTile(
+          drama: item.drama,
+          repository: widget.repository,
+          onTap: open,
+          subtitle: item.metric.isEmpty ? null : item.metric,
+        ),
+        Positioned(
+          left: 8,
+          top: 8,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: top ? colors.primary : colors.surfaceContainerHighest,
+              borderRadius: Md3Shape.chip,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                '${item.rank}',
+                style: TextStyle(
+                  fontSize: Md3Type.labelLarge,
+                  fontWeight: FontWeight.w800,
+                  color: top ? colors.onPrimary : colors.onSurfaceVariant,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

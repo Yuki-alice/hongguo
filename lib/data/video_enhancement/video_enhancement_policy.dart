@@ -127,7 +127,6 @@ VideoEnhancementDecision chooseVideoEnhancement({
   required Size viewport,
   required bool ready,
   required bool android,
-  required bool television,
   required bool gpu,
   required bool luma,
   required bool hardware,
@@ -166,8 +165,8 @@ VideoEnhancementDecision chooseVideoEnhancement({
     viewport.width / source.width,
     viewport.height / source.height,
   );
-  final maxPixels = android || television ? 2073600.0 : 8294400.0;
-  final maxDimension = android || television ? 4096.0 : 8192.0;
+  final maxPixels = android ? 2073600.0 : 8294400.0;
+  final maxDimension = android ? 4096.0 : 8192.0;
   final scale = math.min(
     targetScale,
     math.min(
@@ -223,10 +222,7 @@ VideoEnhancementDecision chooseVideoEnhancement({
   }
   final pixels = (parameters.w ?? 0) * (parameters.h ?? 0);
   if (pixels <= 0) return scaling;
-  final limit = math.min(
-    costLimit,
-    television || power.lowMemory || android ? 2 : 4,
-  );
+  final limit = math.min(costLimit, power.lowMemory || android ? 2 : 4);
   bool allowed(VideoEnhancementBackend backend) =>
       backend.cost <= limit && !rejected.contains(backend);
   final memory = android ? (power.lowMemory ? 64 : 128) : 512;

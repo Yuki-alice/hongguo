@@ -1642,6 +1642,12 @@ abstract class AppLocalizations {
   /// **'设置与备份'**
   String get settingsTitle;
 
+  /// No description provided for @settingsNav.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get settingsNav;
+
   /// No description provided for @settingsAdvanced.
   ///
   /// In zh, this message translates to:
@@ -2281,7 +2287,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchEmptyHint.
   ///
   /// In zh, this message translates to:
-  /// **'可以换个搜索词，或显示 VIP 内容。'**
+  /// **'输入剧名开始搜索，历史会记在这里。'**
   String get searchEmptyHint;
 
   /// No description provided for @errorEmptyHint.
@@ -2344,12 +2350,6 @@ abstract class AppLocalizations {
   /// **'正在加载剧集'**
   String get loadingDramas;
 
-  /// No description provided for @displayMode.
-  ///
-  /// In zh, this message translates to:
-  /// **'界面模式'**
-  String get displayMode;
-
   /// No description provided for @noSourcesHint.
   ///
   /// In zh, this message translates to:
@@ -2361,6 +2361,48 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'追剧'**
   String get follows;
+
+  /// No description provided for @mySpaceTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的'**
+  String get mySpaceTitle;
+
+  /// No description provided for @myStatsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'观看概览'**
+  String get myStatsTitle;
+
+  /// No description provided for @myContentSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'内容'**
+  String get myContentSection;
+
+  /// No description provided for @myAppSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用'**
+  String get myAppSection;
+
+  /// No description provided for @myItemsUnit.
+  ///
+  /// In zh, this message translates to:
+  /// **'部'**
+  String get myItemsUnit;
+
+  /// No description provided for @myEpisodesUnit.
+  ///
+  /// In zh, this message translates to:
+  /// **'已看集数'**
+  String get myEpisodesUnit;
+
+  /// No description provided for @mySourcesCaption.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理剧集来源'**
+  String get mySourcesCaption;
 
   /// No description provided for @lanSyncTitle.
   ///
@@ -2434,12 +2476,6 @@ abstract class AppLocalizations {
   /// **'一次最多选择 50 部短剧，请分批下载'**
   String get homeMaxSelection;
 
-  /// No description provided for @displayPhoneComputer.
-  ///
-  /// In zh, this message translates to:
-  /// **'手机 / 电脑'**
-  String get displayPhoneComputer;
-
   /// No description provided for @searchGroup.
   ///
   /// In zh, this message translates to:
@@ -2463,18 +2499,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'独立运行，打开即可浏览和播放。观看记录与追剧收藏保存在当前设备。'**
   String get appIntro;
-
-  /// No description provided for @displayTelevision.
-  ///
-  /// In zh, this message translates to:
-  /// **'电视 / 遥控器'**
-  String get displayTelevision;
-
-  /// No description provided for @autoDetectDevice.
-  ///
-  /// In zh, this message translates to:
-  /// **'自动识别设备'**
-  String get autoDetectDevice;
 
   /// No description provided for @filterLoadedDramas.
   ///
@@ -2620,12 +2644,6 @@ abstract class AppLocalizations {
   /// **'播放进度，左右键快进或后退十秒'**
   String get playbackProgress;
 
-  /// No description provided for @fullscreenControlsHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'控制条隐藏后：左右快进 10 秒，上下或确认键显示控制条'**
-  String get fullscreenControlsHint;
-
   /// No description provided for @nextPreloadOn.
   ///
   /// In zh, this message translates to:
@@ -2673,18 +2691,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'恢复增强'**
   String get restoreEnhancement;
-
-  /// No description provided for @seekPauseHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'左右快进 · 确认暂停'**
-  String get seekPauseHint;
-
-  /// No description provided for @returnPlayback.
-  ///
-  /// In zh, this message translates to:
-  /// **'返回播放'**
-  String get returnPlayback;
 
   /// No description provided for @episodeTotal.
   ///
@@ -4390,6 +4396,96 @@ abstract class AppLocalizations {
   /// **'清空最近搜索'**
   String get clearRecentSearches;
 
+  /// No description provided for @searchTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索'**
+  String get searchTitle;
+
+  /// No description provided for @searchByCondition.
+  ///
+  /// In zh, this message translates to:
+  /// **'按条件查找'**
+  String get searchByCondition;
+
+  /// No description provided for @searchByConditionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'按分类浏览'**
+  String get searchByConditionHint;
+
+  /// No description provided for @searchHintGeneric.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索短剧名称'**
+  String get searchHintGeneric;
+
+  /// No description provided for @searchEmptyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜点什么'**
+  String get searchEmptyTitle;
+
+  /// No description provided for @searchResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索结果'**
+  String get searchResults;
+
+  /// No description provided for @searching.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在搜索…'**
+  String get searching;
+
+  /// No description provided for @searchingCatalog.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在搜索短剧'**
+  String get searchingCatalog;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有找到相关短剧'**
+  String get searchNoResults;
+
+  /// No description provided for @allResultsShown.
+  ///
+  /// In zh, this message translates to:
+  /// **'已经看到全部结果'**
+  String get allResultsShown;
+
+  /// No description provided for @recentSearches.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近搜索'**
+  String get recentSearches;
+
+  /// No description provided for @clearAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空'**
+  String get clearAll;
+
+  /// No description provided for @searchResultCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 部短剧'**
+  String searchResultCount(int count);
+
+  /// No description provided for @detailTotalEpisodesLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'总集数'**
+  String get detailTotalEpisodesLabel;
+
+  /// No description provided for @detailOnlineDateLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'上线日期'**
+  String get detailOnlineDateLabel;
+
   /// No description provided for @mediaLibraryNotReady.
   ///
   /// In zh, this message translates to:
@@ -4666,6 +4762,66 @@ abstract class AppLocalizations {
   /// **'插件仓库'**
   String get pluginsTitle;
 
+  /// No description provided for @settingsResourceSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'资源'**
+  String get settingsResourceSection;
+
+  /// No description provided for @pluginsManageTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'规则管理'**
+  String get pluginsManageTitle;
+
+  /// No description provided for @pluginsMyRules.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的规则'**
+  String get pluginsMyRules;
+
+  /// No description provided for @pluginsRulesDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理你的短剧来源。点按规则进行编辑，启停或卸载。'**
+  String get pluginsRulesDescription;
+
+  /// No description provided for @pluginsSearchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索名称或站点'**
+  String get pluginsSearchHint;
+
+  /// No description provided for @pluginsAllCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部 {count}'**
+  String pluginsAllCount(int count);
+
+  /// No description provided for @pluginsUpdatesCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'可更新 {count}'**
+  String pluginsUpdatesCount(int count);
+
+  /// No description provided for @pluginsNoMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有匹配的规则'**
+  String get pluginsNoMatch;
+
+  /// No description provided for @pluginsAddRule.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加规则'**
+  String get pluginsAddRule;
+
+  /// No description provided for @pluginsRuleStore.
+  ///
+  /// In zh, this message translates to:
+  /// **'规则仓库'**
+  String get pluginsRuleStore;
+
   /// No description provided for @pluginsIntro.
   ///
   /// In zh, this message translates to:
@@ -4707,6 +4863,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'仓库可安装'**
   String get pluginsAvailable;
+
+  /// No description provided for @pluginStateOn.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用'**
+  String get pluginStateOn;
+
+  /// No description provided for @pluginStateOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停用'**
+  String get pluginStateOff;
 
   /// No description provided for @pluginsEmpty.
   ///

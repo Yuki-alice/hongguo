@@ -6,9 +6,9 @@ import 'package:hoshi/data/local_profiles.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/features/profiles/controllers/profile_editor_controller.dart';
 import 'package:hoshi/ui/features/profiles/controllers/profiles_controller.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/ui/routing/app_router.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
@@ -27,7 +27,6 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
   void initState() {
     super.initState();
     _controller = ProfilesController(widget.store);
-    ensureTelevisionFocus(context);
   }
 
   @override
@@ -128,7 +127,9 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
         ),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+            constraints: const BoxConstraints(
+              maxWidth: Md3Spacing.contentMaxWidth,
+            ),
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -201,7 +202,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
                     in widget.store.configurationError == null
                         ? widget.store.profiles
                         : <LocalProfile>[])
-                  Card(
+                  TonalCard(
                     child: ListTile(
                       leading: Icon(
                         profile.admin
@@ -377,7 +378,9 @@ class _ProfileEditorState extends State<ProfileEditor> {
         ),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: Md3Spacing.contentMaxWidth),
+            constraints: const BoxConstraints(
+              maxWidth: Md3Spacing.contentMaxWidth,
+            ),
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [

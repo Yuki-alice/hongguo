@@ -141,9 +141,7 @@ class _AppBootstrapState extends State<AppBootstrap>
 
   Future<void> _refreshDevice() async {
     final detected = await AppDevice.detect(fallback: _device);
-    if (!mounted ||
-        (_device.television == detected.television &&
-            _device.version == detected.version)) {
+    if (!mounted || _device.version == detected.version) {
       return;
     }
     setState(() => _device = detected);
@@ -205,7 +203,6 @@ class DuanjuApp extends StatelessWidget {
     this.store,
     this.bootstrapError,
     this.onRetry,
-    this.television = false,
     this.version = appVersion,
     this.navigatorKey,
     this.wrapScope = true,
@@ -215,7 +212,6 @@ class DuanjuApp extends StatelessWidget {
   final LocalStore? store;
   final String? bootstrapError;
   final VoidCallback? onRetry;
-  final bool television;
   final String version;
   final GlobalKey<NavigatorState>? navigatorKey;
 
@@ -243,9 +239,7 @@ class DuanjuApp extends StatelessWidget {
       overrides: [
         repositoryProvider.overrideWithValue(repository),
         storeProvider.overrideWith(() => StoreHolder(store)),
-        deviceProvider.overrideWithValue(
-          television ? const AppDevice(television: true) : const AppDevice(),
-        ),
+        deviceProvider.overrideWithValue(const AppDevice()),
       ],
       child: shell,
     );
@@ -261,7 +255,6 @@ class _AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final device = ref.watch(deviceProvider);
     final router = ref.watch(routerProvider);
-    final television = ref.watch(televisionProvider);
     final themeMode = ref.watch(themeModeProvider);
     final themePreferences = ref.watch(themePreferencesProvider);
     // 系统取色在主色来源上与品牌种子色互斥：用户在设置里打开动态取色时，
@@ -276,25 +269,29 @@ class _AppShell extends ConsumerWidget {
           ref: ref,
           router: router,
           themeMode: themeMode,
-          television: television,
           version: version,
           device: device,
           light: useDynamic
               ? AppTheme.themeFor(
                   dynamicScheme: lightDynamic,
-                  oled: false,
+                  useSystemFont: themePreferences.useSystemFont,
                 )
-              : AppTheme.themeFor(seedColor: themePreferences.seedColor),
+              : AppTheme.themeFor(
+                  seedColor: themePreferences.seedColor,
+                  useSystemFont: themePreferences.useSystemFont,
+                ),
           dark: useDynamic
               ? AppTheme.themeFor(
                   brightness: Brightness.dark,
                   dynamicScheme: darkDynamic,
                   oled: themePreferences.oled,
+                  useSystemFont: themePreferences.useSystemFont,
                 )
               : AppTheme.themeFor(
                   brightness: Brightness.dark,
                   seedColor: themePreferences.seedColor,
                   oled: themePreferences.oled,
+                  useSystemFont: themePreferences.useSystemFont,
                 ),
           child: null,
         );
@@ -310,7 +307,6 @@ class _AppShell extends ConsumerWidget {
     required WidgetRef ref,
     required GoRouter router,
     required String themeMode,
-    required bool television,
     required String version,
     required AppDevice device,
     required ThemeData light,
@@ -336,14 +332,11 @@ class _AppShell extends ConsumerWidget {
           child: ColoredBox(
             color: theme.scaffoldBackgroundColor,
             child: AppOrientationScope(
-              television: television,
               child: AppLayout(
-                television: television,
                 version: version.isEmpty ? device.version : version,
                 child: Theme(
-                  data: television ? televisionTheme(theme) : theme,
+                  data: theme,
                   child: _ShellShortcuts(
-                    television: television,
                     child: FocusTraversalGroup(child: child!),
                   ),
                 ),
@@ -403,13 +396,11 @@ class DuanjuBootstrap extends StatelessWidget {
 
 /// 全局快捷键。
 ///
-/// 电视保留遥控语义（select / gameButtonA / goBack）；桌面补上窗口级
-/// 快捷键：搜索、设置、切换分支。全部走 `Intents` + `Actions`，而不是
-/// 直接改路由，这样被其他路由盖住时不会误触发。
+/// 桌面窗口级快捷键：搜索、设置、切换分支。全部走 `Intents` + `Actions`，
+/// 而不是直接改路由，这样被其他路由盖住时不会误触发。
 class _ShellShortcuts extends StatelessWidget {
-  const _ShellShortcuts({required this.television, required this.child});
+  const _ShellShortcuts({required this.child});
 
-  final bool television;
   final Widget child;
 
   @override
@@ -422,21 +413,21 @@ class _ShellShortcuts extends StatelessWidget {
         includeRepeats: false,
       ): const ActivateIntent(),
       const SingleActivator(LogicalKeyboardKey.goBack): const DismissIntent(),
-      if (!television) ...{
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-            const _SearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-            const _SearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.comma, meta: true):
-            const _SettingsIntent(),
-        const SingleActivator(LogicalKeyboardKey.comma, control: true):
-            const _SettingsIntent(),
-        for (var index = 0; index < 4; index++)
-          SingleActivator(
-            LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + index),
-            meta: true,
-          ): _BranchIntent(index),
-      },
+      const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+          const _SearchIntent(),
+      const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+          const _SearchIntent(),
+      const SingleActivator(LogicalKeyboardKey.comma, meta: true):
+          const _SettingsIntent(),
+      const SingleActivator(LogicalKeyboardKey.comma, control: true):
+          const _SettingsIntent(),
+      for (var index = 0; index < 4; index++)
+        SingleActivator(
+          LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + index),
+          meta: true,
+        ): _BranchIntent(
+          index,
+        ),
     },
     child: Actions(
       actions: {

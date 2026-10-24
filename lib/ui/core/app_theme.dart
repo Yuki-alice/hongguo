@@ -11,8 +11,13 @@ import 'package:hoshi/ui/theme/md3_tokens.dart';
 /// （主色定位、标签色），其余角色交给 `ColorScheme.fromSeed` 推导，
 /// 保证明暗两套与对比度层级都符合规范。
 abstract final class AppTheme {
-  /// 品牌种子色：红果橙红。
-  static const seed = Color(0xFFFF664F);
+  /// 品牌种子色：「星」的星野靛蓝。
+  ///
+  /// 选靛蓝而不是暖色是刻意的权衡：这个应用的主视觉是海报网格，暖色主色
+  /// 会与封面色竞争，让整屏显得燥。靛蓝在深色海报之间是退让色，同时仍能
+  /// 承担导航指示器、进度条这些需要被看见的角色。星辉金作为 tertiary 继续
+  /// 承担 VIP 与高光。
+  static const seed = Color(0xFF2F4F86);
 
   /// 可选种子色。第一项是品牌色，其余是常见偏好。
   ///
@@ -34,20 +39,26 @@ abstract final class AppTheme {
   static final light = themeFor();
   static final dark = themeFor(brightness: Brightness.dark);
 
+  /// 内置中文字体族名，与 `pubspec.yaml` 的 `fonts.family` 同名。
+  static const fontFamily = 'MiSans';
+
   /// 按用户偏好构建主题。
   ///
   /// [seedColor] 为 null 时用品牌色；[oled] 只在深色模式生效，
   /// 把表面与背景压到纯黑，OLED 屏更省电、对比度更高。
+  /// [useSystemFont] 为真时不指定字体族，交给平台默认中文字体。
   static ThemeData themeFor({
     Brightness brightness = Brightness.light,
     Color? seedColor,
     bool oled = false,
     ColorScheme? dynamicScheme,
+    bool useSystemFont = false,
   }) {
     final base = _theme(
       brightness,
       seedColor: seedColor,
       dynamicScheme: dynamicScheme,
+      fontFamily: useSystemFont ? null : fontFamily,
     );
     if (!oled || brightness != Brightness.dark) return base;
     return _oled(base);
@@ -109,12 +120,14 @@ abstract final class AppTheme {
     Brightness brightness, {
     Color? seedColor,
     ColorScheme? dynamicScheme,
+    String? fontFamily,
   }) {
     final scheme =
         dynamicScheme?.copyWith(brightness: brightness) ??
         _scheme(brightness, seedColor: seedColor);
     return ThemeData(
       useMaterial3: true,
+      fontFamily: fontFamily,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
@@ -384,15 +397,15 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      // 桌面平台用淡入前进：Windows / Linux 的 FadeUpwards 在宽窗口下
-      // 位移感过强，横向移动会干扰对内容位置的判断。
+      // 转场按 V1 的平台分派表：移动端沿用 Cupertino 的整页横移，
+      // 桌面端用 FadeUpwards（设置子页单独走 FadeForwards，见路由）。
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
-          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
         },
       ),
     );
@@ -402,8 +415,8 @@ abstract final class AppTheme {
   static ColorScheme _scheme(Brightness brightness, {Color? seedColor}) {
     final dark = brightness == Brightness.dark;
     final effective = seedColor ?? seed;
-    // 非品牌色时不再手工覆盖 primary 等角色：那几组色值是围绕橙红调的，
-    // 套到绿/蓝上会出现色相不一致。
+    // 非品牌色时不再手工覆盖 primary 等角色：那几组色值是围绕品牌靛蓝调的，
+    // 套到绿/橙上会出现色相不一致。
     if (seedColor != null && seedColor != seed) {
       return ColorScheme.fromSeed(
         seedColor: effective,
@@ -414,21 +427,22 @@ abstract final class AppTheme {
     return ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
-      primary: dark ? const Color(0xFFFFB4A3) : const Color(0xFFB02F1C),
-      onPrimary: dark ? const Color(0xFF5F1508) : Colors.white,
+      primary: dark ? const Color(0xFFAEC6FF) : const Color(0xFF2B4B80),
+      onPrimary: dark ? const Color(0xFF16325B) : Colors.white,
       primaryContainer: dark
-          ? const Color(0xFF8A2413)
-          : const Color(0xFFFFDAD2),
+          ? const Color(0xFF17375F)
+          : const Color(0xFFD6E3FF),
       onPrimaryContainer: dark
-          ? const Color(0xFFFFDAD2)
-          : const Color(0xFF3E0500),
-      tertiary: dark ? const Color(0xFFF6C86B) : const Color(0xFF7A5900),
+          ? const Color(0xFFD6E3FF)
+          : const Color(0xFF0B1D33),
+      // 星辉金：VIP 角标与高光。明色下要压暗才够对比，暗色下才提亮。
+      tertiary: dark ? const Color(0xFFE8C46A) : const Color(0xFF8A6A00),
       tertiaryContainer: dark
-          ? const Color(0xFF5C4300)
-          : const Color(0xFFFFDF9B),
+          ? const Color(0xFF5C4500)
+          : const Color(0xFFFFE08A),
       onTertiaryContainer: dark
-          ? const Color(0xFFFFDF9B)
-          : const Color(0xFF261A00),
+          ? const Color(0xFFFFE08A)
+          : const Color(0xFF2A1D00),
       dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
     );
   }

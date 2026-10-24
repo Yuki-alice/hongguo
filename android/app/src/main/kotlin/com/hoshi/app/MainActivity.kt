@@ -1,7 +1,6 @@
 package com.hoshi.app
 
 import io.flutter.embedding.android.FlutterActivity
-import android.app.UiModeManager
 import android.app.ActivityManager
 import android.app.PictureInPictureParams
 import android.os.Build
@@ -12,14 +11,12 @@ import android.os.SystemClock
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Rational
-import android.view.InputDevice
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -27,45 +24,6 @@ class MainActivity : FlutterActivity() {
     private var headroomReadAt = 0L
     private var thermalHeadroom: Double? = null
     private var deviceChannel: MethodChannel? = null
-    private var televisionMode = false
-
-    @Suppress("DEPRECATION")
-    private fun isTelevisionDevice(): Boolean {
-        val configuration = resources.configuration
-        val mode = (getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
-            ?: (configuration.uiMode and Configuration.UI_MODE_TYPE_MASK)
-        if (mode == Configuration.UI_MODE_TYPE_TELEVISION ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK_ONLY) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
-            packageManager.hasSystemFeature("amazon.hardware.fire_tv")) {
-            return true
-        }
-        if (mode == Configuration.UI_MODE_TYPE_CAR ||
-            mode == Configuration.UI_MODE_TYPE_WATCH ||
-            mode == Configuration.UI_MODE_TYPE_VR_HEADSET ||
-            configuration.touchscreen != Configuration.TOUCHSCREEN_NOTOUCH ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH) ||
-            packageManager.hasSystemFeature(PackageManager.FEATURE_PC)) {
-            return false
-        }
-        val remoteNavigation = configuration.navigation == Configuration.NAVIGATION_DPAD ||
-            InputDevice.getDeviceIds().any { id ->
-                val device = InputDevice.getDevice(id)
-                device != null && !device.isVirtual && device.supportsSource(InputDevice.SOURCE_DPAD)
-            }
-        return remoteNavigation || packageManager.hasSystemFeature(PackageManager.FEATURE_LIVE_TV)
-    }
-
-    override fun setRequestedOrientation(requestedOrientation: Int) {
-        super.setRequestedOrientation(
-            if (televisionMode) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else requestedOrientation
-        )
-    }
 
     private fun playbackPower(): Map<String, Any?> {
         val power = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -93,25 +51,11 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        televisionMode = if (savedInstanceState?.containsKey("hoshi.televisionMode") == true) {
-            savedInstanceState.getBoolean("hoshi.televisionMode")
-        } else isTelevisionDevice()
         super.onCreate(savedInstanceState)
-        if (televisionMode) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (televisionMode) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean("hoshi.televisionMode", televisionMode)
-        super.onSaveInstanceState(outState)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -122,22 +66,7 @@ class MainActivity : FlutterActivity() {
                     when (call.method) {
                         "deviceInfo" -> {
                             val version = packageManager.getPackageInfo(packageName, 0).versionName
-                            result.success(mapOf("television" to isTelevisionDevice(), "version" to version))
-                        }
-                        "setTelevisionMode" -> {
-                            val enabled = call.argument<Boolean>("enabled")
-                            if (enabled == null) {
-                                result.error("invalid_display_mode", "缺少电视模式状态", null)
-                            } else {
-                                val changed = televisionMode != enabled
-                                televisionMode = enabled
-                                if (enabled || changed) {
-                                    requestedOrientation = if (enabled) {
-                                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                    } else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                }
-                                result.success(null)
-                            }
+                            result.success(mapOf("version" to version))
                         }
                         "playbackPower" -> result.success(runCatching { playbackPower() }.getOrNull())
                         "systemProxy" -> {

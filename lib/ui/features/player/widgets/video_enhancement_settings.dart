@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/data/video_enhancement/video_enhancement.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/domain/video_enhancement_preferences.dart';
@@ -26,14 +25,12 @@ class VideoEnhancementSettings extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     required this.onCompare,
-    this.television = false,
     this.busy = false,
   });
 
   final VideoEnhancementController controller;
   final ValueChanged<VideoEnhancementPreferences> onChanged;
   final VoidCallback onCompare;
-  final bool television;
   final bool busy;
 
   Widget _choice({
@@ -42,19 +39,12 @@ class VideoEnhancementSettings extends StatelessWidget {
     required bool selected,
     required VoidCallback action,
     bool enabled = true,
-  }) => television
-      ? RemoteButton(
-          key: ValueKey(id),
-          label: label,
-          selected: selected,
-          onPressed: busy || !enabled ? null : action,
-        )
-      : ChoiceChip(
-          key: ValueKey(id),
-          label: Text(label),
-          selected: selected,
-          onSelected: busy || !enabled ? null : (_) => action(),
-        );
+  }) => ChoiceChip(
+    key: ValueKey(id),
+    label: Text(label),
+    selected: selected,
+    onSelected: busy || !enabled ? null : (_) => action(),
+  );
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -72,10 +62,7 @@ class VideoEnhancementSettings extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.enhancementTitle,
-            style: television ? const TextStyle(fontSize: 18) : null,
-          ),
+          Text(l10n.enhancementTitle),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -130,26 +117,16 @@ class VideoEnhancementSettings extends StatelessWidget {
               Text(controller.detail, style: helperStyle),
             ],
             const SizedBox(height: 8),
-            if (television)
-              RemoteButton(
-                key: const ValueKey('enhancement-compare'),
-                label: controller.comparing
+            OutlinedButton.icon(
+              key: const ValueKey('enhancement-compare'),
+              onPressed: controller.canCompare && !busy ? onCompare : null,
+              icon: const Icon(Icons.compare_rounded),
+              label: Text(
+                controller.comparing
                     ? l10n.restoreEnhancement
                     : l10n.compareOriginal,
-                icon: Icons.compare_rounded,
-                onPressed: controller.canCompare && !busy ? onCompare : null,
-              )
-            else
-              OutlinedButton.icon(
-                key: const ValueKey('enhancement-compare'),
-                onPressed: controller.canCompare && !busy ? onCompare : null,
-                icon: const Icon(Icons.compare_rounded),
-                label: Text(
-                  controller.comparing
-                      ? l10n.restoreEnhancement
-                      : l10n.compareOriginal,
-                ),
               ),
+            ),
           ] else if (!controller.supported) ...[
             const SizedBox(height: 12),
             Text(controller.status, key: const ValueKey('enhancement-status')),

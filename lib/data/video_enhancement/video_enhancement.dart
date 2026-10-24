@@ -85,7 +85,6 @@ class VideoEnhancementController extends ChangeNotifier {
   bool _ready = false;
   bool _initialized = false;
   bool _foreground = true;
-  bool _television = false;
   bool _closed = false;
   bool _comparing = false;
   bool _confirmed = false;
@@ -159,11 +158,10 @@ class VideoEnhancementController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setViewport(Size pixels, {required bool television}) {
+  void setViewport(Size pixels) {
     if (_closed || !supported) return;
-    if (_viewport == pixels && _television == television) return;
+    if (_viewport == pixels) return;
     _viewport = pixels;
-    _television = television;
     ignorePerformance();
     _schedule();
   }
@@ -269,7 +267,6 @@ class VideoEnhancementController extends ChangeNotifier {
       viewport: _viewport,
       ready: _ready && _foreground,
       android: Platform.isAndroid,
-      television: _television,
       gpu: _gpu,
       luma: _luma,
       hardware: _hardware,
@@ -620,7 +617,6 @@ class VideoEnhancementController extends ChangeNotifier {
         viewport: _viewport,
         ready: true,
         android: Platform.isAndroid,
-        television: _television,
         gpu: _gpu,
         luma: _luma,
         hardware: _hardware,

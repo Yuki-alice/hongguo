@@ -8,7 +8,7 @@ import 'package:hoshi/data/app_contract.dart';
 import 'package:hoshi/data/local_store.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/ui/core/empty_state.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
+import 'package:hoshi/ui/core/surfaces.dart';
 import 'package:hoshi/domain/source_status.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/features/sources/controllers/sources_controller.dart';
@@ -52,7 +52,6 @@ class _SourcesScreenState extends State<SourcesScreen> {
       initialSource: widget.initialSource,
       drama: widget.drama,
     );
-    ensureTelevisionFocus(context);
     _controller.start();
   }
 
@@ -171,12 +170,9 @@ class _SourcesScreenState extends State<SourcesScreen> {
                     if (group.id == 'huangguo')
                       Padding(
                         padding: const EdgeInsets.only(bottom: Md3Spacing.md),
-                        child: Card(
-                          clipBehavior: Clip.antiAlias,
+                        child: TonalCard(
                           child: ExpansionTile(
-                            key: const PageStorageKey(
-                              'source-group-huangguo',
-                            ),
+                            key: const PageStorageKey('source-group-huangguo'),
                             initiallyExpanded: group.sources.any(
                               (source) => source.id == widget.initialSource,
                             ),
@@ -251,252 +247,247 @@ class _SourcesScreenState extends State<SourcesScreen> {
     final health = status?.health;
     final healthExpanded = _controller.healthExpanded(source.id);
     final colors = Theme.of(context).colorScheme;
-    return Card(
+    return TonalCard(
       key: ValueKey('source-${source.id}'),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.dns_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    source.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                Text(l10n.sourceCount(status?.count ?? 0)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.sourceLastUpdated(sourceTimestamp(status?.updatedAt, l10n)),
-            ),
-            if (status != null && status.count > 0)
-              Text(
-                '${l10n.sourceLoadedPage(status.page)} · ${status.hasMore ? l10n.sourceCanLoadMore : l10n.sourcePageComplete}',
-              ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                FilledButton.icon(
-                  key: ValueKey('update-${source.id}'),
-                  onPressed: enabled ? () => _run(source, 'update') : null,
-                  icon: const Icon(Icons.sync_rounded),
-                  label: Text(l10n.sourceUpdate),
-                ),
-                OutlinedButton.icon(
-                  key: ValueKey('check-${source.id}'),
-                  onPressed: enabled ? () => _run(source, 'check') : null,
-                  icon: const Icon(Icons.network_check),
-                  label: Text(l10n.sourceCheck),
-                ),
-                if (status?.running == true)
-                  TextButton(
-                    onPressed: pending ? null : () => _run(source, 'cancel'),
-                    child: Text(l10n.sourceStop),
-                  ),
-                PopupMenuButton<String>(
-                  tooltip: l10n.sourceMoreActions(source.name),
-                  enabled: enabled,
-                  onSelected: (operation) => _run(source, operation),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'more',
-                      enabled: status?.hasMore ?? true,
-                      child: Text(l10n.sourceLoadMore),
-                    ),
-                    PopupMenuItem(
-                      value: 'metadata',
-                      child: Text(l10n.sourceFillMetadata),
-                    ),
-                    if (source.id == 'huangdou')
-                      PopupMenuItem(
-                        value: 'vipMetadata',
-                        enabled: (status?.unknownVip ?? 0) > 0,
-                        child: Text(
-                          l10n.sourceFillVip(status?.unknownVip ?? 0),
-                        ),
-                      ),
-                    PopupMenuItem(
-                      value: 'checkCatalog',
-                      child: Text(l10n.sourceCheckCatalog),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if (busy) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: status != null && status.total > 0
-                    ? (status.completed / status.total).clamp(0, 1)
-                    : null,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${status?.stage.isNotEmpty == true ? status!.stage : l10n.sourcePreparing}'
-                '${(status?.total ?? 0) > 0 ? ' · ${status!.completed}/${status.total}' : ''}',
-              ),
-            ] else if (status != null && status.stage.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                '${status.stage}'
-                '${status.added > 0 ? ' · ${l10n.sourceAdded(status.added)}' : ''}',
-              ),
-            ],
-            if (seconds > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(Md3Spacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.dns_outlined),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Text(
-                  l10n.sourceRetryIn(seconds),
-                  style: TextStyle(color: colors.error),
+                  source.name,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-            if (error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: SelectableText(
-                  error,
-                  style: TextStyle(color: colors.error),
-                ),
+              Text(l10n.sourceCount(status?.count ?? 0)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.sourceLastUpdated(sourceTimestamp(status?.updatedAt, l10n)),
+          ),
+          if (status != null && status.count > 0)
+            Text(
+              '${l10n.sourceLoadedPage(status.page)} · ${status.hasMore ? l10n.sourceCanLoadMore : l10n.sourcePageComplete}',
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton.icon(
+                key: ValueKey('update-${source.id}'),
+                onPressed: enabled ? () => _run(source, 'update') : null,
+                icon: const Icon(Icons.sync_rounded),
+                label: Text(l10n.sourceUpdate),
               ),
-            if (status != null && status.storageError.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      status.storageError,
-                      style: TextStyle(color: colors.error),
-                    ),
-                    TextButton.icon(
-                      key: ValueKey('save-${source.id}'),
-                      onPressed:
-                          !busy && widget.repository.supportsSourceManagement
-                          ? () => _run(source, 'retrySave')
-                          : null,
-                      icon: const Icon(Icons.save_outlined),
-                      label: Text(l10n.sourceRetrySave),
-                    ),
-                  ],
-                ),
+              OutlinedButton.icon(
+                key: ValueKey('check-${source.id}'),
+                onPressed: enabled ? () => _run(source, 'check') : null,
+                icon: const Icon(Icons.network_check),
+                label: Text(l10n.sourceCheck),
               ),
-            if (health != null) ...[
-              const Divider(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      expanded: healthExpanded,
-                      child: Tooltip(
-                        message: healthExpanded
-                            ? l10n.sourceCollapseHealth
-                            : l10n.sourceExpandHealth,
-                        child: TextButton(
-                          key: ValueKey('health-toggle-${source.id}'),
-                          onPressed: () => _controller.toggleHealth(source.id),
-                          style: TextButton.styleFrom(
-                            foregroundColor: colors.onSurface,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 8,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(health.label),
-                                    Text(
-                                      sourceTimestamp(health.checkedAt, l10n),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                healthExpanded
-                                    ? Icons.expand_less_rounded
-                                    : Icons.expand_more_rounded,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+              if (status?.running == true)
+                TextButton(
+                  onPressed: pending ? null : () => _run(source, 'cancel'),
+                  child: Text(l10n.sourceStop),
+                ),
+              PopupMenuButton<String>(
+                tooltip: l10n.sourceMoreActions(source.name),
+                enabled: enabled,
+                onSelected: (operation) => _run(source, operation),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'more',
+                    enabled: status?.hasMore ?? true,
+                    child: Text(l10n.sourceLoadMore),
                   ),
-                  IconButton(
-                    tooltip: l10n.sourceCopyDiagnostics,
-                    onPressed: () => _copy(source, status!),
-                    icon: const Icon(Icons.copy_rounded),
+                  PopupMenuItem(
+                    value: 'metadata',
+                    child: Text(l10n.sourceFillMetadata),
+                  ),
+                  if (source.id == 'huangdou')
+                    PopupMenuItem(
+                      value: 'vipMetadata',
+                      enabled: (status?.unknownVip ?? 0) > 0,
+                      child: Text(l10n.sourceFillVip(status?.unknownVip ?? 0)),
+                    ),
+                  PopupMenuItem(
+                    value: 'checkCatalog',
+                    child: Text(l10n.sourceCheckCatalog),
                   ),
                 ],
               ),
-              if (healthExpanded) ...[
-                if (health.sample.isNotEmpty)
-                  Text(l10n.sourceSample(health.sample)),
-                for (final step in health.steps)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          step.state == 'ok'
-                              ? Icons.check_circle_outline
-                              : Icons.error_outline,
-                          size: 20,
-                          color: step.state == 'ok'
-                              ? colors.primary
-                              : colors.error,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(l10n.sourceStep(step.name, step.message)),
-                              if (step.host.isNotEmpty || step.httpStatus > 0)
-                                Text(
-                                  step.httpStatus > 0
-                                      ? l10n.sourceStepHost(
-                                          step.host,
-                                          step.httpStatus,
-                                          step.elapsedMs,
-                                        )
-                                      : l10n.sourceStepHostNoStatus(
-                                          step.host,
-                                          step.elapsedMs,
-                                        ),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                            ],
+            ],
+          ),
+          if (busy) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: status != null && status.total > 0
+                  ? (status.completed / status.total).clamp(0, 1)
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${status?.stage.isNotEmpty == true ? status!.stage : l10n.sourcePreparing}'
+              '${(status?.total ?? 0) > 0 ? ' · ${status!.completed}/${status.total}' : ''}',
+            ),
+          ] else if (status != null && status.stage.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${status.stage}'
+              '${status.added > 0 ? ' · ${l10n.sourceAdded(status.added)}' : ''}',
+            ),
+          ],
+          if (seconds > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l10n.sourceRetryIn(seconds),
+                style: TextStyle(color: colors.error),
+              ),
+            ),
+          if (error.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SelectableText(
+                error,
+                style: TextStyle(color: colors.error),
+              ),
+            ),
+          if (status != null && status.storageError.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    status.storageError,
+                    style: TextStyle(color: colors.error),
+                  ),
+                  TextButton.icon(
+                    key: ValueKey('save-${source.id}'),
+                    onPressed:
+                        !busy && widget.repository.supportsSourceManagement
+                        ? () => _run(source, 'retrySave')
+                        : null,
+                    icon: const Icon(Icons.save_outlined),
+                    label: Text(l10n.sourceRetrySave),
+                  ),
+                ],
+              ),
+            ),
+          if (health != null) ...[
+            const Divider(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    expanded: healthExpanded,
+                    child: Tooltip(
+                      message: healthExpanded
+                          ? l10n.sourceCollapseHealth
+                          : l10n.sourceExpandHealth,
+                      child: TextButton(
+                        key: ValueKey('health-toggle-${source.id}'),
+                        onPressed: () => _controller.toggleHealth(source.id),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colors.onSurface,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
                           ),
                         ),
-                      ],
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(health.label),
+                                  Text(
+                                    sourceTimestamp(health.checkedAt, l10n),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              healthExpanded
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
+                ),
+                IconButton(
+                  tooltip: l10n.sourceCopyDiagnostics,
+                  onPressed: () => _copy(source, status!),
+                  icon: const Icon(Icons.copy_rounded),
+                ),
               ],
-            ] else ...[
-              const SizedBox(height: 12),
-              Text(l10n.sourceNotTested),
+            ),
+            if (healthExpanded) ...[
+              if (health.sample.isNotEmpty)
+                Text(l10n.sourceSample(health.sample)),
+              for (final step in health.steps)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        step.state == 'ok'
+                            ? Icons.check_circle_outline
+                            : Icons.error_outline,
+                        size: 20,
+                        color: step.state == 'ok'
+                            ? colors.primary
+                            : colors.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l10n.sourceStep(step.name, step.message)),
+                            if (step.host.isNotEmpty || step.httpStatus > 0)
+                              Text(
+                                step.httpStatus > 0
+                                    ? l10n.sourceStepHost(
+                                        step.host,
+                                        step.httpStatus,
+                                        step.elapsedMs,
+                                      )
+                                    : l10n.sourceStepHostNoStatus(
+                                        step.host,
+                                        step.elapsedMs,
+                                      ),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(l10n.sourceNotTested),
           ],
-        ),
+        ],
       ),
     );
   }

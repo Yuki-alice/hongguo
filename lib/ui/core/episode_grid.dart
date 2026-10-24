@@ -4,15 +4,11 @@ import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
-/// 选集按钮（非电视模式）。
+/// 选集按钮。
 ///
-/// 与 `RemoteEpisodeButton` 的区别不只是尺寸：
-/// - 交互反馈用「表面色 + 主色描边」，不是电视那套 3px 焦点环；
+/// - 交互反馈用「表面色 + 主色描边」；
 /// - 支持鼠标悬停与键盘 Tab 聚焦，两者视觉一致；
 /// - 当前集用主色填充，选中态（批量下载）用次色填充，二者不会混淆。
-///
-/// 改造前手机与桌面都直接复用 `RemoteEpisodeButton`，于是桌面上每个集数
-/// 按钮都带 3px 遥控焦点环，且没有悬停反馈。
 class EpisodeButton extends StatefulWidget {
   const EpisodeButton({
     super.key,
@@ -51,9 +47,8 @@ class _EpisodeButtonState extends State<EpisodeButton> {
     final highlighted = widget.current || widget.selected;
 
     final background = switch ((highlighted, _hovered)) {
-      (true, _) => widget.selected
-          ? colors.secondaryContainer
-          : colors.primaryContainer,
+      (true, _) =>
+        widget.selected ? colors.secondaryContainer : colors.primaryContainer,
       (false, true) => Md3State.layer(
         colors.surface,
         colors.onSurface,
@@ -148,10 +143,9 @@ class _EpisodeButtonState extends State<EpisodeButton> {
   }
 }
 
-/// 非电视模式的选集网格。
+/// 选集网格。
 ///
-/// 电视用 `RemoteGrid`（自管焦点与跨区跳转）；其余平台用普通 `GridView`，
-/// 悬停、滚轮、键盘 Tab 都能正常工作。
+/// 普通 `GridView`，悬停、滚轮、键盘 Tab 都能正常工作。
 class EpisodeGrid extends StatelessWidget {
   const EpisodeGrid({
     super.key,
@@ -214,7 +208,8 @@ class EpisodeGrid extends StatelessWidget {
               number: episode.number,
               vip: episode.vip,
               compact: compact,
-              current: selectedNumbers?.contains(episode.number) ??
+              current:
+                  selectedNumbers?.contains(episode.number) ??
                   episode.number == currentNumber,
               selected: selectedNumbers?.contains(episode.number) ?? false,
               onPressed: () => onSelected(index),

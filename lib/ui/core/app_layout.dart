@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'package:hoshi/ui/theme/md3_tokens.dart';
-
 export 'package:hoshi/app_build.dart';
 
 /// 兜底版本号。
@@ -16,44 +14,8 @@ export 'package:hoshi/app_build.dart';
 /// 读不到平台信息时的显示。改动 pubspec 的 `version:` 后无需同步此处。
 const appVersion = '0.2.62';
 
-ThemeData televisionTheme(ThemeData theme) {
-  final colors = theme.colorScheme;
-  final focusSide = WidgetStateProperty.resolveWith<BorderSide?>(
-    (states) => states.contains(WidgetState.focused)
-        ? BorderSide(color: colors.primary, width: 3)
-        : null,
-  );
-  final focusBackground = WidgetStateProperty.resolveWith<Color?>(
-    (states) =>
-        states.contains(WidgetState.focused) ? colors.primaryContainer : null,
-  );
-  final button = ButtonStyle(
-    side: focusSide,
-    minimumSize: const WidgetStatePropertyAll(Size(52, 48)),
-    textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 17)),
-  );
-  return theme.copyWith(
-    focusColor: colors.primaryContainer,
-    iconButtonTheme: IconButtonThemeData(
-      style: button.copyWith(backgroundColor: focusBackground),
-    ),
-    filledButtonTheme: FilledButtonThemeData(style: button),
-    outlinedButtonTheme: OutlinedButtonThemeData(style: button),
-    textButtonTheme: TextButtonThemeData(
-      style: button.copyWith(backgroundColor: focusBackground),
-    ),
-    inputDecorationTheme: theme.inputDecorationTheme.copyWith(
-      focusedBorder: OutlineInputBorder(
-        borderRadius: Md3Shape.largeRadius,
-        borderSide: BorderSide(color: colors.primary, width: 3),
-      ),
-    ),
-  );
-}
-
 class AppDevice {
-  const AppDevice({this.television = false, this.version = appVersion});
-  final bool television;
+  const AppDevice({this.version = appVersion});
   final String version;
   static const channel = MethodChannel('hoshi/device');
 
@@ -68,11 +30,8 @@ class AppDevice {
       final data = await channel
           .invokeMapMethod<String, dynamic>('deviceInfo')
           .timeout(const Duration(seconds: 2));
-      final television = data?['television'];
-      if (television is! bool) return fallback;
       final version = data?['version'];
       return AppDevice(
-        television: television,
         version: version is String && version.isNotEmpty
             ? version
             : fallback.version,
@@ -88,8 +47,8 @@ class AppDevice {
 
   /// 桌面与 iOS 的版本号来自平台包信息。
   ///
-  /// Android 由 `hoshi/device` 一并返回（电视模式检测走同一次调用），
-  /// 其余平台没有自己的通道，直接用 `package_info_plus`，避免把版本号
+  /// Android 由 `hoshi/device` 一并返回，其余平台没有自己的通道，
+  /// 直接用 `package_info_plus`，避免把版本号
   /// 抄进 Dart 常量后在每次发版时忘记同步。
   static Future<String?> _packageVersion() async {
     try {
@@ -105,23 +64,13 @@ class AppDevice {
 }
 
 class AppLayout extends InheritedWidget {
-  const AppLayout({
-    super.key,
-    required this.television,
-    this.version = appVersion,
-    required super.child,
-  });
-  final bool television;
+  const AppLayout({super.key, this.version = appVersion, required super.child});
   final String version;
 
-  static bool isTelevision(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppLayout>()?.television ??
-      false;
   static String versionOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppLayout>()?.version ??
       appVersion;
 
   @override
-  bool updateShouldNotify(AppLayout oldWidget) =>
-      television != oldWidget.television || version != oldWidget.version;
+  bool updateShouldNotify(AppLayout oldWidget) => version != oldWidget.version;
 }

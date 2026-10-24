@@ -3,11 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/models.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/episode_grid.dart';
-import 'package:hoshi/ui/core/remote_widgets.dart';
 import 'package:hoshi/ui/theme/md3_tokens.dart';
 
 const episodePageSize = 50;
@@ -174,8 +172,6 @@ class EpisodeBrowser extends StatefulWidget {
     this.keyPrefix = 'episode',
     this.title,
     this.compact = false,
-    this.onExitUp,
-    this.onExitDown,
   });
   final List<Episode> episodes;
   final ValueChanged<int> onSelected;
@@ -184,8 +180,6 @@ class EpisodeBrowser extends StatefulWidget {
   final String keyPrefix;
   final String? title;
   final bool compact;
-  final VoidCallback? onExitUp;
-  final VoidCallback? onExitDown;
   @override
   State<EpisodeBrowser> createState() => _EpisodeBrowserState();
 }
@@ -233,7 +227,6 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
     _page = _page.clamp(0, max(0, (widget.episodes.length - 1) ~/ pageSize));
     final start = _page * pageSize;
     final visible = widget.episodes.skip(start).take(pageSize).toList();
-    final television = AppLayout.isTelevision(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -259,11 +252,7 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
               final columns =
                   ((constraints.maxWidth - (widget.compact ? 8 : 36)) /
                           max(
-                            widget.compact
-                                ? 64
-                                : television
-                                ? 100
-                                : 82,
+                            widget.compact ? 64 : 82,
                             scale.scale(widget.compact ? 18 : 20) *
                                     digits *
                                     .65 +
@@ -300,49 +289,15 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
                   );
                 });
               }
-              if (!television) {
-                return EpisodeGrid(
-                  key: ValueKey('episode-page-$_page-$_located'),
-                  controller: _scroll,
-                  episodes: visible,
-                  keyPrefix: widget.keyPrefix,
-                  currentNumber: widget.currentNumber,
-                  selectedNumbers: widget.selectedNumbers,
-                  padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
-                  onSelected: (index) => widget.onSelected(start + index),
-                );
-              }
-              return RemoteGrid(
+              return EpisodeGrid(
                 key: ValueKey('episode-page-$_page-$_located'),
                 controller: _scroll,
-                autofocus: television && _located != null,
-                initialIndex: target,
-                onExitUp: widget.onExitUp,
-                onExitDown: widget.onExitDown,
-                itemKeys: visible
-                    .map((episode) => '${episode.number}')
-                    .toList(),
-                columns: columns,
-                itemExtent: extent,
-                spacing: widget.compact ? 6 : 8,
-                padding: widget.compact
-                    ? const EdgeInsets.fromLTRB(4, 4, 4, 12)
-                    : const EdgeInsets.fromLTRB(18, 2, 18, 18),
-                itemBuilder: (_, index, node, onFocus) {
-                  final episode = visible[index];
-                  return RemoteEpisodeButton(
-                    key: ValueKey('${widget.keyPrefix}-${episode.number}'),
-                    number: episode.number,
-                    vip: episode.vip,
-                    compact: widget.compact,
-                    current:
-                        widget.selectedNumbers?.contains(episode.number) ??
-                        episode.number == widget.currentNumber,
-                    focusNode: node,
-                    onFocus: onFocus,
-                    onPressed: () => widget.onSelected(start + index),
-                  );
-                },
+                episodes: visible,
+                keyPrefix: widget.keyPrefix,
+                currentNumber: widget.currentNumber,
+                selectedNumbers: widget.selectedNumbers,
+                padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
+                onSelected: (index) => widget.onSelected(start + index),
               );
             },
           ),
@@ -395,7 +350,6 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
 
   Widget _continuousGrid(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final television = AppLayout.isTelevision(context);
       final scale = MediaQuery.textScalerOf(context);
       final digits = widget.episodes.fold<int>(
         1,
@@ -404,7 +358,7 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
       final minimum = max(40.0, scale.scale(14) * digits * .62 + 22);
       final columns = ((constraints.maxWidth - 12) / minimum).floor().clamp(
         5,
-        television ? 12 : 10,
+        10,
       );
       final extent = max(34.0, scale.scale(14) + 18);
       final target = max(
@@ -432,36 +386,7 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
         children: [
           _compactRangeSelector(target: target, pageCount: pageCount),
           Expanded(
-            child: television
-                ? RemoteGrid(
-              key: ValueKey('episode-continuous-$_located'),
-              controller: _scroll,
-              autofocus: television && _located != null,
-              initialIndex: target,
-              itemKeys: widget.episodes
-                  .map((episode) => '${episode.number}')
-                  .toList(),
-              columns: columns,
-              itemExtent: extent,
-              spacing: 5,
-              padding: const EdgeInsets.fromLTRB(4, 6, 4, 4),
-              itemBuilder: (_, index, node, onFocus) {
-                final episode = widget.episodes[index];
-                return RemoteEpisodeButton(
-                  key: ValueKey('${widget.keyPrefix}-${episode.number}'),
-                  number: episode.number,
-                  vip: episode.vip,
-                  compact: true,
-                  current:
-                      widget.selectedNumbers?.contains(episode.number) ??
-                      episode.number == widget.currentNumber,
-                  focusNode: node,
-                  onFocus: onFocus,
-                  onPressed: () => widget.onSelected(index),
-                );
-              },
-            )
-                : EpisodeGrid(
+            child: EpisodeGrid(
               key: ValueKey('episode-continuous-$_located'),
               controller: _scroll,
               episodes: widget.episodes,

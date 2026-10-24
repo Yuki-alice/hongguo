@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:hoshi/ui/core/app_layout.dart';
 import 'package:hoshi/domain/catalog_sort.dart';
 import 'package:hoshi/l10n/generated/app_localizations.dart';
 import 'package:hoshi/ui/core/l10n_labels.dart';
@@ -15,9 +14,7 @@ Future<CatalogView?> chooseCatalogView(
   BuildContext context,
   CatalogView current,
 ) {
-  final wide =
-      MediaQuery.sizeOf(context).width >= Md3WindowClass.expanded &&
-      !AppLayout.isTelevision(context);
+  final wide = MediaQuery.sizeOf(context).width >= Md3WindowClass.expanded;
   if (wide) {
     return showDialog<CatalogView>(
       context: context,
@@ -38,10 +35,7 @@ Future<CatalogView?> chooseCatalogView(
 /// 受控组件：状态只在宿主那一层，避免子组件各持一份 `_selected` 导致
 /// 两处选择互相覆盖。
 class _CatalogViewContent extends StatelessWidget {
-  const _CatalogViewContent({
-    required this.current,
-    required this.onChanged,
-  });
+  const _CatalogViewContent({required this.current, required this.onChanged});
 
   final CatalogView current;
   final ValueChanged<CatalogView> onChanged;
@@ -73,7 +67,9 @@ class _CatalogViewContent extends StatelessWidget {
               'unknown': l10n.statusUnknown,
             }.entries)
               ChoiceChip(
-                key: ValueKey('release-${entry.key.isEmpty ? 'all' : entry.key}'),
+                key: ValueKey(
+                  'release-${entry.key.isEmpty ? 'all' : entry.key}',
+                ),
                 label: Text(entry.value),
                 selected: current.release == entry.key,
                 onSelected: (_) =>
@@ -117,13 +113,9 @@ class _SortOptions extends StatelessWidget {
             for (final sort in CatalogSort.values)
               ChoiceChip(
                 key: ValueKey('sort-${sort.name}'),
-                autofocus:
-                    AppLayout.isTelevision(context) &&
-                    sort == CatalogSort.values.first,
                 label: Text(catalogSortLabel(sort, l10n)),
                 selected: current.sort == sort,
-                onSelected: (_) =>
-                    onChanged(current.copyWith(sort: sort)),
+                onSelected: (_) => onChanged(current.copyWith(sort: sort)),
               ),
           ],
         ),

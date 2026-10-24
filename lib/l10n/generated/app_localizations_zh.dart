@@ -884,6 +884,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置与备份';
 
   @override
+  String get settingsNav => '设置';
+
+  @override
   String get settingsAdvanced => '高级';
 
   @override
@@ -1227,7 +1230,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noMatchingDramas => '没有找到匹配的短剧';
 
   @override
-  String get searchEmptyHint => '可以换个搜索词，或显示 VIP 内容。';
+  String get searchEmptyHint => '输入剧名开始搜索，历史会记在这里。';
 
   @override
   String get errorEmptyHint => '可以换个搜索词，或刷新后重试。';
@@ -1262,13 +1265,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get loadingDramas => '正在加载剧集';
 
   @override
-  String get displayMode => '界面模式';
-
-  @override
   String get noSourcesHint => '请联系管理员为当前用户开放站源。';
 
   @override
   String get follows => '追剧';
+
+  @override
+  String get mySpaceTitle => '我的';
+
+  @override
+  String get myStatsTitle => '观看概览';
+
+  @override
+  String get myContentSection => '内容';
+
+  @override
+  String get myAppSection => '应用';
+
+  @override
+  String get myItemsUnit => '部';
+
+  @override
+  String get myEpisodesUnit => '已看集数';
+
+  @override
+  String get mySourcesCaption => '管理剧集来源';
 
   @override
   String get lanSyncTitle => '追剧同步';
@@ -1309,9 +1330,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeMaxSelection => '一次最多选择 50 部短剧，请分批下载';
 
   @override
-  String get displayPhoneComputer => '手机 / 电脑';
-
-  @override
   String searchGroup(String name) {
     return '搜索$name短剧';
   }
@@ -1326,12 +1344,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get appIntro => '独立运行，打开即可浏览和播放。观看记录与追剧收藏保存在当前设备。';
-
-  @override
-  String get displayTelevision => '电视 / 遥控器';
-
-  @override
-  String get autoDetectDevice => '自动识别设备';
 
   @override
   String get filterLoadedDramas => '筛选当前已加载短剧';
@@ -1408,9 +1420,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playbackProgress => '播放进度，左右键快进或后退十秒';
 
   @override
-  String get fullscreenControlsHint => '控制条隐藏后：左右快进 10 秒，上下或确认键显示控制条';
-
-  @override
   String get nextPreloadOn => '下一集预加载：开';
 
   @override
@@ -1433,12 +1442,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get restoreEnhancement => '恢复增强';
-
-  @override
-  String get seekPauseHint => '左右快进 · 确认暂停';
-
-  @override
-  String get returnPlayback => '返回播放';
 
   @override
   String episodeTotal(int count) {
@@ -2367,6 +2370,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearRecentSearches => '清空最近搜索';
 
   @override
+  String get searchTitle => '搜索';
+
+  @override
+  String get searchByCondition => '按条件查找';
+
+  @override
+  String get searchByConditionHint => '按分类浏览';
+
+  @override
+  String get searchHintGeneric => '搜索短剧名称';
+
+  @override
+  String get searchEmptyTitle => '搜点什么';
+
+  @override
+  String get searchResults => '搜索结果';
+
+  @override
+  String get searching => '正在搜索…';
+
+  @override
+  String get searchingCatalog => '正在搜索短剧';
+
+  @override
+  String get searchNoResults => '没有找到相关短剧';
+
+  @override
+  String get allResultsShown => '已经看到全部结果';
+
+  @override
+  String get recentSearches => '最近搜索';
+
+  @override
+  String get clearAll => '清空';
+
+  @override
+  String searchResultCount(int count) {
+    return '$count 部短剧';
+  }
+
+  @override
+  String get detailTotalEpisodesLabel => '总集数';
+
+  @override
+  String get detailOnlineDateLabel => '上线日期';
+
+  @override
   String get mediaLibraryNotReady => '媒体库尚未就绪';
 
   @override
@@ -2529,6 +2579,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pluginsTitle => '插件仓库';
 
   @override
+  String get settingsResourceSection => '资源';
+
+  @override
+  String get pluginsManageTitle => '规则管理';
+
+  @override
+  String get pluginsMyRules => '我的规则';
+
+  @override
+  String get pluginsRulesDescription => '管理你的短剧来源。点按规则进行编辑，启停或卸载。';
+
+  @override
+  String get pluginsSearchHint => '搜索名称或站点';
+
+  @override
+  String pluginsAllCount(int count) {
+    return '全部 $count';
+  }
+
+  @override
+  String pluginsUpdatesCount(int count) {
+    return '可更新 $count';
+  }
+
+  @override
+  String get pluginsNoMatch => '没有匹配的规则';
+
+  @override
+  String get pluginsAddRule => '添加规则';
+
+  @override
+  String get pluginsRuleStore => '规则仓库';
+
+  @override
   String get pluginsIntro =>
       '站源以插件形式分发：内置仓库按需安装，也可添加第三方仓库。每个包都会校验 SHA-256，签名仓库还会校验索引签名。';
 
@@ -2549,6 +2633,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pluginsAvailable => '仓库可安装';
+
+  @override
+  String get pluginStateOn => '已启用';
+
+  @override
+  String get pluginStateOff => '已停用';
 
   @override
   String get pluginsEmpty => '还没有安装任何插件。载入仓库后选择需要的站源。';

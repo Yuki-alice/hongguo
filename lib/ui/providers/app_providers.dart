@@ -58,8 +58,8 @@ final readyStoreProvider = Provider<LocalStore>((ref) {
 /// 把 [LocalStore] 的 `ChangeNotifier` 通知桥接进 Riverpod。
 ///
 /// `LocalStore` 是 `ChangeNotifier`，`notifyListeners()` 不会经过 Riverpod：
-/// `ref.watch(storeProvider)` 只在 `state` 被重新赋值时触发，而改主题、改
-/// 显示模式只是原地修改对象字段。这里订阅一次 store 并在每次通知时递增
+/// `ref.watch(storeProvider)` 只在 `state` 被重新赋值时触发，而改主题只是
+/// 原地修改对象字段。这里订阅一次 store 并在每次通知时递增
 /// 计数器，让依赖 `store.xxx` 字段的 provider 有可 watch 的刷新信号。
 class StoreRevision extends Notifier<int> {
   @override
@@ -80,17 +80,6 @@ final storeRevisionProvider = NotifierProvider<StoreRevision, int>(
 /// 设备形态与版本信息。
 final deviceProvider = Provider<AppDevice>((ref) => const AppDevice());
 
-/// 当前是否以电视模式呈现。
-///
-/// 由用户偏好与设备能力共同决定，供布局与焦点逻辑读取。
-final televisionProvider = Provider<bool>((ref) {
-  final device = ref.watch(deviceProvider);
-  // 依赖 storeRevisionProvider 才能感知 `setDisplayMode` 的原地修改。
-  ref.watch(storeRevisionProvider);
-  final mode = ref.watch(storeProvider)?.displayMode;
-  return mode == 'television' || mode == 'auto' && device.television;
-});
-
 /// 主题模式偏好；未选择用户时跟随系统。
 final themeModeProvider = Provider<String>((ref) {
   ref.watch(storeRevisionProvider);
@@ -107,7 +96,7 @@ class ThemePreferences {
     this.seed,
     this.dynamic = false,
     this.oled = false,
-    this.useSystemFont = true,
+    this.useSystemFont = false,
   });
 
   /// 种子色（ARGB 十六进制字符串），null 表示品牌默认色。

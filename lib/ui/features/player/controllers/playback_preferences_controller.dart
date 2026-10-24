@@ -13,13 +13,14 @@ class PlaybackPreferencesController extends ChangeNotifier {
     required this.profileEpoch,
     required PlaybackPreferences initial,
   }) : _speed = initial.speed,
+       _autoAdvance = initial.autoAdvance,
        _danmakuEnabled = initial.danmaku;
 
   final LocalStore store;
   final int profileEpoch;
 
   double _speed;
-  final bool _autoAdvance = true;
+  bool _autoAdvance;
   bool _danmakuEnabled;
   final bool _preloadEnabled = true;
   bool _disposed = false;
@@ -30,10 +31,11 @@ class PlaybackPreferencesController extends ChangeNotifier {
   bool get preloadEnabled => _preloadEnabled;
 
   Future<bool> save(PlaybackPreferences next) async {
-    final merged = next.copyWith(autoAdvance: true, preload: true);
+    final merged = next.copyWith(preload: true);
     await store.setPlaybackPreferences(merged);
     if (_disposed || store.profileEpoch != profileEpoch) return false;
     _speed = merged.speed;
+    _autoAdvance = merged.autoAdvance;
     _danmakuEnabled = merged.danmaku;
     notifyListeners();
     return true;

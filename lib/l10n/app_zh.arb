@@ -658,6 +658,7 @@
   "includeVipHint": "VIP 集可能仅提供试看内容；下载前仍可调整选择。",
   "prefsSavedHint": "偏好保存在当前用户中，应用于下载选集、批量下载和更新本剧。",
   "settingsTitle": "设置与备份",
+  "settingsNav": "设置",
   "settingsAdvanced": "高级",
   "settingsAdvancedHint": "管理员专属：备份、导出与网络资源",
   "downloadsPickCollection": "选择左边的合集",
@@ -869,9 +870,15 @@
   "more": "更多",
   "refreshLibrary": "更新剧库",
   "loadingDramas": "正在加载剧集",
-  "displayMode": "界面模式",
   "noSourcesHint": "请联系管理员为当前用户开放站源。",
   "follows": "追剧",
+  "mySpaceTitle": "我的",
+  "myStatsTitle": "观看概览",
+  "myContentSection": "内容",
+  "myAppSection": "应用",
+  "myItemsUnit": "部",
+  "myEpisodesUnit": "已看集数",
+  "mySourcesCaption": "管理剧集来源",
   "lanSyncTitle": "追剧同步",
   "selectDrama": "选择短剧",
   "rankingsTitle": "榜单",
@@ -897,7 +904,6 @@
     }
   },
   "homeMaxSelection": "一次最多选择 50 部短剧，请分批下载",
-  "displayPhoneComputer": "手机 / 电脑",
   "searchGroup": "搜索{name}短剧",
   "@searchGroup": {
     "placeholders": {
@@ -916,8 +922,6 @@
     }
   },
   "appIntro": "独立运行，打开即可浏览和播放。观看记录与追剧收藏保存在当前设备。",
-  "displayTelevision": "电视 / 遥控器",
-  "autoDetectDevice": "自动识别设备",
   "filterLoadedDramas": "筛选当前已加载短剧",
   "prevEpisode": "上一集",
   "nextEpisode": "下一集",
@@ -949,7 +953,6 @@
   "volume": "音量",
   "play": "播放",
   "playbackProgress": "播放进度，左右键快进或后退十秒",
-  "fullscreenControlsHint": "控制条隐藏后：左右快进 10 秒，上下或确认键显示控制条",
   "nextPreloadOn": "下一集预加载：开",
   "nextPreloadOff": "下一集预加载：关",
   "danmakuEnabledLabel": "弹幕：开",
@@ -958,8 +961,6 @@
   "autoAdvanceOff": "自动连播：关",
   "autoHighParen": "自动（优先高清）",
   "restoreEnhancement": "恢复增强",
-  "seekPauseHint": "左右快进 · 确认暂停",
-  "returnPlayback": "返回播放",
   "episodeTotal": "选集 · 共 {count} 集",
   "@episodeTotal": {
     "placeholders": {
@@ -1525,6 +1526,31 @@
   },
   "selectDramasHint": "点选要下载的短剧",
   "clearRecentSearches": "清空最近搜索",
+  "searchTitle": "搜索",
+  "searchByCondition": "按条件查找",
+  "searchByConditionHint": "按分类浏览",
+  "searchHintGeneric": "搜索短剧名称",
+  "searchEmptyTitle": "搜点什么",
+  "searchEmptyHint": "输入剧名开始搜索，历史会记在这里。",
+  "searchResults": "搜索结果",
+  "searching": "正在搜索…",
+  "searchingCatalog": "正在搜索短剧",
+  "searchNoResults": "没有找到相关短剧",
+  "allResultsShown": "已经看到全部结果",
+  "recentSearches": "最近搜索",
+  "clearAll": "清空",
+  "clearSearch": "清空搜索",
+  "searchResultCount": "{count} 部短剧",
+  "@searchResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailTotalEpisodesLabel": "总集数",
+  "detailOnlineDateLabel": "上线日期",
+  "detailHeatLabel": "热度",
   "mediaLibraryNotReady": "媒体库尚未就绪",
   "lanNotReadyShort": "局域网服务尚未就绪",
   "noBatchDramas": "没有选择要下载的短剧",
@@ -1664,6 +1690,30 @@
     }
   },
   "pluginsTitle": "插件仓库",
+  "settingsResourceSection": "资源",
+  "pluginsManageTitle": "规则管理",
+  "pluginsMyRules": "我的规则",
+  "pluginsRulesDescription": "管理你的短剧来源。点按规则进行编辑，启停或卸载。",
+  "pluginsSearchHint": "搜索名称或站点",
+  "pluginsAllCount": "全部 {count}",
+  "@pluginsAllCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsUpdatesCount": "可更新 {count}",
+  "@pluginsUpdatesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsNoMatch": "没有匹配的规则",
+  "pluginsAddRule": "添加规则",
+  "pluginsRuleStore": "规则仓库",
   "pluginsIntro": "站源以插件形式分发：内置仓库按需安装，也可添加第三方仓库。每个包都会校验 SHA-256，签名仓库还会校验索引签名。",
   "pluginsRefresh": "刷新",
   "pluginsRepoSection": "仓库地址",
@@ -1671,6 +1721,8 @@
   "pluginsLoadRepo": "载入仓库",
   "pluginsInstalled": "已安装",
   "pluginsAvailable": "仓库可安装",
+  "pluginStateOn": "已启用",
+  "pluginStateOff": "已停用",
   "pluginsEmpty": "还没有安装任何插件。载入仓库后选择需要的站源。",
   "pluginsInstall": "安装",
   "pluginsUpdate": "更新",

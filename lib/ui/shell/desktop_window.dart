@@ -93,7 +93,9 @@ class DesktopWindow {
       raw.width.clamp(Md3WindowClass.minimumWindow, 5120.0),
       raw.height.clamp(560.0, 3200.0),
     );
-    return _visibleOnAnyDisplay(Rect.fromLTWH(raw.left, raw.top, size.width, size.height))
+    return _visibleOnAnyDisplay(
+          Rect.fromLTWH(raw.left, raw.top, size.width, size.height),
+        )
         ? Rect.fromLTWH(raw.left, raw.top, size.width, size.height)
         : Rect.fromLTWH(0, 0, size.width, size.height);
   }

@@ -34,9 +34,6 @@ abstract final class Md3Spacing {
   /// 媒体网格类页面的最大宽度。
   static const double wideMaxWidth = 1440;
 
-  /// 条目之间的标准间距。
-  static const double listGap = md;
-
   /// 让内容在 [maxWidth] 内居中所需的左右留白。
   ///
   /// 留白取「页面标准留白」与「居中所需留白」的较大值：窗口窄时用标准
@@ -178,12 +175,31 @@ abstract final class Md3Shape {
   static const double extraExtraLarge = 48;
   static const double full = 999;
 
-  /// 卡片圆角。Expressive 比旧版的 12 更圆，但仍低于弹层。
-  static const double cardRadius = large;
+  /// 卡片圆角。
+  ///
+  /// 取 24 而不是 M3 默认的 12：参照应用的表面卡片（`TonalCard`）统一是
+  /// 24，卡片、分组列表外框、设置侧栏行都在这个档位上。16 会让整屏读起来
+  /// 「紧、工具感」，24 才是那种松弛的观感来源。
+  static const double cardRadius = 24;
 
-  /// 海报卡圆角。Kazumi 的 `imgRadius` 是 12——卡片本身就是一张图，
+  /// 表面卡片圆角，与 [cardRadius] 同源。
+  ///
+  /// 单独留一个名字是因为它有明确出处（参照应用的 `tonalCardRadius`）：
+  /// 以后若卡片与表面卡分家，改这里不影响别处。
+  static const double tonalRadius = cardRadius;
+
+  /// 海报卡圆角。参照应用的 `imgRadius` 是 12——卡片本身就是一张图，
   /// 比通用面板收紧一档才不像「相框里的照片」。
   static const double posterRadius = medium;
+
+  /// 大块头图 / hero 面板的圆角（时间表卡、规则卡、信息卡）。
+  static const double heroRadius = extraLarge;
+
+  /// 「我的」页 bento 磁贴的不对称大圆角。
+  ///
+  /// 只作单边取值使用：四角全 64 会变成一个球，参照应用的做法是一两个
+  /// 角给 64、其余保持 28，形成「被咬掉一口」的板块感。
+  static const double bentoRadius = 64;
 
   /// 分组列表外圆角。
   static const double groupRadius = Md3Spacing.xl;
@@ -193,9 +209,18 @@ abstract final class Md3Shape {
   static const double groupGap = extraSmall;
 
   /// 按压时卡片收窄到的圆角（形状 morph 的终点）。
-  static const double pressedRadius = medium;
+  ///
+  /// 与 [cardRadius] 的差值控制在 8 以内：24 → 16 是一次可读的「收紧」，
+  /// 24 → 12 会让按下的瞬间像换了个控件。
+  static const double pressedRadius = 16;
 
   static final BorderRadius card = BorderRadius.circular(cardRadius);
+
+  /// 表面卡片的圆角。
+  static final BorderRadius tonal = BorderRadius.circular(tonalRadius);
+
+  /// 大块头图面板的圆角。
+  static final BorderRadius hero = BorderRadius.circular(heroRadius);
 
   /// 海报卡的圆角（封面、hover 描边、按压 morph 共用一个值）。
   static final BorderRadius poster = BorderRadius.circular(posterRadius);
@@ -213,12 +238,34 @@ abstract final class Md3Shape {
   static final BorderRadius pill = BorderRadius.circular(full);
 
   /// 按状态插值圆角，用于按压 morph。
+  ///
+  /// 关闭动画时不走过场，直接给终值——`AnimatedContainer` 在零时长下
+  /// 本来就瞬间到位，这里只保证首帧就是正确形状。
   static BorderRadius resolved(BuildContext context, {required bool pressed}) {
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return BorderRadius.circular(pressed ? pressedRadius : cardRadius);
-    }
     return BorderRadius.circular(pressed ? pressedRadius : cardRadius);
   }
+}
+
+/// 表面染色与背景模糊。
+///
+/// 参照应用把内容区整片染成 `primaryContainer`；本项目只染「带导航的书架
+/// 页」，并压到 15%，详情、设置、播放器保持 `surface`。数值集中在这里，
+/// 页面不得再写透明度或 sigma。
+abstract final class Md3Surface {
+  /// 书架内容区混入 `primaryContainer` 的比例。
+  static const double shelfTint = .15;
+
+  /// 详情头图模糊的 sigma（参照应用为 15）。
+  static const double blurSigma = 15;
+
+  /// 模糊前把封面降采样到该比例，避免每帧重算大图。
+  static const double blurDownsample = .5;
+
+  /// 模糊背板的叠放不透明度（参照应用为 0.4）。
+  static const double backdropOpacity = .4;
+
+  /// 叠在视频画面上的提示条底色：必须自带不透明度，不随主题变化。
+  static const Color videoBanner = Color(0xE6322424);
 }
 
 /// M3 高度与表面色调。
@@ -303,14 +350,27 @@ abstract final class Md3Type {
   static const double labelLarge = 14;
   static const double labelMedium = 12;
   static const double labelSmall = 11;
+}
 
-  /// 网格卡片标题：随窗口等级放大一档，桌面远看更清楚。
-  static double cardTitle(double width) =>
-      width >= Md3WindowClass.expanded ? 15 : titleSmall;
+/// 详情页几何（参照应用 `info_page.dart`）。
+///
+/// 头部 = 信息区 308 + tab 条 48 + 工具栏 56；卡片固定 300 高、最大宽 950。
+abstract final class Md3Detail {
+  static const double infoHeight = 308;
+  static const double headerHeight =
+      infoHeight + kTextTabBarHeight + kToolbarHeight;
+  static const double cardHeight = 300;
+  static const double cardMaxWidth = 950;
+  static const double coverWidth = 108;
+  static const double coverHeight = 162;
+  static const double backdropFeather = 64;
+}
 
-  /// 网格卡片副标题。
-  static double cardSubtitle(double width) =>
-      width >= Md3WindowClass.expanded ? 13 : bodySmall;
+/// 首页折叠头（参照应用 `popular_page.dart`）。
+abstract final class Md3HomeHeader {
+  static const double height = 120;
+  static const double titleExpanded = 28;
+  static const double titleCollapsed = 20;
 }
 
 /// 语义色配对的便捷读取，保证不做任意前后景搭配。
@@ -327,9 +387,17 @@ extension Md3ColorRoles on ColorScheme {
   (Color background, Color foreground) get secondaryPair =>
       (secondaryContainer, onSecondaryContainer);
 
-  /// 内容区「架子」表面：侧栏 / 轨用 [surfaceContainer]，内容区用
-  /// [surface]，两者差一档明度，形成不依赖阴影的分层。
+  /// 导航表面：rail、底栏、自绘标题栏统一用它。
   Color get shelf => surfaceContainer;
+
+  /// 内容书架表面：`surface` 混 15% `primaryContainer`。
+  ///
+  /// 只给带导航的书架页用；深色下底色调到 `surfaceContainerLowest`，
+  /// 否则染色与导航的明度差不足以拉出边界。
+  Color get contentShelf => Color.alphaBlend(
+    primaryContainer.withValues(alpha: Md3Surface.shelfTint),
+    brightness == Brightness.dark ? surfaceContainerLowest : surface,
+  );
 
   /// 网格卡片未命中任何状态时的表面。
   Color get tileSurface => surfaceContainerLow;

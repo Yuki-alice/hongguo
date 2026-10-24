@@ -39,6 +39,8 @@ class PlayerControls extends StatefulWidget {
     this.onRetryDanmaku,
     this.onPictureInPicture,
     this.enhancement,
+    this.favorite = false,
+    this.onFavorite,
   });
 
   final Player player;
@@ -68,6 +70,8 @@ class PlayerControls extends StatefulWidget {
   final Future<void> Function()? onRetryDanmaku;
   final Future<void> Function()? onPictureInPicture;
   final VideoEnhancementController? enhancement;
+  final bool favorite;
+  final VoidCallback? onFavorite;
 
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
@@ -266,24 +270,27 @@ class _PlayerControlsState extends State<PlayerControls> {
                 excluding: !visible,
                 child: AnimatedOpacity(
                   opacity: visible ? 1 : 0,
-                  duration: Md3Motion.standardAccelerate,
+                  duration: Md3Motion.of(context, Md3Motion.standardAccelerate),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
+                      // 两段式 scrim，与参照应用 `player_item_panel.dart` 的
+                      // `_buildScrim` 一致：顶部 50 高、底部 100 高，都用
+                      // `Colors.black45`。整屏三段渐变会把画面中段也压暗，
+                      // 而中段恰恰是观众要看的地方。
                       const IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0xAA000000),
-                                Colors.transparent,
-                                Color(0xE6000000),
-                              ],
-                              stops: [0, .45, 1],
+                        child: Column(
+                          children: [
+                            _Scrim(
+                              height: 50,
+                              colors: [Colors.black45, Colors.transparent],
                             ),
-                          ),
+                            Spacer(),
+                            _Scrim(
+                              height: 100,
+                              colors: [Colors.transparent, Colors.black45],
+                            ),
+                          ],
                         ),
                       ),
                       Padding(
@@ -295,13 +302,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                         ),
                         child: Stack(
                           children: [
-                            if (widget.fullscreen || widget.swipeEnabled)
-                              _topBar(),
-                            if (!state.buffering &&
-                                widget.enabled &&
-                                constraints.maxHeight >=
-                                    (widget.swipeEnabled ? 168 : 220))
-                              _centerPlayback(state.playing, showSkip: true),
+                            _topBar(),
                             _sideDanmakuControl(),
                             _bottomControls(
                               constraints: constraints,
@@ -309,6 +310,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                               duration: duration,
                               position: position,
                               buffered: buffered,
+                              playing: state.playing,
                             ),
                           ],
                         ),
@@ -342,16 +344,30 @@ class _PlayerControlsState extends State<PlayerControls> {
                   ? Icons.arrow_back_rounded
                   : Icons.arrow_back_ios_new_rounded,
             ),
-            if (!compact)
+            if (compact)
+              const Spacer()
+            else
               Expanded(
                 child: Text(
                   widget.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  // 播放页的 DefaultTextStyle 来自浅色 Material，覆盖在黑底上
+                  // 会变成深灰；标题固定用白色（参照应用顶栏同款）。
+                  style: const TextStyle(color: Colors.white),
                 ),
-              )
-            else
-              const Spacer(),
+              ),
+            if (compact) _compactMoreMenu(),
+            if (widget.onFavorite != null)
+              _overlayIconButton(
+                tooltip: widget.favorite
+                    ? l10n.detailUnfollow
+                    : l10n.detailFollow,
+                onPressed: widget.onFavorite,
+                icon: widget.favorite
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_add_outlined,
+              ),
             if (compact)
               _overlayIconButton(
                 tooltip: l10n.rotateFullscreen,
@@ -373,7 +389,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     child: DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: .36),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: Md3Shape.pill,
       ),
       child: IconButton(
         tooltip: tooltip,
@@ -385,36 +401,46 @@ class _PlayerControlsState extends State<PlayerControls> {
     ),
   );
 
-  Widget _centerPlayback(bool playing, {required bool showSkip}) => Center(
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (showSkip) ...[
-          IconButton(
-            tooltip: l10n.prevEpisode,
-            onPressed: widget.onPrevious,
-            icon: const Icon(Icons.skip_previous_rounded),
-          ),
-          const SizedBox(width: 12),
-        ],
-        IconButton.filledTonal(
-          tooltip: playing ? l10n.pausePlayback : l10n.startPlayback,
-          iconSize: 38,
-          onPressed: () {
+  Widget _playButton({double iconSize = 28}) => IconButton(
+    tooltip: widget.player.state.playing
+        ? l10n.pausePlayback
+        : l10n.startPlayback,
+    iconSize: iconSize,
+    onPressed: widget.enabled
+        ? () {
             widget.onTogglePlayback();
             _show();
-          },
-          icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-        ),
-        if (showSkip) ...[
-          const SizedBox(width: 12),
-          IconButton(
-            tooltip: l10n.nextEpisode,
-            onPressed: widget.onNext,
-            icon: const Icon(Icons.skip_next_rounded),
-          ),
-        ],
-      ],
+          }
+        : null,
+    icon: Icon(
+      widget.player.state.playing
+          ? Icons.pause_rounded
+          : Icons.play_arrow_rounded,
+    ),
+  );
+
+  Widget _nextButton() => IconButton(
+    tooltip: l10n.nextEpisode,
+    onPressed: widget.onNext,
+    icon: const Icon(Icons.skip_next_rounded),
+  );
+
+  Widget _timeLabel(double position, double duration) => Text(
+    '${formatPosition(_seekValue ?? position)} / ${formatPosition(duration)}',
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 12,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  );
+
+  Widget _fullscreenButton() => IconButton(
+    tooltip: widget.fullscreen ? l10n.exitFullscreen : l10n.rotateFullscreen,
+    onPressed: widget.onFullscreen,
+    icon: Icon(
+      widget.fullscreen
+          ? Icons.fullscreen_exit_rounded
+          : Icons.fullscreen_rounded,
     ),
   );
 
@@ -435,6 +461,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     required double duration,
     required double position,
     required double buffered,
+    required bool playing,
   }) {
     final width = constraints.maxWidth;
     final fullscreen = widget.fullscreen;
@@ -444,26 +471,64 @@ class _PlayerControlsState extends State<PlayerControls> {
         mobile || fullscreen && width >= 720 || !fullscreen && width >= 560;
     final showCompare = fullscreen && width >= 820;
     final showVolume = !widget.swipeEnabled && width >= 360;
+    final track = _track(
+      duration: duration,
+      position: position,
+      buffered: buffered,
+    );
+    if (mobile) {
+      // 竖屏紧凑：播放 / 进度 / 时间 / 全屏，与参照应用 compact transport 一致。
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 2),
+          child: Row(
+            children: [
+              _playButton(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: SizedBox(height: 28, child: track),
+                ),
+              ),
+              _timeLabel(position, duration),
+              _fullscreenButton(),
+            ],
+          ),
+        ),
+      );
+    }
     return Align(
       alignment: Alignment.bottomCenter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (mobile)
-            _mobileControlRow(fullscreen: fullscreen)
-          else
-            _desktopControlRow(
-              fullscreen: fullscreen,
-              showEpisodes: showEpisodes,
-              showSpeedQuality: showSpeedQuality,
-              showCompare: showCompare,
-              showVolume: showVolume,
-              volume: volume,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: SizedBox(height: 28, child: track),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                _playButton(),
+                _nextButton(),
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: _timeLabel(position, duration),
+                ),
+                Expanded(
+                  child: _desktopControlRow(
+                    fullscreen: fullscreen,
+                    showEpisodes: showEpisodes,
+                    showSpeedQuality: showSpeedQuality,
+                    showCompare: showCompare,
+                    showVolume: showVolume,
+                    volume: volume,
+                  ),
+                ),
+              ],
             ),
-          _progressRow(
-            duration: duration,
-            position: position,
-            buffered: buffered,
           ),
         ],
       ),
@@ -489,87 +554,35 @@ class _PlayerControlsState extends State<PlayerControls> {
     return 0;
   }
 
-  Widget _progressRow({
+  Widget _track({
     required double duration,
     required double position,
     required double buffered,
-  }) {
-    final timeStyle = TextStyle(
-      fontSize: 12,
-      color: Colors.white.withValues(alpha: .82),
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-      child: SizedBox(
-        height: 28,
-        child: Row(
-          children: [
-            SizedBox(
-              width: 43,
-              child: Text(
-                formatPosition(_seekValue ?? position),
-                style: timeStyle,
-                textAlign: TextAlign.end,
-              ),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 3,
-                  secondaryActiveTrackColor: Colors.white38,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 6,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 14,
-                  ),
-                ),
-                child: Slider(
-                  key: const ValueKey('player-progress'),
-                  value: (_seekValue ?? position).clamp(
-                    0,
-                    duration > 0 ? duration : 1,
-                  ),
-                  max: duration > 0 ? duration : 1,
-                  secondaryTrackValue: buffered.clamp(
-                    0,
-                    duration > 0 ? duration : 1,
-                  ),
-                  semanticFormatterCallback: formatPosition,
-                  onChangeStart: widget.enabled && duration > 0
-                      ? (_) {
-                          widget.interactions.cancel();
-                          _hideTimer?.cancel();
-                        }
-                      : null,
-                  onChanged: !widget.enabled || duration <= 0
-                      ? null
-                      : (value) {
-                          _hideTimer?.cancel();
-                          setState(() => _seekValue = value);
-                        },
-                  onChangeEnd: (value) {
-                    if (widget.enabled && duration > 0) {
-                      (widget.onSeek ?? widget.player.seek)(
-                        Duration(milliseconds: (value * 1000).round()),
-                      );
-                    }
-                    setState(() => _seekValue = null);
-                    _show();
-                  },
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 43,
-              child: Text(formatPosition(duration), style: timeStyle),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  }) => PlayerProgressTrack(
+    key: const ValueKey('player-progress'),
+    position: _seekValue ?? position,
+    buffered: buffered,
+    duration: duration,
+    enabled: widget.enabled,
+    color: Theme.of(context).colorScheme.primary,
+    onDragStart: () {
+      widget.interactions.cancel();
+      _hideTimer?.cancel();
+    },
+    onDragUpdate: (value) {
+      _hideTimer?.cancel();
+      setState(() => _seekValue = value);
+    },
+    onDragEnd: (value) {
+      if (widget.enabled && duration > 0) {
+        (widget.onSeek ?? widget.player.seek)(
+          Duration(milliseconds: (value * 1000).round()),
+        );
+      }
+      setState(() => _seekValue = null);
+      _show();
+    },
+  );
 
   Widget _toolIcon({
     required Key key,
@@ -639,13 +652,13 @@ class _PlayerControlsState extends State<PlayerControls> {
             height: 48,
             child: Center(
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
+                duration: Md3Motion.of(context, Md3Motion.standardAccelerate),
                 width: visualWidth,
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: background,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: Md3Shape.pill,
                   border: Border.all(color: border),
                 ),
                 child: IconTheme.merge(
@@ -782,44 +795,34 @@ class _PlayerControlsState extends State<PlayerControls> {
     );
   }
 
-  Widget _mobileControlRow({required bool fullscreen}) {
-    final tools = [
-      _toolText(
-        key: const ValueKey('player-speed'),
-        tooltip: l10n.speed,
-        label: '${widget.speed}x',
-        onPressed: widget.enabled ? () => _panel(widget.onSpeed) : null,
-        width: 50,
+  Widget _compactMoreMenu() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .36),
+        borderRadius: Md3Shape.pill,
       ),
-      _toolText(
-        key: const ValueKey('player-quality'),
-        tooltip: l10n.clarity,
-        label: widget.qualityLabel,
-        onPressed: widget.enabled ? () => _panel(widget.onQuality) : null,
-        width: 52,
+      child: PopupMenuButton<String>(
+        tooltip: l10n.more,
+        icon: const Icon(Icons.more_vert, color: Colors.white),
+        onSelected: (value) {
+          switch (value) {
+            case 'episodes':
+              _panel(widget.onEpisodes);
+            case 'speed':
+              _panel(widget.onSpeed);
+            case 'quality':
+              _panel(widget.onQuality);
+          }
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem(value: 'episodes', child: Text(l10n.episodes)),
+          PopupMenuItem(value: 'speed', child: Text(l10n.speed)),
+          PopupMenuItem(value: 'quality', child: Text(l10n.clarity)),
+        ],
       ),
-      if (fullscreen)
-        _toolIcon(
-          key: const ValueKey('player-episodes'),
-          tooltip: l10n.episodes,
-          icon: Icons.grid_view_rounded,
-          onPressed: widget.enabled ? () => _panel(widget.onEpisodes) : null,
-        ),
-      if (widget.onPictureInPicture != null)
-        _toolIcon(
-          key: const ValueKey('player-picture-in-picture'),
-          tooltip: l10n.pictureInPicture,
-          icon: Icons.picture_in_picture_alt_rounded,
-          onPressed: widget.enabled
-              ? () => _panel(widget.onPictureInPicture!)
-              : null,
-        ),
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 0, 2, 0),
-      child: _clusteredToolRow(tools),
-    );
-  }
+    ),
+  );
 
   Future<void> _openVolume(double initialVolume) async {
     var volume = initialVolume.clamp(0.0, 100.0);
@@ -828,7 +831,7 @@ class _PlayerControlsState extends State<PlayerControls> {
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 140),
+      transitionDuration: Md3Motion.of(context, Md3Motion.standardAccelerate),
       pageBuilder: (dialogContext, animation, secondaryAnimation) =>
           StatefulBuilder(
             builder: (context, setState) => SafeArea(
@@ -841,7 +844,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                   ),
                   child: Material(
                     color: Colors.black.withValues(alpha: .88),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: Md3Shape.pill,
                     child: SizedBox(
                       width: 62,
                       height: 192,
@@ -974,7 +977,7 @@ class _PlayerControlsState extends State<PlayerControls> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.black87,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Md3Shape.small),
             ),
             child: Text(feedback, textAlign: TextAlign.center),
           ),
@@ -982,4 +985,202 @@ class _PlayerControlsState extends State<PlayerControls> {
       );
     },
   );
+}
+
+/// 播放器遮罩的一段。
+///
+/// 参照应用把上下遮罩拆成两个固定高度的渐变条，而不是一条覆盖整屏的
+/// 渐变：这样画面中段完全不受影响。
+class _Scrim extends StatelessWidget {
+  const _Scrim({required this.height, required this.colors});
+
+  final double height;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: colors,
+        ),
+      ),
+    ),
+  );
+}
+
+/// 轨道与拇指尺寸。数值来自参照应用的 `player_progress_bar.dart`。
+const double _progressBarHeight = 5;
+const double _progressThumbRadius = 8;
+const double _progressGlowRadius = 18;
+
+/// 播放进度条（自绘）。
+///
+/// 数值照参照应用的 `player_progress_bar.dart`：轨道 5 高、底轨用主色
+/// @ .24、已缓冲同色、已播放实色；拇指 r8，按下时外面加一圈 r18 光晕。
+///
+/// 不用 Material `Slider` 的原因是它把「轨道高度 / 拇指半径 / 光晕半径」
+/// 当成三套独立参数，且默认带一层 overlay 涟漪——在黑底播放器上那层
+/// 涟漪会盖住画面。自绘只有一个 `CustomPaint`，拖动时也不会触发涟漪。
+class PlayerProgressTrack extends StatefulWidget {
+  const PlayerProgressTrack({
+    super.key,
+    required this.position,
+    required this.buffered,
+    required this.duration,
+    required this.enabled,
+    required this.color,
+    required this.onDragStart,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  final double position;
+  final double buffered;
+  final double duration;
+  final bool enabled;
+  final Color color;
+  final VoidCallback onDragStart;
+  final ValueChanged<double> onDragUpdate;
+  final ValueChanged<double> onDragEnd;
+
+  @override
+  State<PlayerProgressTrack> createState() => _PlayerProgressTrackState();
+}
+
+class _PlayerProgressTrackState extends State<PlayerProgressTrack> {
+  bool _dragging = false;
+
+  double get _max => widget.duration > 0 ? widget.duration : 1;
+
+  double _fractionOf(double value) => (value / _max).clamp(0.0, 1.0);
+
+  void _update(Offset local, double width) {
+    final fraction = (local.dx / width).clamp(0.0, 1.0);
+    widget.onDragUpdate(fraction * _max);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final played = _fractionOf(widget.position);
+    final buffered = _fractionOf(widget.buffered);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: widget.enabled
+              ? (details) {
+                  setState(() => _dragging = true);
+                  widget.onDragStart();
+                  _update(details.localPosition, width);
+                }
+              : null,
+          onHorizontalDragUpdate: widget.enabled
+              ? (details) => _update(details.localPosition, width)
+              : null,
+          onHorizontalDragEnd: widget.enabled
+              ? (_) {
+                  setState(() => _dragging = false);
+                  widget.onDragEnd(_fractionOf(widget.position) * _max);
+                }
+              : null,
+          onTapDown: widget.enabled
+              ? (details) {
+                  widget.onDragStart();
+                  _update(details.localPosition, width);
+                  widget.onDragEnd(_fractionOf(widget.position) * _max);
+                }
+              : null,
+          child: Semantics(
+            slider: true,
+            value: formatPosition(widget.position),
+            child: CustomPaint(
+              size: Size(width, _progressGlowRadius * 2),
+              painter: _ProgressPainter(
+                played: played,
+                buffered: buffered,
+                color: widget.color,
+                dragging: _dragging,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProgressPainter extends CustomPainter {
+  _ProgressPainter({
+    required this.played,
+    required this.buffered,
+    required this.color,
+    required this.dragging,
+  });
+
+  final double played;
+  final double buffered;
+  final Color color;
+  final bool dragging;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerY = size.height / 2;
+    // 轨道左右各留出拇指半径，否则拖到两端时拇指会被裁掉一半。
+    const inset = _progressThumbRadius;
+    final left = inset;
+    final right = size.width - inset;
+    final trackWidth = right - left;
+    if (trackWidth <= 0) return;
+
+    final track = Paint()
+      ..color = color.withValues(alpha: .24)
+      ..strokeWidth = _progressBarHeight
+      ..strokeCap = StrokeCap.round;
+    final active = Paint()
+      ..color = color
+      ..strokeWidth = _progressBarHeight
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(left, centerY), Offset(right, centerY), track);
+    if (buffered > 0) {
+      canvas.drawLine(
+        Offset(left, centerY),
+        Offset(left + trackWidth * buffered, centerY),
+        track,
+      );
+    }
+    if (played > 0) {
+      canvas.drawLine(
+        Offset(left, centerY),
+        Offset(left + trackWidth * played, centerY),
+        active,
+      );
+    }
+
+    final thumbX = left + trackWidth * played;
+    if (dragging) {
+      canvas.drawCircle(
+        Offset(thumbX, centerY),
+        _progressGlowRadius,
+        Paint()..color = color.withValues(alpha: 80 / 255),
+      );
+    }
+    canvas.drawCircle(
+      Offset(thumbX, centerY),
+      _progressThumbRadius,
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ProgressPainter oldDelegate) =>
+      played != oldDelegate.played ||
+      buffered != oldDelegate.buffered ||
+      color != oldDelegate.color ||
+      dragging != oldDelegate.dragging;
 }

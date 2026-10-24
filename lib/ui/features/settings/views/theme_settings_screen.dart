@@ -97,7 +97,9 @@ class _PaletteGrid extends StatelessWidget {
                   selected == _hex(seed),
               onTap: () => saveUserChange(
                 context,
-                () => store.setThemeSeed(seed == AppTheme.seed ? null : _hex(seed)),
+                () => store.setThemeSeed(
+                  seed == AppTheme.seed ? null : _hex(seed),
+                ),
               ),
             ),
         ],
@@ -131,7 +133,7 @@ class _Swatch extends StatelessWidget {
       child: Tooltip(
         message: selected ? '当前主题色' : '使用此主题色',
         child: InkWell(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(Md3Shape.extraLargeIncreased),
           onTap: onTap,
           child: Container(
             width: 56,
@@ -160,13 +162,9 @@ class _Swatch extends StatelessWidget {
                         child: Row(
                           children: [
                             Expanded(
-                              child: ColoredBox(
-                                color: scheme.primaryContainer,
-                              ),
+                              child: ColoredBox(color: scheme.primaryContainer),
                             ),
-                            Expanded(
-                              child: ColoredBox(color: scheme.tertiary),
-                            ),
+                            Expanded(child: ColoredBox(color: scheme.tertiary)),
                           ],
                         ),
                       ),

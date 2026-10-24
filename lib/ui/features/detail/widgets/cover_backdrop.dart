@@ -25,9 +25,9 @@ class CoverBackdrop extends StatelessWidget {
     required this.drama,
     required this.repository,
     this.height = 320,
-    this.downsample = .5,
-    this.blurSigma = 15,
-    this.opacity = .4,
+    this.downsample = Md3Surface.blurDownsample,
+    this.blurSigma = Md3Surface.blurSigma,
+    this.opacity = Md3Surface.backdropOpacity,
     this.edgeBleed = 32,
     this.bottomFeather = 48,
   });
