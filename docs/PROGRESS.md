@@ -2835,3 +2835,50 @@ message，而 `__last_host_error` 只记录宿主调用错误。补了一条专�
 - 牛果：解析服务挂，迁移暂缓（HANDOVER §8.2 已标注）；
 - 剩余迁移：剧果（访客令牌 + 401 刷新）→ 黄果三入口；
 - 4 个 Wasm 死重包（约 265KB）待逐源清空；`SourceRegistry` 同 id 去重仍未修。
+
+## 第十八轮：A4 第三站——剧果脚本化，`source-huangju` 下线
+
+SOP 第一步再次立功：**剧果复活了**。历史记录（10-21 详情 404、10-24 取流 404）
+在实网探针 2/2 通过（1.98s）面前全部作废——「结论进文档前先跑 --live」不是口号。
+
+### 脚本包（`examples/extensions/huangju/`，约 250 行 JS）
+
+访客令牌（POST /auth/guest，UUID v4 设备号——QuickJS 的 Math.random 由系统熵
+播种，够用）→ 401/403 丢弃重试一次 → slug 详情（分集按号稳定排序，无法解析的
+排最后）→ 搜索 POST → /play/<id> 取流并把响应下发的 CDN 签名 Cookie 带进
+`Media.cookies`（脚本从 `res.headers['set-cookie']` 按行拆 name=value，
+丢弃 Domain/Path 等属性——逻辑与编译版逐字对齐）。
+
+与编译版的差异：令牌与设备标识走 `ctx.store` 落盘（编译版仅内存，
+每次重启重新注册访客）；401 时设备标识一并丢弃，与编译版「重新生成设备号」
+语义一致。`categories` 导出空数组——编译版声明了能力位但走 trait 默认空实现，
+脚本保持行为一致。
+
+### 测试换轨
+
+- `huangju_fixtures.rs`：同一批夹具与断言换轨驱动 ScriptSource，
+  共享 `MemStore` 验证令牌复用；
+- `huangju_live.rs` 改走 ScriptSource（实网 2/2，1.81s——含 CDN Cookie 断言）；
+- 删 `source-huangju`（537 行）、注册、依赖、再导出；`json_site_rules` 内置
+  清单断言同步。
+
+### 分发
+
+`assets/bundled_plugins/guo.huangju-1.1.0.zip`（5.2KB）替换 72KB 的 Wasm 包；
+`check_plugin` 离线 + `--live`（目录 20 条 / 搜索 1 条）均通过。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **590 通过 / 0 失败** |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| `huangju_live`（真网络） | ✅ 2/2 |
+| `check_plugin examples/extensions/huangju --live` | ✅ 目录 20 / 搜索 1 |
+
+### 已知残余
+
+- 剩余迁移：黄果三入口（cloudfront / ai / video；只有 cloudfront 可在线验证）；
+  牛果解析服务仍挂暂缓；
+- 4 个 Wasm 死重包（约 244KB）待逐源清空；`SourceRegistry` 同 id 去重仍未修。

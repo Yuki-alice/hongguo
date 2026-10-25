@@ -12,8 +12,27 @@
 use std::sync::Arc;
 
 use guo_engine::{
-    HttpTransport, HuangjuSource, LogSink, SourceEnv, SourcePlugin, SourceStore, DEFAULT_USER_AGENT,
+    placeholder_env, HttpTransport, LogSink, ScriptLimits, ScriptSource, SourceEnv, SourcePlugin,
+    SourceStore,
 };
+use guo_host::DEFAULT_USER_AGENT;
+
+const SCRIPT: &str = include_str!("../../examples/extensions/huangju/main.js");
+
+/// 清单 `[permissions] network`。
+fn network() -> Vec<String> {
+    vec!["api.huangju.net".to_string()]
+}
+
+fn script_source() -> ScriptSource {
+    ScriptSource::load(
+        &placeholder_env(),
+        SCRIPT,
+        ScriptLimits::default(),
+        network(),
+    )
+    .expect("剧果脚本必须能加载")
+}
 
 struct NoopStore;
 #[async_trait::async_trait]
@@ -45,8 +64,10 @@ fn env() -> SourceEnv {
 #[tokio::test]
 #[ignore = "需要外网，手动执行：cargo test --test huangju_live -- --ignored"]
 async fn catalog_live_returns_items_with_slug_ids() {
-    let source = HuangjuSource::new();
-    let page = source.catalog(&env(), 1, "").await.expect("在线目录");
+    let page = script_source()
+        .catalog(&env(), 1, "")
+        .await
+        .expect("在线目录");
     assert!(!page.items.is_empty(), "在线目录不应为空");
     for item in &page.items {
         assert!(!item.title.trim().is_empty(), "条目缺少标题：{item:?}");
@@ -60,7 +81,7 @@ async fn catalog_live_returns_items_with_slug_ids() {
 #[tokio::test]
 #[ignore = "需要外网，手动执行：cargo test --test huangju_live -- --ignored"]
 async fn detail_and_resolve_live_yield_signed_media_url() {
-    let source = HuangjuSource::new();
+    let source = script_source();
     // 列表里会出现已下架的条目（详情返回 404），逐个尝试直到拿到可用的一条。
     let page = source.catalog(&env(), 1, "").await.expect("在线目录");
     let mut detail = None;

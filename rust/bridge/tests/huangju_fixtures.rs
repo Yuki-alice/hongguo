@@ -1,18 +1,40 @@
-//! 剧果的离线对拍：夹具是 2026-10-21 的真实接口响应。
+//! 剧果的离线夹具测试：夹具是 2026-10-21 的真实接口响应。
 //!
 //! 剧果的难点在会话与凭证，因此这里除了字段映射，还专门验证：
 //! 1. 首次请求会先申请访客令牌，之后复用；
 //! 2. 令牌失效（401）时丢弃并重新申请一次；
 //! 3. 取流响应下发的 CDN 签名 Cookie 被原样带进 `Media.cookies`。
+//!
+//! 本文件原为编译版（`source-huangju`，已删除）的测试；现为脚本包的
+//! 行为金标准——同一批夹具、同一批断言，驱动 `ScriptSource`。
+//! 令牌复用依赖 `ctx.store`，须用共享的内存 store 验证。实网在 `huangju_live.rs`。
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
 use guo_engine::{
-    Capability, Drama, FetchRequest, FetchResponse, HeaderMap, HuangjuSource, LogSink, SourceEnv,
-    SourceError, SourcePlugin, SourceStore, Transport,
+    placeholder_env, Capability, Drama, FetchRequest, FetchResponse, HeaderMap, LogSink,
+    ScriptLimits, ScriptSource, SourceEnv, SourceError, SourcePlugin, SourceStore, Transport,
 };
+
+const SCRIPT: &str = include_str!("../../examples/extensions/huangju/main.js");
+
+/// 清单 `[permissions] network`。
+fn network() -> Vec<String> {
+    vec!["api.huangju.net".to_string()]
+}
+
+fn script_source() -> ScriptSource {
+    ScriptSource::load(
+        &placeholder_env(),
+        SCRIPT,
+        ScriptLimits::default(),
+        network(),
+    )
+    .expect("剧果脚本必须能加载")
+}
 
 const LIST: &str = include_str!("fixtures/huangju_list.json");
 const DETAIL: &str = include_str!("fixtures/huangju_detail.json");
@@ -81,13 +103,22 @@ impl Transport for ScriptedTransport {
     }
 }
 
-struct NoopStore;
+/// 进程内共享 store：脚本没有跨调用的内存态，令牌复用全靠它。
+#[derive(Default)]
+struct MemStore {
+    values: Mutex<HashMap<String, String>>,
+}
+
 #[async_trait]
-impl SourceStore for NoopStore {
-    async fn get(&self, _: &str) -> Result<Option<String>, SourceError> {
-        Ok(None)
+impl SourceStore for MemStore {
+    async fn get(&self, key: &str) -> Result<Option<String>, SourceError> {
+        Ok(self.values.lock().expect("store").get(key).cloned())
     }
-    async fn set(&self, _: &str, _: &str) -> Result<(), SourceError> {
+    async fn set(&self, key: &str, value: &str) -> Result<(), SourceError> {
+        self.values
+            .lock()
+            .expect("store")
+            .insert(key.to_string(), value.to_string());
         Ok(())
     }
 }
@@ -98,22 +129,26 @@ impl LogSink for NoopLog {
     fn warn(&self, _: &str) {}
 }
 
-fn env(transport: Arc<ScriptedTransport>) -> SourceEnv {
+fn env(transport: Arc<ScriptedTransport>, store: Arc<MemStore>) -> SourceEnv {
     SourceEnv {
         source_id: "huangju".into(),
         transport,
-        store: Arc::new(NoopStore),
+        store,
         scripts: None,
         log: Arc::new(NoopLog),
     }
 }
 
+/// 每个测试独立 store 的便捷构造。
+fn fresh_env(transport: Arc<ScriptedTransport>) -> SourceEnv {
+    env(transport, Arc::new(MemStore::default()))
+}
+
 #[tokio::test]
 async fn catalog_maps_real_response_and_requests_guest_token_first() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = HuangjuSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "")
+    let page = script_source()
+        .catalog(&fresh_env(transport.clone()), 1, "")
         .await
         .expect("目录");
 
@@ -150,14 +185,14 @@ async fn catalog_maps_real_response_and_requests_guest_token_first() {
 #[tokio::test]
 async fn token_is_reused_across_calls() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = HuangjuSource::new();
-    let shared = transport.clone();
+    let store = Arc::new(MemStore::default());
+    let source = script_source();
     source
-        .catalog(&env(shared.clone()), 1, "")
+        .catalog(&env(transport.clone(), Arc::clone(&store)), 1, "")
         .await
         .expect("第一次");
     source
-        .catalog(&env(shared.clone()), 2, "")
+        .catalog(&env(transport.clone(), Arc::clone(&store)), 2, "")
         .await
         .expect("第二次");
 
@@ -175,9 +210,8 @@ async fn token_is_reused_across_calls() {
 async fn expired_token_triggers_one_relogin() {
     // 只让第一次业务请求 401：站源的约定是「失效后重新申请一次」。
     let transport = Arc::new(ScriptedTransport::new(1));
-    let source = HuangjuSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "")
+    let page = script_source()
+        .catalog(&fresh_env(transport.clone()), 1, "")
         .await
         .expect("401 后应重新申请令牌并成功");
     assert_eq!(page.items.len(), 20);
@@ -186,9 +220,8 @@ async fn expired_token_triggers_one_relogin() {
 #[tokio::test]
 async fn detail_uses_slug_and_returns_episodes() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = HuangjuSource::new();
-    let detail = source
-        .detail(&env(transport.clone()), "yanyu-473")
+    let detail = script_source()
+        .detail(&fresh_env(transport.clone()), "yanyu-473")
         .await
         .expect("详情");
 
@@ -219,7 +252,6 @@ async fn detail_uses_slug_and_returns_episodes() {
 #[tokio::test]
 async fn resolve_returns_media_with_cdn_cookie() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = HuangjuSource::new();
     let chapter = guo_engine::Chapter {
         id: "yanyu-473:1".into(),
         title: "第1集".into(),
@@ -227,8 +259,8 @@ async fn resolve_returns_media_with_cdn_cookie() {
         video_url: "17190".into(),
         ..Default::default()
     };
-    let media = source
-        .resolve(&env(transport.clone()), &Drama::default(), &chapter)
+    let media = script_source()
+        .resolve(&fresh_env(transport.clone()), &Drama::default(), &chapter)
         .await
         .expect("取流");
     assert!(media.url.starts_with("https://"), "{}", media.url);
@@ -242,7 +274,7 @@ async fn resolve_returns_media_with_cdn_cookie() {
 
 #[test]
 fn meta_declares_expected_capabilities() {
-    let meta = HuangjuSource::new().meta();
+    let meta = script_source().meta();
     assert_eq!(meta.id, "huangju");
     assert_eq!(meta.name, "剧果");
     for capability in [

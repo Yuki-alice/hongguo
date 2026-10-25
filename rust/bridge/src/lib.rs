@@ -57,7 +57,6 @@ pub use guo_runtime::{
 
 // 内置代码源
 pub use guo_source_hongguo::HongguoSource;
-pub use guo_source_huangju::HuangjuSource;
 pub use guo_source_niuguo::NiuguoSource;
 
 /// 测试与示例用的独立注册表（不触碰单例）。

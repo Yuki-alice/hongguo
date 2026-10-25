@@ -16,8 +16,8 @@
 | 项 | 数值 | 来源 |
 | --- | --- | --- |
 | Rust 源文件 | 131 个 | `find rust -name '*.rs'`（不含 target） |
-| Rust crate | 13 个 + 桥接层 | `rust/crates/` + `rust/bridge/` |
-| 随包扩展 | 5 个 Wasm + 2 个脚本（猫果 / 芽果 1.1.0），合计约 322 KB | `assets/bundled_plugins/` |
+| Rust crate | 12 个 + 桥接层 | `rust/crates/` + `rust/bridge/` |
+| 随包扩展 | 4 个 Wasm + 3 个脚本（猫果 / 芽果 / 剧果 1.1.0），合计约 265 KB | `assets/bundled_plugins/` |
 | 随包声明式规则 | 9 条 | `rust/rules/` |
 | FRB API 函数 | 52 个（40 站源 + 12 插件） | `rust/bridge/src/api/` |
 | FRB Stream | 1 个（下载进度） | `download_progress_stream` |
@@ -90,7 +90,7 @@ Flutter UI
        └─ Diagnostics（能力矩阵 / 最近错误 / 计数）
 ```
 
-## 5. Rust 工作区（13 crate）
+## 5. Rust 工作区（12 crate）
 
 | crate | 职责 | 依赖谁 |
 | --- | --- | --- |
@@ -105,7 +105,6 @@ Flutter UI
 | `bench` | 解析热路径基准 | rule-engine / runtime |
 | `source-hongguo` | 红果主源（签名、`_ROUTER_DATA`） | source-api |
 | `source-niuguo` | 牛果（AES-ECB 响应解密） | source-api |
-| `source-huangju` | 剧果（访客令牌 + CDN Cookie） | source-api |
 | `source-huangguo` | 黄果三源（旧版 / AI / 视频） | source-api |
 | `bridge` | 只做 FRB 边界 | 全部 |
 
@@ -172,10 +171,10 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 | 类型 | 来源 | 数量 | 加载方式 |
 | --- | --- | --- | --- |
 | 主源 | `source-hongguo` 编译 | 1 | `BuiltinSources` 注入 |
-| 编译代码源 | `source-*` crate | 5 | 同上 |
+| 编译代码源 | `source-*` crate | 4 | 同上 |
 | 声明式规则 | `rust/rules/*.json` | 9 | `include_str!` 随包 |
-| 随包 Wasm 插件 | `assets/bundled_plugins/*.zip` | 5 | 首次启动预装 → 注册表 |
-| 随包脚本扩展 | 同上（`kind: "script"`） | 2（猫果 / 芽果 1.1.0） | 同上，QuickJS 宿主加载（ADR-13） |
+| 随包 Wasm 插件 | `assets/bundled_plugins/*.zip` | 4 | 首次启动预装 → 注册表 |
+| 随包脚本扩展 | 同上（`kind: "script"`） | 3（猫果 / 芽果 / 剧果 1.1.0） | 同上，QuickJS 宿主加载（ADR-13） |
 
 **当前是双轨**：猫果 / 牛果 / 芽果 / 剧果 / 黄果三源**同时**有编译版与插件版。
 这是刻意的——`docs/PLUGIN-BOUNDARY.md` 的迁移完成前，删掉编译版会让正式包丢源。
@@ -220,7 +219,6 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 | 插件 id | 名称 | 验证重点 | 大小 |
 | --- | --- | --- | --- |
 | `guo.niuguo` | 牛果 | AES-128-ECB 响应解密 | 50 KB |
-| `guo.huangju` | 剧果 | CDN 签名 Cookie 透传 | 70 KB |
 | `guo.huangguo-video` | 黄果视频 | 宿主 `html_select` 提取 | 34 KB |
 | `guo.huangguo-ai` | 黄果 AI | 镜像回退 + 递归 JSON | 65 KB |
 | `guo.cloudfront` | 黄果旧版 | 协议提取 + 三层加密 | 96 KB |

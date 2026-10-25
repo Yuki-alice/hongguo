@@ -15,7 +15,6 @@ use std::sync::Arc;
 use guo_source_api::SourceRegistry;
 use guo_source_hongguo::HongguoSource;
 use guo_source_huangguo::{HuangguoAiSource, HuangguoVideoSource, LegacySource};
-use guo_source_huangju::HuangjuSource;
 use guo_source_niuguo::NiuguoSource;
 
 /// 把编译期站源注册进注册表。
@@ -26,7 +25,6 @@ pub fn register_builtin_sources(registry: &mut SourceRegistry) {
     // 主源固定注册：它随包分发，不走插件体系（ARCHITECTURE.md §5）。
     registry.register(Arc::new(HongguoSource::new()));
     registry.register(Arc::new(NiuguoSource::new()));
-    registry.register(Arc::new(HuangjuSource::new()));
     // 黄果三源：`cloudfront` 可在线验证，`huangguoai` / `huangguo-video`
     // 的站点在 2026-10-21 全部超时，只有离线对拍（见 crate 文档）。
     registry.register(Arc::new(LegacySource::new()));

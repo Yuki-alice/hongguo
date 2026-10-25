@@ -39,15 +39,16 @@
     },
     {
       "id": "guo.huangju",
-      "name": "huangju",
-      "version": "1.0.0",
-      "kind": "component",
+      "name": "剧果",
+      "version": "1.1.0",
+      "kind": "script",
       "api": 1,
       "minHost": "0.3.0",
       "author": "official",
-      "size": 72032,
-      "sha256": "0e6a20b82bd8d2d21e8928291c7fdb2207bdc9e7d9493a4b2c78dca2aa69e7c8",
-      "path": "plugins/guo.huangju/guo.huangju-1.0.0.zip"
+      "contentTypes": ["short-drama"],
+      "size": 5176,
+      "sha256": "e7f1cde2aef384a1418d2795ce79c5156ab34e781999dc2ba8ca2e9568e82fce",
+      "path": "guo.huangju-1.1.0.zip"
     },
     {
       "id": "guo.huangguo-video",
