@@ -81,7 +81,14 @@ class EngineRepository {
     if (!initialized) return 0;
     final catalog = await _guard(rust.sourceCatalog);
     SourceSite.reportFromEngine(
-      catalog.map((site) => (id: site.id, name: site.name, group: site.group)),
+      catalog.map(
+        (site) => (
+          id: site.id,
+          name: site.name,
+          group: site.group,
+          contentTypes: site.contentTypes,
+        ),
+      ),
     );
     return catalog.length;
   }
@@ -96,6 +103,7 @@ class EngineRepository {
           group: site.group,
           apiLevel: site.apiLevel,
           capabilities: site.capabilities,
+          contentTypes: site.contentTypes,
         ),
     ];
   }
@@ -379,8 +387,9 @@ class EngineRepository {
 
   /// 登记一个下载任务（不启动）。
   ///
-  /// 返回引擎侧的登记序号。执行交给 [runDownload]，两者分离后
-  /// 「加入下载」才能立即返回，进度交给快照与列表页轮询。
+  /// 返回引擎侧的登记序号。登记后由引擎 worker 自动执行（桥接层的
+  /// `enqueue_download` 内部已 `pump_downloads`），「加入下载」因此立即返回，
+  /// 进度交给快照与列表页轮询。
   Future<int> registerDownload({
     required String id,
     required String url,
@@ -420,8 +429,8 @@ class EngineRepository {
 
   /// 执行一个已登记的任务，直到完成 / 暂停 / 失败。
   ///
-  /// 返回完成后的字节数；失败抛 [EngineException]。调用方应在后台
-  /// Future 里等待它——在 UI 调用链上 await 会让「加入下载」卡到下载结束。
+  /// **仅诊断用**：生产路径由引擎 worker 驱动（登记即执行）。手动再调一次
+  /// 会与 worker 双跑同一任务，因此不要在 UI 调用链里使用。
   Future<int> runDownload(String id) async {
     final bytes = await _guard(() => rust.runDownload(id: id));
     return bytes.toInt();
@@ -724,6 +733,7 @@ class SourceSummary {
     required this.group,
     required this.apiLevel,
     required this.capabilities,
+    this.contentTypes = const [],
   });
 
   final String id;
@@ -731,6 +741,9 @@ class SourceSummary {
   final String group;
   final int apiLevel;
   final List<String> capabilities;
+
+  /// 内容类型（`short-drama` / `movie` / …）；空表示未标注。
+  final List<String> contentTypes;
 
   bool supports(String capability) => capabilities.contains(capability);
 

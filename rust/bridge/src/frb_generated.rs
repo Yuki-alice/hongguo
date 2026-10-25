@@ -2797,6 +2797,7 @@ impl SseDecode for crate::api::PluginSummary {
         let mut var_installed = <bool>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
         let mut var_signed = <bool>::sse_decode(deserializer);
+        let mut var_contentTypes = <Vec<String>>::sse_decode(deserializer);
         return crate::api::PluginSummary {
             id: var_id,
             name: var_name,
@@ -2805,6 +2806,7 @@ impl SseDecode for crate::api::PluginSummary {
             installed: var_installed,
             enabled: var_enabled,
             signed: var_signed,
+            content_types: var_contentTypes,
         };
     }
 }
@@ -2981,12 +2983,14 @@ impl SseDecode for crate::api::SourceSummary {
         let mut var_group = <String>::sse_decode(deserializer);
         let mut var_apiLevel = <u32>::sse_decode(deserializer);
         let mut var_capabilities = <Vec<String>>::sse_decode(deserializer);
+        let mut var_contentTypes = <Vec<String>>::sse_decode(deserializer);
         return crate::api::SourceSummary {
             id: var_id,
             name: var_name,
             group: var_group,
             api_level: var_apiLevel,
             capabilities: var_capabilities,
+            content_types: var_contentTypes,
         };
     }
 }
@@ -3703,6 +3707,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::PluginSummary {
             self.installed.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
             self.signed.into_into_dart().into_dart(),
+            self.content_types.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3918,6 +3923,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::SourceSummary {
             self.group.into_into_dart().into_dart(),
             self.api_level.into_into_dart().into_dart(),
             self.capabilities.into_into_dart().into_dart(),
+            self.content_types.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4539,6 +4545,7 @@ impl SseEncode for crate::api::PluginSummary {
         <bool>::sse_encode(self.installed, serializer);
         <bool>::sse_encode(self.enabled, serializer);
         <bool>::sse_encode(self.signed, serializer);
+        <Vec<String>>::sse_encode(self.content_types, serializer);
     }
 }
 
@@ -4652,6 +4659,7 @@ impl SseEncode for crate::api::SourceSummary {
         <String>::sse_encode(self.group, serializer);
         <u32>::sse_encode(self.api_level, serializer);
         <Vec<String>>::sse_encode(self.capabilities, serializer);
+        <Vec<String>>::sse_encode(self.content_types, serializer);
     }
 }
 

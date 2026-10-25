@@ -3,6 +3,7 @@
   "id": "huaguo",
   "name": "花果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.zywest263.com",
   "capabilities": [
     "catalog",

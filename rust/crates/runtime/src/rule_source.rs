@@ -1,7 +1,13 @@
+use std::collections::BTreeMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use async_trait::async_trait;
 
 use guo_media::{extract_media_url, parse_playlist};
-use guo_rule_engine::{RequestRule, RuleDocument, RuleExecutor, TemplateCtx};
+use guo_rule_engine::{
+    extract_vars, PreflightStep, RequestRule, RuleDocument, RuleExecutor, TemplateCtx,
+};
 use guo_source_api::{
     Capability, Category, Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv,
     SourceError, SourceMeta, SourcePlugin, CURRENT_API_LEVEL,
@@ -11,7 +17,17 @@ use guo_source_api::{
 pub struct RuleSource {
     rule: RuleDocument,
     meta: SourceMeta,
+    /// 前置编排的缓存（会话令牌、站点配置）。
+    preflight: Mutex<Option<CachedVars>>,
 }
+
+struct CachedVars {
+    at: Instant,
+    vars: BTreeMap<String, String>,
+}
+
+/// 前置结果缺省复用时长。令牌类变量通常几分钟内有效；`ttl = 0` 时每次重跑。
+const DEFAULT_PREFLIGHT_TTL_SECS: u64 = 300;
 
 impl RuleSource {
     pub fn new(rule: RuleDocument) -> Self {
@@ -37,8 +53,13 @@ impl RuleSource {
             group: rule.group.clone(),
             api_level: CURRENT_API_LEVEL,
             capabilities,
+            content_types: rule.content_types.clone(),
         };
-        Self { rule, meta }
+        Self {
+            rule,
+            meta,
+            preflight: Mutex::new(None),
+        }
     }
 
     pub fn from_json(text: &str) -> Result<Self, SourceError> {
@@ -69,6 +90,83 @@ impl RuleSource {
             return address.to_string();
         }
         self.join(address)
+    }
+
+    fn preflight_ttl(&self) -> Duration {
+        Duration::from_secs(
+            self.rule
+                .preflight_ttl
+                .unwrap_or(DEFAULT_PREFLIGHT_TTL_SECS),
+        )
+    }
+
+    /// 取前置变量；步骤之间按顺序累积，结果按 TTL 复用。
+    ///
+    /// 锁只在读写缓存时持有——中途有网络请求，持锁会把并发目录请求串行化。
+    /// 首次并发时可能有两个请求同时跑一遍前置，代价是幂等 GET，可接受。
+    async fn preflight_vars(
+        &self,
+        env: &SourceEnv,
+    ) -> Result<BTreeMap<String, String>, SourceError> {
+        if self.rule.preflight.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+        let ttl = self.preflight_ttl();
+        if !ttl.is_zero() {
+            let cached = self
+                .preflight
+                .lock()
+                .ok()
+                .and_then(|guard| guard.as_ref().map(|entry| (entry.at, entry.vars.clone())));
+            if let Some((at, vars)) = cached {
+                if at.elapsed() < ttl {
+                    return Ok(vars);
+                }
+            }
+        }
+
+        let mut vars: BTreeMap<String, String> = BTreeMap::new();
+        for (index, step) in self.rule.preflight.iter().enumerate() {
+            let ctx = TemplateCtx {
+                page: 1,
+                category: "",
+                keyword: "",
+                id: "",
+                vars: Some(&vars),
+            };
+            let url = self.join(&self.rule.render(&step.url, &ctx));
+            let request = self.build(&step.request, url, &ctx);
+            let body = env
+                .text(request)
+                .await
+                .map_err(|err| self.preflight_error(index, step, err))?;
+            let extracted = extract_vars(&body, &step.extract)
+                .map_err(|err| self.preflight_error(index, step, err))?;
+            vars.extend(extracted);
+        }
+
+        if !ttl.is_zero() {
+            if let Ok(mut guard) = self.preflight.lock() {
+                *guard = Some(CachedVars {
+                    at: Instant::now(),
+                    vars: vars.clone(),
+                });
+            }
+        }
+        Ok(vars)
+    }
+
+    fn preflight_error(&self, index: usize, step: &PreflightStep, err: SourceError) -> SourceError {
+        let name = step.name.trim();
+        let label = if name.is_empty() {
+            format!("#{index}")
+        } else {
+            format!("#{index} {name}")
+        };
+        SourceError::Rule {
+            rule_id: self.rule.id.clone(),
+            detail: format!("preflight 步骤 {label} 失败：{err}"),
+        }
     }
 }
 
@@ -102,11 +200,13 @@ impl SourcePlugin for RuleSource {
             .as_ref()
             .ok_or(SourceError::Unsupported("目录"))?;
         let category = catalog.category_for(category);
+        let vars = self.preflight_vars(env).await?;
         let ctx = TemplateCtx {
             page,
             category,
             keyword: "",
             id: "",
+            vars: Some(&vars),
         };
         let template = catalog
             .url_candidates(&self.rule, &ctx)
@@ -118,11 +218,13 @@ impl SourcePlugin for RuleSource {
 
     async fn detail(&self, env: &SourceEnv, source_id: &str) -> Result<Detail, SourceError> {
         // 详情页地址优先用规则模板；没有模板时退回站源常见的候选路径。
+        let vars = self.preflight_vars(env).await?;
         let ctx = TemplateCtx {
             page: 1,
             category: "",
             keyword: "",
             id: source_id,
+            vars: Some(&vars),
         };
         let spec = self
             .rule
@@ -168,11 +270,13 @@ impl SourcePlugin for RuleSource {
             .search
             .as_ref()
             .ok_or(SourceError::Unsupported("搜索"))?;
+        let vars = self.preflight_vars(env).await?;
         let ctx = TemplateCtx {
             page,
             category: "",
             keyword: query,
             id: "",
+            vars: Some(&vars),
         };
         let template = search
             .url_candidates(&self.rule, &ctx)
@@ -213,11 +317,13 @@ impl SourcePlugin for RuleSource {
         if page.is_empty() {
             return Err(SourceError::parse("resolve", "分集缺少地址"));
         }
+        let vars = self.preflight_vars(env).await?;
         let ctx = TemplateCtx {
             page: 1,
             category: "",
             keyword: "",
             id: &drama.source_id,
+            vars: Some(&vars),
         };
         let request = self.build(
             resolve.map(|spec| &spec.request).unwrap_or(&fallback),
@@ -366,6 +472,8 @@ mod tests {
             category: "7",
             keyword: "",
             id: "",
+
+            vars: None,
         };
         let catalog = source.rule().catalog.as_ref().expect("catalog");
         let template = catalog
@@ -386,6 +494,8 @@ mod tests {
             category: "",
             keyword: "",
             id: "",
+
+            vars: None,
         };
         let request = source.build(&catalog.request, "https://www.duanju55.com/x".into(), &ctx);
         assert_eq!(
@@ -401,5 +511,173 @@ mod tests {
         assert_eq!(candidates.len(), 4);
         assert!(candidates[0].contains("/index.php/vod/detail/id/42.html"));
         assert!(candidates.iter().all(|url| !url.contains("//detail")));
+    }
+}
+
+#[cfg(test)]
+mod preflight_tests {
+    use super::*;
+    use guo_source_api::{Capability, FetchRequest, FetchResponse, SourceStore, Transport};
+    use std::sync::Arc;
+
+    /// 按地址子串匹配的脚本化传输层，并记录实际发出的全部地址。
+    struct ScriptedTransport {
+        routes: Vec<(&'static str, &'static str)>,
+        seen: Mutex<Vec<String>>,
+    }
+
+    impl ScriptedTransport {
+        fn new(routes: Vec<(&'static str, &'static str)>) -> Arc<Self> {
+            Arc::new(Self {
+                routes,
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn seen(&self) -> Vec<String> {
+            self.seen.lock().expect("seen").clone()
+        }
+
+        fn count(&self, needle: &str) -> usize {
+            self.seen()
+                .iter()
+                .filter(|url| url.contains(needle))
+                .count()
+        }
+    }
+
+    #[async_trait]
+    impl Transport for ScriptedTransport {
+        async fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, SourceError> {
+            self.seen.lock().expect("seen").push(request.url.clone());
+            for (needle, body) in &self.routes {
+                if request.url.contains(needle) {
+                    return Ok(FetchResponse::new(
+                        200,
+                        body.as_bytes().to_vec(),
+                        &request.url,
+                    ));
+                }
+            }
+            Err(SourceError::network(&request.url, "未预置该地址"))
+        }
+    }
+
+    struct NoStore;
+    #[async_trait]
+    impl SourceStore for NoStore {
+        async fn get(&self, _key: &str) -> Result<Option<String>, SourceError> {
+            Ok(None)
+        }
+        async fn set(&self, _key: &str, _value: &str) -> Result<(), SourceError> {
+            Ok(())
+        }
+    }
+
+    struct NoLog;
+    impl guo_source_api::LogSink for NoLog {
+        fn debug(&self, _message: &str) {}
+        fn warn(&self, _message: &str) {}
+    }
+
+    fn env_with(transport: Arc<ScriptedTransport>) -> SourceEnv {
+        SourceEnv {
+            source_id: "yeguo".into(),
+            transport,
+            store: Arc::new(NoStore),
+            scripts: None,
+            log: Arc::new(NoLog),
+        }
+    }
+
+    fn rule(ttl: u64) -> String {
+        format!(
+            r#"{{
+                "schema": "1.0", "id": "yeguo", "name": "野果", "base": "https://x.test",
+                "kind": "json",
+                "catalog": {{ "url": "list?page={{page}}&t={{var:token}}&h={{var:host}}",
+                             "items": ["data.list"],
+                             "fields": {{ "id": ["$.id"], "title": ["$.title"] }} }},
+                "detail": {{ "episodes": {{ "paths": ["data.eps"], "videoUrl": ["$.url"] }} }},
+                "preflightTtl": {ttl},
+                "preflight": [
+                    {{ "name": "站点", "url": "{{base}}/site",
+                      "extract": {{ "vars": {{ "site": "$.data.site" }} }} }},
+                    {{ "name": "配置", "url": "{{var:site}}/cfg",
+                      "extract": {{ "vars": {{ "token": "$.token", "host": "$.host" }} }} }}
+                ]
+            }}"#
+        )
+    }
+
+    fn routes() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("/site", r#"{"data":{"site":"https://cfg.test"}}"#),
+            ("cfg.test/cfg", r#"{"token":"tk1","host":"cdn.test"}"#),
+            (
+                "list?page=",
+                r#"{"data":{"list":[{"id":"7","title":"剧名"}]}}"#,
+            ),
+        ]
+    }
+
+    #[tokio::test]
+    async fn catalog_uses_preflight_variables() {
+        let transport = ScriptedTransport::new(routes());
+        let env = env_with(Arc::clone(&transport));
+        let source = RuleSource::from_json(&rule(60)).expect("rule");
+        let page = source.catalog(&env, 1, "").await.expect("catalog");
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].source_id, "7");
+        let seen = transport.seen();
+        assert_eq!(seen[0], "https://x.test/site");
+        assert_eq!(seen[1], "https://cfg.test/cfg", "第二步必须用第一步的变量");
+        assert_eq!(
+            seen[2], "https://x.test/list?page=1&t=tk1&h=cdn.test",
+            "目录地址必须注入两个变量"
+        );
+    }
+
+    #[tokio::test]
+    async fn preflight_is_reused_within_ttl() {
+        let transport = ScriptedTransport::new(routes());
+        let env = env_with(Arc::clone(&transport));
+        let source = RuleSource::from_json(&rule(60)).expect("rule");
+        source.catalog(&env, 1, "").await.expect("first");
+        source.catalog(&env, 2, "").await.expect("second");
+        assert_eq!(transport.count("/site"), 1, "TTL 内不应重跑前置");
+        assert_eq!(transport.count("list?page="), 2);
+    }
+
+    #[tokio::test]
+    async fn zero_ttl_reruns_every_time() {
+        let transport = ScriptedTransport::new(routes());
+        let env = env_with(Arc::clone(&transport));
+        let source = RuleSource::from_json(&rule(0)).expect("rule");
+        source.catalog(&env, 1, "").await.expect("first");
+        source.catalog(&env, 2, "").await.expect("second");
+        assert_eq!(transport.count("/site"), 2);
+    }
+
+    #[tokio::test]
+    async fn failure_names_the_step() {
+        // 去掉站点配置这一步的响应，错误必须能定位到具体步骤。
+        let transport = ScriptedTransport::new(vec![(
+            "cfg.test/cfg",
+            r#"{"token":"tk1","host":"cdn.test"}"#,
+        )]);
+        let env = env_with(Arc::clone(&transport));
+        let source = RuleSource::from_json(&rule(60)).expect("rule");
+        let err = source.catalog(&env, 1, "").await.expect_err("must fail");
+        let text = err.to_string();
+        assert!(text.contains("#0 站点"), "{text}");
+    }
+
+    #[test]
+    fn capabilities_ignore_preflight_only_sources() {
+        // 只有 preflight、没有任何动作段的规则不算可注册源。
+        let json = rule(60);
+        let source = RuleSource::from_json(&json).expect("rule");
+        assert!(source.meta().supports(Capability::Catalog));
     }
 }

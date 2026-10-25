@@ -471,18 +471,10 @@ class EngineBackedRepository extends AppRepository {
     }
     for (final (id, context) in registered) {
       _downloads[id] = context;
-      unawaited(_runDownload(id));
+      // 执行由引擎 worker 接管：`enqueue_download` 内部已 pump，
+      // 这里再调 `runDownload` 会双跑同一任务（从断点续传重入、字节跳变）。
     }
     return registered.length;
-  }
-
-  /// 后台执行单个已登记任务。失败写进任务本身（列表页可见），不再静默。
-  Future<void> _runDownload(String id) async {
-    try {
-      await engine.runDownload(id);
-    } on Object catch (error) {
-      debugPrint('下载任务 $id 结束：$error');
-    }
   }
 
   /// 计算下载目标路径。
@@ -622,12 +614,13 @@ class EngineBackedRepository extends AppRepository {
   ///
   /// 分流依据是本进程登记过的任务 id。`expectedVersions` 是「合并完成后
   /// 清理原分集」的版本闸门：值与引擎 `revision` 不一致的任务会被跳过，
-  /// 而不是误删已被替换的文件。
+  /// 而不是误删已被替换的文件。这里必须传整数 `revision`，不能再传
+  /// `created-bytes-quality` 这类复合串——解析失败会恒为 0，闸门永远拒绝。
   @override
   Future<DownloadBatchResult> controlDownloadBatch(
     String command,
     List<String> ids, {
-    Map<String, String> expectedVersions = const {},
+    Map<String, int> expectedVersions = const {},
   }) async {
     final engineIds = ids.toSet().toList();
     if (engineIds.isEmpty) {
@@ -644,7 +637,7 @@ class EngineBackedRepository extends AppRepository {
         if (expectedVersions[id] != null)
           rust.DownloadVersion(
             id: id,
-            revision: BigInt.from(int.tryParse(expectedVersions[id]!) ?? 0),
+            revision: BigInt.from(expectedVersions[id]!),
           ),
     ];
     final rust.DownloadBatchOutcome outcome;

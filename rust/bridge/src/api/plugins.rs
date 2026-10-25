@@ -86,6 +86,7 @@ pub fn parse_repository_index(text: String) -> Result<Vec<PluginSummary>, Engine
             installed: false,
             enabled: false,
             signed: false,
+            content_types: content_types_of(&entry.content_types),
         })
         .collect())
 }
@@ -125,7 +126,13 @@ pub fn install_plugin(
         installed: true,
         enabled: installed.enabled,
         signed: repo_signed,
+        content_types: content_types_of(&installed.content_types),
     })
+}
+
+/// 内容类型 → 稳定字符串，供 Dart 侧做筛选与本地化。
+fn content_types_of(kinds: &[guo_source_api::ContentType]) -> Vec<String> {
+    kinds.iter().map(|kind| kind.as_str().to_string()).collect()
 }
 
 fn semver_like(text: &str) -> Option<semver::Version> {
@@ -149,6 +156,7 @@ pub fn installed_plugins() -> Result<Vec<PluginSummary>, EngineFailure> {
             installed: true,
             enabled: plugin.enabled,
             signed: false,
+            content_types: content_types_of(&plugin.content_types),
         })
         .collect())
 }
@@ -313,6 +321,7 @@ pub async fn install_from_repo(
         installed: true,
         enabled: installed.enabled,
         signed: fetched.signed,
+        content_types: content_types_of(&installed.content_types),
     })
 }
 
@@ -342,6 +351,7 @@ pub async fn list_repo_plugins(repo_url: String) -> Result<Vec<PluginSummary>, E
             installed: false,
             enabled: false,
             signed: fetched.signed,
+            content_types: content_types_of(&entry.content_types),
         })
         .collect())
 }

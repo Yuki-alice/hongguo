@@ -64,6 +64,13 @@ impl FetchRequest {
         self
     }
 
+    /// 覆盖默认超时。网页类请求健康时秒回，给到 20s 默认值只会在
+    /// 站点挂起时白等，调用方按需收紧。
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
     /// 限制响应体字节数，超出部分丢弃。
     pub fn limit_bytes(mut self, max_bytes: u64) -> Self {
         self.max_bytes = Some(max_bytes);

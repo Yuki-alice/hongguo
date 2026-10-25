@@ -20,6 +20,8 @@ pub use model::{
     Category, Chapter, Danmaku, DanmakuPage, Detail, Drama, Media, Page, RankingBoard, RankingItem,
     RankingPage, RecommendCursor, RecommendPage, SeriesSeason, Suggestion,
 };
-pub use plugin::{Capability, SourceMeta, SourcePlugin, SourceRegistry, CURRENT_API_LEVEL};
+pub use plugin::{
+    Capability, ContentType, SourceMeta, SourcePlugin, SourceRegistry, CURRENT_API_LEVEL,
+};
 pub use request::{FetchRequest, FetchResponse, HeaderMap, Method, RequestPriority};
 pub use sha256::{sha256_bytes, sha256_hex};

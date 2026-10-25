@@ -55,8 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let meta = RuleMeta::parse(&text, name)?;
         let plugin_id = format!("{ID_PREFIX}{}", meta.id);
         let manifest = format!(
-            "spec = 1\nid = \"{plugin_id}\"\nname = \"{}\"\nversion = \"{RULE_VERSION}\"\nkind = \"declarative\"\napi = {{ level = 1, min_host = \"{MIN_HOST}\" }}\ndescription = \"{}\"\nauthors = [\"official\"]\n\n[permissions]\nnetwork = [\"{}\"]\n\n[[rules]]\npath = \"rules/{}.json\"\nsite = \"{}\"\n",
-            meta.name, meta.name, meta.host, meta.id, meta.id
+            "spec = 1\nid = \"{plugin_id}\"\nname = \"{}\"\nversion = \"{RULE_VERSION}\"\nkind = \"declarative\"\napi = {{ level = 1, min_host = \"{MIN_HOST}\" }}\ndescription = \"{}\"\nauthors = [\"official\"]\ncontent_types = {}\n\n[permissions]\nnetwork = [\"{}\"]\n\n[[rules]]\npath = \"rules/{}.json\"\nsite = \"{}\"\n",
+            meta.name,
+            meta.name,
+            toml_array(&meta.content_types),
+            meta.host,
+            meta.id,
+            meta.id
         );
 
         let rule_path = format!("rules/{}.json", meta.id);
@@ -70,8 +75,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(&target, &archive)?;
 
         entries.push(format!(
-            "    {{\n      \"id\": \"{plugin_id}\",\n      \"name\": \"{}\",\n      \"version\": \"{RULE_VERSION}\",\n      \"kind\": \"declarative\",\n      \"api\": 1,\n      \"minHost\": \"{MIN_HOST}\",\n      \"author\": \"official\",\n      \"size\": {},\n      \"sha256\": \"{sha}\",\n      \"path\": \"{relative}\"\n    }}",
+            "    {{\n      \"id\": \"{plugin_id}\",\n      \"name\": \"{}\",\n      \"version\": \"{RULE_VERSION}\",\n      \"kind\": \"declarative\",\n      \"api\": 1,\n      \"minHost\": \"{MIN_HOST}\",\n      \"author\": \"official\",\n      \"contentTypes\": {},\n      \"size\": {},\n      \"sha256\": \"{sha}\",\n      \"path\": \"{relative}\"\n    }}",
             meta.name,
+            json_array(&meta.content_types),
             archive.len()
         ));
         println!("打包 {plugin_id} ({} 字节)", archive.len());
@@ -108,6 +114,8 @@ struct RuleMeta {
     id: String,
     name: String,
     host: String,
+    /// 内容类型：规则 JSON 是唯一作者输入，清单与索引都由它派生。
+    content_types: Vec<String>,
 }
 
 impl RuleMeta {
@@ -128,12 +136,35 @@ impl RuleMeta {
             .and_then(|rest| rest.split('/').next())
             .ok_or_else(|| format!("{path} 的 base 不是合法 URL"))?
             .to_string();
+        let content_types = value
+            .get("contentTypes")
+            .and_then(|item| item.as_array())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(Self {
             id: field("id")?,
             name: field("name")?,
             host,
+            content_types,
         })
     }
+}
+
+/// TOML 字符串数组字面量。空列表也要写出来，提示作者该标注类型。
+fn toml_array(items: &[String]) -> String {
+    let quoted: Vec<String> = items.iter().map(|item| format!("\"{item}\"")).collect();
+    format!("[{}]", quoted.join(", "))
+}
+
+fn json_array(items: &[String]) -> String {
+    let quoted: Vec<String> = items.iter().map(|item| format!("\"{item}\"")).collect();
+    format!("[{}]", quoted.join(", "))
 }
 
 fn zip_package(

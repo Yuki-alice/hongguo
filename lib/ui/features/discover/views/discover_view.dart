@@ -44,6 +44,7 @@ class DiscoverView extends StatefulWidget {
     required this.onConfirmSelection,
     required this.onToggleSearch,
     required this.onChangeGroup,
+    required this.onChangeContentType,
     required this.onChangeCategory,
     required this.onSwipeCategory,
     required this.onRefreshCatalog,
@@ -76,6 +77,9 @@ class DiscoverView extends StatefulWidget {
   final VoidCallback onConfirmSelection;
   final VoidCallback onToggleSearch;
   final ValueChanged<SourceGroup> onChangeGroup;
+
+  /// 内容类型筛选；`null` 表示不限。
+  final ValueChanged<String?> onChangeContentType;
   final ValueChanged<String> onChangeCategory;
   final ValueChanged<int> onSwipeCategory;
   final Future<void> Function() onRefreshCatalog;
@@ -661,10 +665,12 @@ class _DiscoverViewState extends State<DiscoverView> {
     required double fontSize,
     bool bold = true,
   }) {
+    final l10n = AppLocalizations.of(context);
     final categories = controller.displayCategories;
     final current = controller.displayCategory;
     final groups = controller.sourceGroups;
     final group = controller.group;
+    final types = controller.contentTypes;
     // 标题文本：分类名；分类为空时用站源名兜底，避免标题整片空白。
     final currentCategory = categories.firstWhere(
       (entry) => entry.id == current,
@@ -679,6 +685,17 @@ class _DiscoverViewState extends State<DiscoverView> {
       // 参照应用的菜单上限 240×350：分类多时靠滚动而不是撑满屏。
       maxSize: const Size(240, 350),
       menuChildren: [
+        // 类型是比分类更粗的一层：先定「看短剧还是看电影」，再定分类。
+        // 只有一种类型时不出现——现在装的全是短剧源，多一行永远是死选项。
+        if (types.length > 1) ...[
+          for (final type in <String?>[null, ...types])
+            AppMenuItem(
+              label: type == null ? l10n.pluginsTypeAll : _typeLabel(l10n, type),
+              selected: controller.contentType == type,
+              onPressed: () => widget.onChangeContentType(type),
+            ),
+          const AppMenuDivider(),
+        ],
         for (final category in categories)
           AppMenuItem(
             label: category.name,
@@ -738,6 +755,17 @@ class _DiscoverViewState extends State<DiscoverView> {
       ),
     );
   }
+
+  /// 内容类型 → 本地化标签。未知类型原样显示，便于第三方扩展排查。
+  String _typeLabel(AppLocalizations l10n, String type) => switch (type) {
+    'short-drama' => l10n.contentTypeShortDrama,
+    'movie' => l10n.contentTypeMovie,
+    'tv' => l10n.contentTypeTv,
+    'anime' => l10n.contentTypeAnime,
+    'variety' => l10n.contentTypeVariety,
+    'documentary' => l10n.contentTypeDocumentary,
+    _ => type,
+  };
 
   Widget _sourceSwitcher(
     BuildContext context, {

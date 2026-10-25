@@ -90,7 +90,7 @@ impl ScriptHost for QuickJsHost {
 
 /// 预置的沙箱环境。等价于「宿主提供的 crypto 库」，
 /// 但只实现站点签名实际用到的部分：MD5、SHA-256、Base64。
-const PRELUDE: &str = r#"
+pub(crate) const PRELUDE: &str = r#"
 globalThis.__md5 = (function () {
     function safeAdd(x, y) { const l = (x & 0xffff) + (y & 0xffff); return (((x >> 16) + (y >> 16) + (l >> 16)) << 16) | (l & 0xffff); }
     function rol(n, c) { return (n << c) | (n >>> (32 - c)); }

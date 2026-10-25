@@ -77,6 +77,8 @@ impl ComponentSource {
             name: descriptor.name,
             group: descriptor.group,
             api_level: descriptor.api_level,
+            // WIT 已冻结，组件不声明内容类型：装配后按「未标注」处理。
+            content_types: Vec::new(),
             capabilities,
         };
         if meta.api_level > CURRENT_API_LEVEL {

@@ -4,18 +4,21 @@
 //! 网络与脚本能力来自 `guo-host`，纯解析来自 `guo-rule-engine`。
 
 mod cache;
+pub mod check;
 mod download;
 mod plugins;
 mod repo_client;
 mod rule_source;
 mod scheduler;
+mod script_source;
 
 pub use cache::{catalog_key, merge, replace_first_page, CatalogCache, CatalogDisk, CatalogState};
 pub use download::{
     commit, discard, download_file, download_file_with, download_hls, download_hls_with,
     playlist_signature, DownloadOutcome, FileState, HlsKey,
 };
-pub use plugins::{load_installed, plugin_root, ComponentLoader, LoadReport};
+pub use plugins::{load_installed, plugin_root, script_limits, ComponentLoader, LoadReport};
 pub use repo_client::{join_url, precheck_entry, FetchedIndex, RepoClient};
 pub use rule_source::RuleSource;
 pub use scheduler::{Job, JobState, Scheduler};
+pub use script_source::{placeholder_env, ScriptSource};

@@ -1,0 +1,20 @@
+spec = 1
+id = "guo.maoguo"
+name = "猫果"
+version = "1.0.0"
+kind = "script"
+entry = "main.js"
+# 内容类型：分发与商店展示用；运行期以脚本 describe() 声明为准（check_plugin 校验一致性）。
+content_types = ["short-drama"]
+
+[api]
+level = 1
+min_host = "0.3.0"
+
+[permissions]
+# 白名单是硬约束：脚本请求这些主机之外的地址会被宿主直接拒绝。
+network = ["api-store.qmplaylet.com", "api-read.qmplaylet.com"]
+
+[permissions.script]
+timeout_ms = 10000
+memory_kb = 32768

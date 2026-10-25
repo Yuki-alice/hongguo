@@ -31,6 +31,9 @@ class _PluginsScreenState extends State<PluginsScreen> {
   String _query = '';
   bool _updatesOnly = false;
 
+  /// 内容类型筛选；`null` 表示全部。只有仓库里出现过的类型才显示筛选片。
+  String? _type;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +61,16 @@ class _PluginsScreenState extends State<PluginsScreen> {
         final updates = _controller.installed
             .where(_controller.hasUpdate)
             .length;
+        // 类型筛选片按「实际出现过的类型」生成：空仓库不放一排死按钮。
+        final types = <String>[
+          for (final type in _contentTypeOrder)
+            if (_controller.available.any((entry) => entry.hasType(type)) ||
+                _controller.installed.any((entry) => entry.hasType(type)))
+              type,
+        ];
+        final available = _controller.available
+            .where((entry) => _type == null || entry.hasType(_type!))
+            .toList();
         final installed = _controller.installed.where((entry) {
           final matches =
               query.isEmpty ||
@@ -143,13 +156,50 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 _repoSection(l10n),
                 if (_controller.available.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  Text(
-                    l10n.pluginsAvailable,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Row(
+                    children: [
+                      Text(
+                        l10n.pluginsAvailable,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${available.length}/${_controller.available.length}',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
-                  for (final entry in _controller.available)
-                    _availableCard(entry, l10n),
+                  if (types.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        FilterChip(
+                          label: Text(l10n.pluginsTypeAll),
+                          selected: _type == null,
+                          onSelected: (_) => setState(() => _type = null),
+                        ),
+                        for (final type in types)
+                          FilterChip(
+                            label: Text(_typeLabel(l10n, type)),
+                            selected: _type == type,
+                            onSelected: (selected) =>
+                                setState(() => _type = selected ? type : null),
+                          ),
+                      ],
+                    ),
+                  const SizedBox(height: 8),
+                  if (available.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: EmptyState(compact: true, title: l10n.pluginsNoMatch),
+                    )
+                  else
+                    for (final entry in available) _availableCard(entry, l10n),
                 ],
               ],
             ),
@@ -311,6 +361,12 @@ class _PluginsScreenState extends State<PluginsScreen> {
           background: tagStyle.$1,
           foreground: tagStyle.$2,
         ),
+        for (final type in entry.contentTypes)
+          RuleTag(
+            label: _typeLabel(l10n, type),
+            background: tagStyle.$1,
+            foreground: tagStyle.$2,
+          ),
         RuleTag(
           label: entry.enabled ? l10n.pluginStateOn : l10n.pluginStateOff,
           background: entry.enabled
@@ -377,6 +433,12 @@ class _PluginsScreenState extends State<PluginsScreen> {
           background: colors.surfaceContainerHighest,
           foreground: colors.onSurfaceVariant,
         ),
+        for (final type in entry.contentTypes)
+          RuleTag(
+            label: _typeLabel(l10n, type),
+            background: colors.surfaceContainerHighest,
+            foreground: colors.onSurfaceVariant,
+          ),
         if (update)
           RuleTag(
             label: l10n.pluginsUpdate,
@@ -404,6 +466,27 @@ class _PluginsScreenState extends State<PluginsScreen> {
             ),
     );
   }
+
+  /// 类型展示顺序：与宿主 `ContentType::ALL` 一致。
+  static const _contentTypeOrder = <String>[
+    'short-drama',
+    'movie',
+    'tv',
+    'anime',
+    'variety',
+    'documentary',
+  ];
+
+  /// 内容类型 → 本地化标签。未知类型原样显示，便于第三方扩展新增类型时排查。
+  String _typeLabel(AppLocalizations l10n, String type) => switch (type) {
+    'short-drama' => l10n.contentTypeShortDrama,
+    'movie' => l10n.contentTypeMovie,
+    'tv' => l10n.contentTypeTv,
+    'anime' => l10n.contentTypeAnime,
+    'variety' => l10n.contentTypeVariety,
+    'documentary' => l10n.contentTypeDocumentary,
+    _ => type,
+  };
 
   Future<void> _install(PluginEntry entry) async {
     final ok = await _controller.install(

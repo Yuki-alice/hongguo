@@ -3,6 +3,7 @@
   "id": "fanguo",
   "name": "饭果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://xifan-api-cn.youlishipin.com",
   "kind": "json",
   "capabilities": [

@@ -9,6 +9,8 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use semver::Version;
 use serde::Deserialize;
 
+use guo_source_api::ContentType;
+
 use crate::error::PluginError;
 use crate::manifest::{PluginId, PluginKind};
 
@@ -122,6 +124,9 @@ pub struct RepoIndexEntry {
     pub path: String,
     #[serde(default)]
     pub changelog: Option<String>,
+    /// 内容类型：商店在下载前就能按类型筛选。
+    #[serde(default)]
+    pub content_types: Vec<ContentType>,
 }
 
 impl RepoIndexEntry {
@@ -284,6 +289,30 @@ issued_at = "2026-10-19T00:00:00Z"
         assert_eq!(entry.min_host, Some(Version::new(0, 3, 0)));
         assert_eq!(entry.updated_at.as_deref(), Some("2026-10-18T12:00:00Z"));
         assert_eq!(entry.kind, Some(PluginKind::Declarative));
+    }
+
+    #[test]
+    fn index_carries_content_types_for_store_filtering() {
+        let sha = "c".repeat(64);
+        let text = format!(
+            r#"[{{"id":"guo.anime","name":"动漫源","version":"1.0.0","kind":"declarative","sha256":"{sha}","path":"plugins/guo.anime.zip","contentTypes":["anime","tv"]}}]"#
+        );
+        let index = parse_index(&text).expect("index");
+        let entry = index.get("guo.anime").expect("entry");
+        assert_eq!(
+            entry.content_types,
+            vec![ContentType::Anime, ContentType::Tv]
+        );
+    }
+
+    #[test]
+    fn index_without_content_types_still_parses() {
+        let index = parse_index(&index_json(&"d".repeat(64))).expect("index");
+        assert!(index
+            .get("guo.wuguo")
+            .expect("entry")
+            .content_types
+            .is_empty());
     }
 
     #[test]

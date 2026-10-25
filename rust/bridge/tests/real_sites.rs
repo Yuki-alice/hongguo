@@ -141,6 +141,8 @@ fn wangguo_catalog_url_switches_on_category() {
         category: "",
         keyword: "",
         id: "",
+
+        vars: None,
     };
     let all = catalog.url_candidates(&rule, &all_ctx).expect("全部地址");
     assert_eq!(all, "show/duanju--------1---.html");
@@ -150,6 +152,8 @@ fn wangguo_catalog_url_switches_on_category() {
         category: "女频恋爱",
         keyword: "",
         id: "",
+
+        vars: None,
     };
     let scoped = catalog.url_candidates(&rule, &category).expect("分类地址");
     assert_eq!(scoped, "show/duanju---女频恋爱-----2---.html");

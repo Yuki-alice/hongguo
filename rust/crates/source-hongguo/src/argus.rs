@@ -84,7 +84,7 @@ fn query_aid(raw_query: &str) -> &str {
 // ---------- 评论版 Gorgon ----------
 
 fn comment_gorgon_seed(raw_query: &str, stamp: u32, nonce: &CommentNonce) -> [u8; 20] {
-    let head2 = ((nonce.0[0] % 7 + 1) << 5) as u8;
+    let head2 = (nonce.0[0] % 7 + 1) << 5;
     let head3 = 0xe0 | (nonce.0[1] & 15);
     let mut seed = [0u8; 20];
     let query_digest = md5_bytes(raw_query.as_bytes());
@@ -109,26 +109,24 @@ fn comment_gorgon_seed(raw_query: &str, stamp: u32, nonce: &CommentNonce) -> [u8
         box_state[index] = source;
     }
     let mut j = 0u8;
-    for offset in 0..20 {
+    for (offset, slot) in seed.iter_mut().enumerate() {
         let i = (offset as u8).wrapping_add(1);
         j = j.wrapping_add(box_state[i as usize]);
         let source = box_state[j as usize];
         box_state[i as usize] = source;
-        seed[offset] ^=
-            box_state[box_state[i as usize].wrapping_add(box_state[j as usize]) as usize];
+        *slot ^= box_state[box_state[i as usize].wrapping_add(box_state[j as usize]) as usize];
     }
     seed
 }
 
 fn comment_gorgon_bytes(mut seed: [u8; 20], nonce: &CommentNonce) -> Vec<u8> {
-    let head2 = ((nonce.0[0] % 7 + 1) << 5) as u8;
+    let head2 = (nonce.0[0] % 7 + 1) << 5;
     let head3 = 0xe0 | (nonce.0[1] & 15);
     // Go：seed[i] = rev(rotl(seed[i],4) ^ seed[(i+1)%20]) ^ 0xeb。
     // 原地改写是有意的：最后一轮（i=19）读到的 seed[0] 已是本轮改写后的值，
     // 与普通版 Gorgon 的收尾行为一致，不能先存副本再算。
     for index in 0..20 {
-        seed[index] =
-            (seed[index].rotate_left(4) ^ seed[(index + 1) % 20]).reverse_bits() ^ 0xeb;
+        seed[index] = (seed[index].rotate_left(4) ^ seed[(index + 1) % 20]).reverse_bits() ^ 0xeb;
     }
     let mut out = Vec::with_capacity(26);
     out.extend_from_slice(&[0x84, 0x04, head2, head3, 0, 0]);
@@ -140,7 +138,9 @@ fn comment_gorgon_bytes(mut seed: [u8; 20], nonce: &CommentNonce) -> Vec<u8> {
 
 fn ladon(aid: &str, timestamp: u32, prefix: &[u8]) -> String {
     let digest_input = [prefix, aid.as_bytes()].concat();
-    let digest_hex = md5_bytes(&digest_input).map(|byte| format!("{byte:02x}")).concat();
+    let digest_hex = md5_bytes(&digest_input)
+        .map(|byte| format!("{byte:02x}"))
+        .concat();
     // Go：digest := []byte(hex)；再按 LittleEndian u64 切四段。
     let digest = digest_hex.as_bytes();
     let mut words = [0u64; 4];
@@ -160,7 +160,7 @@ fn ladon(aid: &str, timestamp: u32, prefix: &[u8]) -> String {
     }
 
     let mut data = pkcs7_pad(format!("{timestamp}-1611921764-3019").as_bytes());
-    for chunk in data.chunks_exact_mut(16) {
+    for chunk in data.as_chunks_mut::<16>().0 {
         let (mut l, mut r) = (
             u64::from_le_bytes(chunk[..8].try_into().expect("8 字节")),
             u64::from_le_bytes(chunk[8..].try_into().expect("8 字节")),
@@ -179,9 +179,8 @@ fn ladon(aid: &str, timestamp: u32, prefix: &[u8]) -> String {
 
 /// Argus 的固定密钥（客户端版本绑定，与 Go 版一致）。
 const ARGUS_KEY: [u8; 32] = [
-    0xac, 0x1a, 0xda, 0xae, 0x95, 0xa7, 0xaf, 0x94, 0xa5, 0x11, 0x4a, 0xb3, 0xb3, 0xa9, 0x7d,
-    0xd8, 0x00, 0x50, 0xaa, 0x0a, 0x39, 0x31, 0x4c, 0x40, 0x52, 0x8c, 0xae, 0xc9, 0x52, 0x56,
-    0xc2, 0x8c,
+    0xac, 0x1a, 0xda, 0xae, 0x95, 0xa7, 0xaf, 0x94, 0xa5, 0x11, 0x4a, 0xb3, 0xb3, 0xa9, 0x7d, 0xd8,
+    0x00, 0x50, 0xaa, 0x0a, 0x39, 0x31, 0x4c, 0x40, 0x52, 0x8c, 0xae, 0xc9, 0x52, 0x56, 0xc2, 0x8c,
 ];
 
 fn argus(query: &str, timestamp: u32, nonce: &CommentNonce) -> String {
@@ -229,7 +228,9 @@ fn argus(query: &str, timestamp: u32, nonce: &CommentNonce) -> String {
     let mut rounds = [0u64; 72];
     for (index, round) in rounds.iter_mut().enumerate().take(4) {
         *round = u64::from_le_bytes(
-            derived[index * 8..index * 8 + 8].try_into().expect("8 字节"),
+            derived[index * 8..index * 8 + 8]
+                .try_into()
+                .expect("8 字节"),
         );
     }
     for index in 4..rounds.len() {
@@ -238,7 +239,7 @@ fn argus(query: &str, timestamp: u32, nonce: &CommentNonce) -> String {
         let mask = (0x3dc9_4c3a_046d_678bu64 >> ((index - 4) % 62)) & 1;
         rounds[index] = !rounds[index - 4] ^ mixed ^ mask ^ 3;
     }
-    for chunk in data.chunks_exact_mut(16) {
+    for chunk in data.as_chunks_mut::<16>().0 {
         let (mut l, mut r) = (
             u64::from_le_bytes(chunk[..8].try_into().expect("8 字节")),
             u64::from_le_bytes(chunk[8..].try_into().expect("8 字节")),
@@ -248,8 +249,7 @@ fn argus(query: &str, timestamp: u32, nonce: &CommentNonce) -> String {
             // 右侧全部用**旧的** left/right 求值，再同时落盘；先交换会让
             // rotate 作用到错误的操作数上。
             let next_left = r;
-            let next_right =
-                l ^ ((r.rotate_left(1) & r.rotate_left(8)) ^ r.rotate_left(2) ^ round);
+            let next_right = l ^ ((r.rotate_left(1) & r.rotate_left(8)) ^ r.rotate_left(2) ^ round);
             l = next_left;
             r = next_right;
         }
@@ -273,7 +273,7 @@ fn argus(query: &str, timestamp: u32, nonce: &CommentNonce) -> String {
     let cipher = Aes128::new(GenericArray::from_slice(&aes_key));
     let mut encrypted = Vec::with_capacity(container.len());
     let mut previous = iv;
-    for chunk in container.chunks_exact(16) {
+    for chunk in container.as_chunks::<16>().0 {
         let mixed: Vec<u8> = chunk
             .iter()
             .zip(previous.iter())
@@ -320,17 +320,19 @@ pub fn sm3(input: &[u8]) -> [u8; 32] {
     padded.extend_from_slice(&bit_length.to_be_bytes());
 
     let mut state: [u32; 8] = [
-        0x7380_166f, 0x4914_b2b9, 0x1724_42d7, 0xda8a_0600, 0xa96f_30bc, 0x1631_38aa, 0xe38d_ee4d,
+        0x7380_166f,
+        0x4914_b2b9,
+        0x1724_42d7,
+        0xda8a_0600,
+        0xa96f_30bc,
+        0x1631_38aa,
+        0xe38d_ee4d,
         0xb0fb_0e4e,
     ];
-    for chunk in padded.chunks_exact(64) {
+    for chunk in padded.as_chunks::<64>().0 {
         let mut words = [0u32; 68];
         for (index, word) in words.iter_mut().enumerate().take(16) {
-            *word = u32::from_be_bytes(
-                chunk[index * 4..index * 4 + 4]
-                    .try_into()
-                    .expect("4 字节"),
-            );
+            *word = u32::from_be_bytes(chunk[index * 4..index * 4 + 4].try_into().expect("4 字节"));
         }
         for index in 16..68 {
             let value = words[index - 16] ^ words[index - 9] ^ words[index - 3].rotate_left(15);
@@ -406,7 +408,7 @@ fn pkcs7_pad(data: &[u8]) -> Vec<u8> {
     let padding = 16 - data.len() % 16;
     let mut out = Vec::with_capacity(data.len() + padding);
     out.extend_from_slice(data);
-    out.extend(std::iter::repeat(padding as u8).take(padding));
+    out.extend(std::iter::repeat_n(padding as u8, padding));
     out
 }
 

@@ -17,7 +17,7 @@ use base64::Engine;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 use guo_source_api::{
     Category, Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv, SourceError,
 };
@@ -64,6 +64,7 @@ impl LegacySource {
                 name: "黄果旧版".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![
                     Capability::Catalog,
                     Capability::Detail,

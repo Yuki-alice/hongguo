@@ -3,6 +3,7 @@
   "id": "guanguo",
   "name": "观果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://api.drama.9ddm.com",
   "kind": "json",
   "capabilities": [

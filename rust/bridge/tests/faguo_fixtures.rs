@@ -56,6 +56,8 @@ fn catalog_url_uses_category_slug_and_query_page() {
         category,
         keyword: "",
         id: "",
+
+        vars: None,
     };
     let url = rule
         .pick_url(&catalog.urls, &ctx(2, "duanju"))
@@ -128,6 +130,8 @@ fn detail_url_template_renders_numeric_id() {
             category: "",
             keyword: "",
             id: "431290",
+
+            vars: None,
         },
     );
     assert_eq!(rendered, "xzyxvd/431290.html");

@@ -95,10 +95,10 @@ Flutter UI
 | crate | 职责 | 依赖谁 |
 | --- | --- | --- |
 | `source-api` | 契约：模型、能力位、错误、`SourcePlugin` trait、MD5 / SHA-256 原语 | **仅** serde / async-trait |
-| `rule-engine` | 声明式规则 DSL：模板、CSS / JSON 提取 | source-api |
-| `host` | 传输（reqwest + 流式截断）、QuickJS 沙箱 | source-api |
+| `rule-engine` | 声明式规则 DSL：模板（含 `{var:…}` 前置变量）、CSS / JSON / **正则** 提取（`kind`：`html` / `json` / `next` / `regex`）、`preflight` 多步编排提取 | source-api / regex / scraper |
+| `host` | 传输（reqwest + 流式截断）、QuickJS 沙箱、**脚本型站源宿主**（`JsPluginHost`） | source-api / rquickjs |
 | `media` | HLS 播放列表解析、分片解密 | 无（纯计算） |
-| `runtime` | 目录缓存、下载调度、规则源包装 | host / media / rule-engine / source-api |
+| `runtime` | 目录缓存、下载调度、规则源（含 `preflight` 驱动与 TTL 缓存）与**脚本源**包装 | host / media / rule-engine / source-api |
 | `plugin-host` | 插件包格式、仓库协议、安装器、打包器 | source-api |
 | `plugin-wasm` | Wasm 组件宿主、能力注入、提取原语实现 | rule-engine / source-api / wasmtime |
 | `engine` | **进程级单例**：装配、会话、缓存、调度、诊断、预装、迁移、封面、设置 | 上面全部 |
@@ -155,13 +155,17 @@ Windows 自绘按钮）、可拖拽标题区、窗口尺寸与位置记忆（含
 
 | 能力 | 值 | 说明 |
 | --- | --- | --- |
-| `downloads` / `localPlayback` | ✅ | 引擎下载索引 + 离线播放 |
-| `danmaku` / `rankings` / `recommendations` / `suggestions` | ✅ | 引擎直出 |
+| `downloads` / `localPlayback` | ✅ | 引擎下载索引 + 离线播放；登记即由 worker 执行 |
+| `danmaku` | ✅ | 评论签名（Argus / Ladon）已通，窗口游标由服务端给出（30s 分段） |
+| `rankings` | ✅ | 网页榜单四频道，名次区间校验分页 |
+| `recommendations` | ⚠️ | App 推荐接口已死，降级为网页分类页 |
+| `suggestions` | ⚠️ | 搜索页改客户端渲染，降级为联想接口（≤10 条） |
 | `resourceSettings` | ✅ | 第三十五轮迁入引擎 |
-| `sourceManagement` | ❌ | 源健康 / 批量扫描暂缓 |
+| `sourceManagement` | ✅ | 单源健康检测（目录 → 详情 → 取流 → 媒体连接） |
 | `lan` | ❌ | 已删除 |
 
 UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式标为「支持 / 当前版本不支持」。
+红果 `video_model` 匿名通道已死，全量画质需要登录态或渠道接口，属产品决策而非工程待办。
 
 ## 7. 插件系统
 
@@ -283,13 +287,13 @@ Dart 读不到字段）。Dart 侧映射为 `EngineException`。
 
 ## 9. FRB 边界
 
-52 个函数按域划分：
+53 个函数按域划分：
 
 | 域 | 函数 |
 | --- | --- |
 | 引擎 | `init_engine` / `init_engine_with_directory` / `engine_version` / `engine_diagnostics` / `reload_sources` |
-| 源 | `source_catalog` / `fetch_categories` / `clear_source_session` |
-| 目录 | `fetch_catalog` / `cached_catalog` / `catalog_is_fresh` / `clear_catalog` / `cancel_request` |
+| 源 | `source_catalog` / `fetch_categories` / `check_source` / `cancel_request` / `clear_source_session` |
+| 目录 | `fetch_catalog` / `cached_catalog` / `catalog_is_fresh` / `clear_catalog` |
 | 详情 | `fetch_detail` |
 | 搜索 | `fetch_search` / `fetch_suggestions` |
 | 播放 | `fetch_media` / `local_playback` |
@@ -299,6 +303,10 @@ Dart 读不到字段）。Dart 侧映射为 `EngineException`。
 | 设置 | `resource_settings` / `save_resource_settings` |
 | 规则调试 | `parse_catalog_with_rule` / `parse_detail_with_rule` / `validate_rule` / `fetch_catalog_with_rule` |
 | 插件 | `parse_repository` / `parse_repository_index` / `install_plugin` / `installed_plugins` / `uninstall_plugin` / `set_plugin_enabled` / `rollback_plugin` / `remember_repository` / `plugin_load_report` / `install_from_repo` / `list_repo_plugins` |
+
+两处返回结构与旧文档不同：
+- `check_source(source_id, request_id, playback)` 返回 `SourceHealth`（四步各自的状态 / 耗时 / HTTP 状态），挂在 `health-<source>` 会话上，可被 `cancel_request` 中止；
+- `fetch_danmaku(source_id, chapter, start_ms, request_id)` 返回 `DanmakuPageResult { items, end_ms, has_more }`。`end_ms` 是服务端窗口游标，调用方**必须**用它推进，不能按 60s 估算（服务端按 30s 分段）。
 
 ## 10. 构建与交付
 

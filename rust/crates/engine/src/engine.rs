@@ -433,10 +433,10 @@ impl Engine {
     /// `Handle::try_current()` 兜底。两者都没有就不补员并记日志，
     /// 任务停在队列里等待下一次能起 worker 的调用。
     pub fn runtime_handle(&self) -> Option<tokio::runtime::Handle> {
-        tokio::runtime::Handle::try_current().ok().or_else(|| self.worker_handle.clone())
+        tokio::runtime::Handle::try_current()
+            .ok()
+            .or_else(|| self.worker_handle.clone())
     }
-
-
 
     /// 把某个任务的最新状态推给订阅者。
     pub fn broadcast_job(&self, id: &str) {
@@ -572,10 +572,7 @@ pub fn pump_downloads(engine: &Arc<Engine>) {
         engine.download_workers.fetch_add(1, Ordering::SeqCst);
         let worker = Arc::clone(engine);
         handle.spawn(async move {
-            loop {
-                let Some(id) = worker.scheduler.claim_next() else {
-                    break;
-                };
+            while let Some(id) = worker.scheduler.claim_next() {
                 let env = worker.env("download");
                 let _ = worker.scheduler.run(&env, &id).await;
                 worker.broadcast_job(&id);
@@ -612,7 +609,7 @@ pub use test_support::open_for_test;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use guo_source_api::{Capability, SourceMeta, CURRENT_API_LEVEL};
+    use guo_source_api::{Capability, ContentType, SourceMeta, CURRENT_API_LEVEL};
 
     struct Stub {
         meta: SourceMeta,
@@ -632,6 +629,7 @@ mod tests {
                 name: "桩源".into(),
                 group: "test".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![Capability::Catalog],
             },
         }));

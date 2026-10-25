@@ -38,6 +38,10 @@ class CatalogController extends ChangeNotifier {
 
   late SourceSite _source;
   bool _allSources = false;
+
+  /// 内容类型筛选；`null` 表示不限。会话级状态，不写进 catalogView：
+  /// 用户重启后想看的是上次那个源，而不是上次那个类型。
+  String? _contentType;
   List<Drama> _items = const [];
   bool _loading = true;
   bool _loadingMore = false;
@@ -60,6 +64,7 @@ class CatalogController extends ChangeNotifier {
   LocalStore get store => _store;
   SourceSite get source => _source;
   bool get allSources => _allSources;
+  String? get contentType => _contentType;
   List<Drama> get items => _items;
   bool get loading => _loading;
   bool get loadingMore => _loadingMore;
@@ -79,11 +84,60 @@ class CatalogController extends ChangeNotifier {
     return true;
   }
 
-  List<SourceGroup> get sourceGroups {
-    final groups = SourceGroup.fromSources(_store.sources);
+  /// 内容类型展示顺序，与宿主 `ContentType::ALL` 一致。
+  static const contentTypeOrder = <String>[
+    'short-drama',
+    'movie',
+    'tv',
+    'anime',
+    'variety',
+    'documentary',
+  ];
+
+  /// 站源里**实际出现过**的内容类型。
+  ///
+  /// 不写死六类：只有一种类型时源菜单不该出现类型筛选行；第三方扩展新增的
+  /// 未知类型排在已知类型之后原样展示，而不是被过滤掉。
+  List<String> get contentTypes => contentTypesOf(_store.sources);
+
+  /// 当前类型筛选下可见的站源。类型未标注的源只在「不限」下出现。
+  List<SourceSite> get _visibleSources =>
+      sourcesOfType(_store.sources, _contentType);
+
+  /// [contentTypes] 的纯函数版本：顺序稳定、去重、未知类型排后。
+  ///
+  /// 抽成静态函数是为了能脱离 `LocalStore` 单测——这段顺序逻辑决定了源菜单
+  /// 的第一行是哪个类型，写错了没人会立刻发现。
+  static List<String> contentTypesOf(Iterable<SourceSite> sources) {
+    final seen = <String>{};
+    for (final source in sources) {
+      seen.addAll(source.contentTypes);
+    }
     return [
-      if (groups.length > 1)
-        SourceGroup('all', AppL10n.current.allSources, _store.sources),
+      for (final type in contentTypeOrder)
+        if (seen.contains(type)) type,
+      for (final type in seen)
+        if (!contentTypeOrder.contains(type)) type,
+    ];
+  }
+
+  /// [sourcesOfType] 的纯函数版本：`type == null` 时全量返回。
+  static List<SourceSite> sourcesOfType(
+    Iterable<SourceSite> sources,
+    String? type,
+  ) {
+    if (type == null) return sources.toList();
+    return [
+      for (final source in sources)
+        if (source.hasType(type)) source,
+    ];
+  }
+
+  List<SourceGroup> get sourceGroups {
+    final sources = _visibleSources;
+    final groups = SourceGroup.fromSources(sources);
+    return [
+      if (groups.length > 1) SourceGroup('all', AppL10n.current.allSources, sources),
       ...groups,
     ];
   }
@@ -260,6 +314,32 @@ class CatalogController extends ChangeNotifier {
       for (final item in _items) item.id == drama.id ? item.merge(drama) : item,
     ];
     notifyListeners();
+  }
+
+  /// 切换内容类型筛选。
+  ///
+  /// 类型与站点组是两个维度：类型决定「哪些源算数」，组决定「在几个源之间
+  /// 聚合」。当前源不在新类型里就换到该类型第一个源；该类型只剩一个源时
+  /// 关掉「全部源」聚合，否则目录会显示上一次的多源合并结果。
+  void changeContentType(String? value) {
+    if (_contentType == value) return;
+    _contentType = value;
+    // 先刷新菜单选中态：下面 `_changeSource` 可能因为「源没变」直接返回。
+    notifyListeners();
+    final sources = _visibleSources;
+    if (sources.isEmpty) {
+      // 类型来自实际源，空集合只可能是源列表刚变化；清空条目而不是
+      // 继续展示不属于该类型的旧内容。
+      _items = const [];
+      _hasMore = false;
+      notifyListeners();
+      return;
+    }
+    final keep = sources.any((source) => source.id == _source.id);
+    _changeSource(
+      keep ? _source : sources.first,
+      allSources: sources.length > 1,
+    );
   }
 
   void changeGroup(SourceGroup value) {

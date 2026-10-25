@@ -17,6 +17,8 @@ cipher = { version = "0.4", features = ["block-padding", "alloc"] }
 cssparser = "0.38.0"
 hex = "0.4.3"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
+# 正则型站源用；scraper 已间接引入同名版本，直接依赖不额外增加包体。
+regex = "1"
 rquickjs = { version = "0.9", features = ["bindgen", "loader"] }
 scraper = "0.27.0"
 semver = { version = "1.0", features = ["serde"] }

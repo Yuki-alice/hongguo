@@ -41,6 +41,8 @@ async fn catalog_live_returns_playable_items() {
                 category: "duanju",
                 keyword: "",
                 id: "",
+
+                vars: None,
             },
         )
         .expect("目录地址");

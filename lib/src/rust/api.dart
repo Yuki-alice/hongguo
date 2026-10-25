@@ -7,7 +7,7 @@ import 'api/error.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `health_inner`, `join_url`, `media_inner`, `now_millis_bridge`, `prepare`, `run`, `search_inner`, `timeout_for`
+// These functions are ignored because they are not marked as `pub`: `bundled_packages`, `catalog_inner`, `categories_inner`, `detail_inner`, `engine`, `health_inner`, `join_url`, `media_inner`, `now_millis_bridge`, `prepare`, `record_error`, `run`, `search_inner`, `timeout_for`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `debug_registry`
 
@@ -248,6 +248,10 @@ Stream<DownloadProgressEvent> downloadProgressStream() =>
     RustLib.instance.api.crateApiDownloadProgressStream();
 
 /// 登记一个下载任务。
+///
+/// 登记即由引擎 worker 接管执行（见 `guo_engine_core::pump_downloads`）；
+/// Dart 不再需要也不应该再等 `run_download`——那会把「加入下载」
+/// 卡到整集下完。`run_download` 保留给诊断与单测。
 Future<BigInt> enqueueDownload({required DownloadRequest request}) =>
     RustLib.instance.api.crateApiEnqueueDownload(request: request);
 
@@ -1311,13 +1315,16 @@ class PluginSummary {
   final String name;
   final String version;
 
-  /// `declarative` 或 `component`。
+  /// `declarative` / `component` / `script`。
   final String kind;
   final bool installed;
   final bool enabled;
 
   /// 来源仓库是否签名（未签名仓库每次升级都要用户确认，见 D3）。
   final bool signed;
+
+  /// 内容类型（`short-drama` / `movie` / …）；空表示未标注。
+  final List<String> contentTypes;
 
   const PluginSummary({
     required this.id,
@@ -1327,6 +1334,7 @@ class PluginSummary {
     required this.installed,
     required this.enabled,
     required this.signed,
+    required this.contentTypes,
   });
 
   @override
@@ -1337,7 +1345,8 @@ class PluginSummary {
       kind.hashCode ^
       installed.hashCode ^
       enabled.hashCode ^
-      signed.hashCode;
+      signed.hashCode ^
+      contentTypes.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1350,7 +1359,8 @@ class PluginSummary {
           kind == other.kind &&
           installed == other.installed &&
           enabled == other.enabled &&
-          signed == other.signed;
+          signed == other.signed &&
+          contentTypes == other.contentTypes;
 }
 
 /// 榜单看板。
@@ -1694,12 +1704,16 @@ class SourceSummary {
   final int apiLevel;
   final List<String> capabilities;
 
+  /// 内容类型（`short-drama` / `movie` / …）；空表示未标注。
+  final List<String> contentTypes;
+
   const SourceSummary({
     required this.id,
     required this.name,
     required this.group,
     required this.apiLevel,
     required this.capabilities,
+    required this.contentTypes,
   });
 
   @override
@@ -1708,7 +1722,8 @@ class SourceSummary {
       name.hashCode ^
       group.hashCode ^
       apiLevel.hashCode ^
-      capabilities.hashCode;
+      capabilities.hashCode ^
+      contentTypes.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1719,5 +1734,6 @@ class SourceSummary {
           name == other.name &&
           group == other.group &&
           apiLevel == other.apiLevel &&
-          capabilities == other.capabilities;
+          capabilities == other.capabilities &&
+          contentTypes == other.contentTypes;
 }

@@ -3,6 +3,7 @@
   "id": "dsd",
   "name": "帝果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.dsd.com.se",
   "kind": "html",
   "capabilities": [

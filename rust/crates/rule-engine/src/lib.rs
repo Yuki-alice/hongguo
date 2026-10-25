@@ -11,14 +11,19 @@ mod embedded;
 mod executor;
 mod json_executor;
 mod jsonpath;
+mod preflight;
+mod regex_executor;
 mod rules;
 mod template;
 
 pub use executor::RuleExecutor;
 pub use json_executor::JsonRuleExecutor;
 pub use jsonpath::{absolute, find_url, first_value, select, select_items, text_at, text_of};
+pub use preflight::extract_vars;
+pub use regex_executor::RegexExecutor;
 pub use rules::{
-    CatalogRule, CategoryRule, DetailRule, EpisodesRule, RequestRule, ResolveRule, RuleDocument,
-    RuleFields, RuleKind, SearchRule, SelectorList, TemplateCtx, UrlRule,
+    CatalogRule, CategoryRule, DetailRule, EpisodesRegex, EpisodesRule, ExtractRule, PreflightStep,
+    RequestRule, ResolveRule, RuleDocument, RuleFields, RuleKind, SearchRule, SelectorList,
+    TemplateCtx, UrlRule,
 };
 pub use template::{digest_hex, hmac_sha256_hex, tokens_in, Digest, Token, Transform};

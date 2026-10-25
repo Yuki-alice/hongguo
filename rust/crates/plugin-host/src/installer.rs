@@ -97,6 +97,17 @@ pub fn install_package(
             ));
         }
     }
+    // 索引里的内容类型是展示副本：与包内清单不一致时拒绝安装，
+    // 否则商店筛选会长期显示错误分类。
+    if !entry.content_types.is_empty() && entry.content_types != package.manifest.content_types {
+        return Err(PluginError::integrity(
+            "内容类型",
+            format!(
+                "索引是 {:?}，包内是 {:?}",
+                entry.content_types, package.manifest.content_types
+            ),
+        ));
+    }
     if package.manifest.api.level > CURRENT_API_LEVEL {
         return Err(PluginError::Unsupported {
             detail: format!("插件要求 API level {}", package.manifest.api.level),
@@ -140,6 +151,7 @@ mod tests {
     use crate::package::sha256_hex;
     use crate::repository::parse_index;
     use crate::store::PluginStore;
+    use guo_source_api::ContentType;
     use std::io::{Cursor, Write};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -227,6 +239,91 @@ mod tests {
         .expect("install");
         assert_eq!(installed.name, "测试");
         assert_eq!(store.installed().len(), 1);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 内容类型在清单与索引两侧都出现：不一致就必须拒绝安装，
+    /// 否则商店分类会长期显示错误信息（且无法通过重新拉仓库修复）。
+    #[test]
+    fn rejects_content_type_mismatch_between_index_and_manifest() {
+        let root = temporary_root("types");
+        let store = PluginStore::open(&root);
+        let text = manifest_text("guo.test", "1.0.0", "declarative").replace(
+            "kind = \"declarative\"",
+            "kind = \"declarative\"\ncontent_types = [\"movie\"]",
+        );
+        let archive = archive_of(&[
+            ("plugin.toml", text.as_bytes()),
+            ("rules/guo.test.json", b"{\"schema\":\"1.0\"}"),
+        ]);
+        let sha = sha256_hex(&archive);
+        // 索引写成 tv，包内写成 movie。
+        let entry_index = parse_index(&index_for(
+            "guo.test",
+            "1.0.0",
+            &sha,
+            archive.len(),
+            "declarative",
+        ))
+        .expect("index");
+        let mut entry = select_entry(&entry_index, "guo.test", None)
+            .expect("entry")
+            .clone();
+        entry.content_types = vec![ContentType::Tv];
+        let err = install_package(
+            &store,
+            &entry,
+            &archive,
+            &InstallRequest {
+                repo_id: "official",
+                repo_signed: true,
+                now: 0,
+            },
+            PackageLimits::default(),
+        )
+        .expect_err("must fail");
+        assert!(err.to_string().contains("内容类型"), "{err}");
+        assert!(store.installed().is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn installed_plugin_keeps_content_types() {
+        let root = temporary_root("types-ok");
+        let store = PluginStore::open(&root);
+        let text = manifest_text("guo.test", "1.0.0", "declarative").replace(
+            "kind = \"declarative\"",
+            "kind = \"declarative\"\ncontent_types = [\"movie\"]",
+        );
+        let archive = archive_of(&[
+            ("plugin.toml", text.as_bytes()),
+            ("rules/guo.test.json", b"{\"schema\":\"1.0\"}"),
+        ]);
+        let sha = sha256_hex(&archive);
+        let index = parse_index(&index_for(
+            "guo.test",
+            "1.0.0",
+            &sha,
+            archive.len(),
+            "declarative",
+        ))
+        .expect("index");
+        let entry = select_entry(&index, "guo.test", None).expect("entry");
+        install_package(
+            &store,
+            entry,
+            &archive,
+            &InstallRequest {
+                repo_id: "official",
+                repo_signed: true,
+                now: 0,
+            },
+            PackageLimits::default(),
+        )
+        .expect("install");
+        let installed = store.installed();
+        assert_eq!(installed.len(), 1);
+        assert_eq!(installed[0].content_types, vec![ContentType::Movie]);
         let _ = std::fs::remove_dir_all(&root);
     }
 

@@ -3,6 +3,7 @@
   "id": "wangguo",
   "name": "网果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.duanju2.com",
   "kind": "html",
   "capabilities": [

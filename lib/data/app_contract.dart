@@ -104,7 +104,7 @@ abstract class AppRepository {
   Future<DownloadBatchResult> controlDownloadBatch(
     String command,
     List<String> ids, {
-    Map<String, String> expectedVersions = const {},
+    Map<String, int> expectedVersions = const {},
   }) async {
     if (expectedVersions.isNotEmpty) throw AppFailure('当前环境不支持校验后清理原分集');
     final completed = <String>[], failures = <String, String>{};

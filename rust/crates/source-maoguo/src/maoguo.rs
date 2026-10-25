@@ -4,7 +4,7 @@ use serde_json::Value;
 use guo_source_api::{
     md5_hash, Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv, SourceError,
 };
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 
 /// 猫果（七猫）签名接口。
 ///
@@ -138,6 +138,7 @@ impl MaoguoSource {
                 name: "猫果".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![Capability::Catalog, Capability::Detail, Capability::Search],
             },
         }

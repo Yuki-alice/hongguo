@@ -20,6 +20,8 @@ fn ctx<'a>(page: u32, category: &'a str, keyword: &'a str, id: &'a str) -> Templ
         category,
         keyword,
         id,
+
+        vars: None,
     }
 }
 

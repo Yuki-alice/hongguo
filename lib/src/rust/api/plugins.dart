@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `engine`, `now_secs`, `plugin_error`, `semver_like`, `store`
+// These functions are ignored because they are not marked as `pub`: `content_types_of`, `engine`, `now_secs`, `plugin_error`, `semver_like`, `store`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `plugin_error_hint`
 
 /// 校验 `repo.toml`，返回规范化后的摘要。

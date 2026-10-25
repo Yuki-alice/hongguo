@@ -38,7 +38,7 @@ pub use guo_source_api::{
 };
 
 // 宿主能力实现
-pub use guo_host::{HttpTransport, QuickJsHost, DEFAULT_USER_AGENT};
+pub use guo_host::{HttpTransport, JsPluginHost, QuickJsHost, ScriptLimits, DEFAULT_USER_AGENT};
 
 // 声明式规则
 pub use guo_rule_engine::{
@@ -50,9 +50,9 @@ pub use guo_media::{extract_media_url, parse_playlist, Playlist};
 
 // 运行时装配
 pub use guo_runtime::{
-    catalog_key, commit, discard, download_file, download_hls, merge, playlist_signature,
-    replace_first_page, CatalogCache, CatalogDisk, CatalogState, DownloadOutcome, FileState,
-    HlsKey, Job, JobState, RuleSource, Scheduler,
+    catalog_key, commit, discard, download_file, download_hls, merge, placeholder_env,
+    playlist_signature, replace_first_page, CatalogCache, CatalogDisk, CatalogState,
+    DownloadOutcome, FileState, HlsKey, Job, JobState, RuleSource, Scheduler, ScriptSource,
 };
 
 // 内置代码源

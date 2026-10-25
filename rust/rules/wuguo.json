@@ -3,6 +3,7 @@
   "id": "wuguo",
   "name": "伍果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.duanju55.com",
   "capabilities": [
     "catalog",

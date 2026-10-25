@@ -128,7 +128,11 @@ pub fn parse_suggestion_dramas(body: &str) -> Result<Vec<guo_source_api::Drama>,
             .unwrap_or_default()
             .trim()
             .to_string();
-        let title = if title.is_empty() { fallback_title } else { title };
+        let title = if title.is_empty() {
+            fallback_title
+        } else {
+            title
+        };
         if title.is_empty() || title == series_id {
             continue;
         }
@@ -354,7 +358,13 @@ pub fn parse_danmaku(
             .and_then(Value::as_str)
             .unwrap_or_default()
             .chars()
-            .map(|c| if c.is_control() || c == '\u{2028}' || c == '\u{2029}' { ' ' } else { c })
+            .map(|c| {
+                if c.is_control() || c == '\u{2028}' || c == '\u{2029}' {
+                    ' '
+                } else {
+                    c
+                }
+            })
             .collect::<String>()
             .trim()
             .to_string();
@@ -700,12 +710,7 @@ mod tests {
     fn danmaku_rejects_missing_or_invalid_windows() {
         // 缺 data_list / 缺游标 / 游标不在 (start, 24h] 内，都要报错。
         assert!(parse_danmaku(r#"{"data":{}}"#, "vid1", 0).is_err());
-        assert!(parse_danmaku(
-            &danmaku_body(&danmaku_row("a", 1, "x", 1), 0),
-            "vid1",
-            0
-        )
-        .is_err());
+        assert!(parse_danmaku(&danmaku_body(&danmaku_row("a", 1, "x", 1), 0), "vid1", 0).is_err());
         let too_far = DANMAKU_MAX_WINDOW_MS + 1;
         assert!(parse_danmaku(
             &danmaku_body(&danmaku_row("a", 1, "x", 1), too_far),

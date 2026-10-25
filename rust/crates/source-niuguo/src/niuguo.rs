@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use base64::Engine;
 use serde_json::Value;
 
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 use guo_source_api::{Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv, SourceError};
 
 /// 牛果（牛牛短剧）接口站源。
@@ -36,6 +36,7 @@ impl NiuguoSource {
                 name: "牛果".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![Capability::Catalog, Capability::Detail, Capability::Search],
             },
         }

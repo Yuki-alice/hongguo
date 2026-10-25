@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use guo_source_api::preview;
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 use guo_source_api::{
     Category, Chapter, Detail, Drama, FetchRequest, FetchResponse, Media, Page, SourceEnv,
     SourceError,
@@ -79,6 +79,7 @@ impl YaguoSource {
                 name: "芽果".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![
                     Capability::Catalog,
                     Capability::Detail,

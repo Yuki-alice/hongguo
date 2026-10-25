@@ -3,6 +3,7 @@
   "id": "xingguo",
   "name": "星果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "http://read.api.duodutek.com",
   "kind": "json",
   "capabilities": [

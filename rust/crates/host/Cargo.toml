@@ -10,5 +10,7 @@ guo-source-api = { path = "../source-api" }
 async-trait.workspace = true
 reqwest.workspace = true
 rquickjs.workspace = true
+# 脚本宿主用 `#[derive(Deserialize)]` 解析 JS 传来的参数。
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tokio.workspace = true

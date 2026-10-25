@@ -72,6 +72,8 @@ fn detail_uses_id_template() {
             category: "",
             keyword: "",
             id: "456",
+
+            vars: None,
         },
     );
     assert_eq!(rendered, "index.php/vod/detail/id/456.html");

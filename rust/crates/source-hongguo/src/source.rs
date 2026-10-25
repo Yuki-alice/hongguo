@@ -8,12 +8,15 @@
 //!
 //! 这里把两条路径都实现出来，调用方按「先 App 后网页」的顺序尝试。
 
+use std::time::Duration;
+
 use async_trait::async_trait;
+use futures_util::future::join_all;
 use serde_json::Value;
 
 use guo_source_api::{
-    Capability, Category, Chapter, DanmakuPage, Detail, Drama, FetchRequest, Media, Page,
-    RankingBoard, RankingPage, RecommendCursor, RecommendPage, SeriesSeason, SourceEnv,
+    Capability, Category, Chapter, ContentType, DanmakuPage, Detail, Drama, FetchRequest, Media,
+    Page, RankingBoard, RankingPage, RecommendCursor, RecommendPage, SeriesSeason, SourceEnv,
     SourceError, SourceMeta, SourcePlugin, Suggestion, CURRENT_API_LEVEL,
 };
 
@@ -120,6 +123,9 @@ impl HongguoSource {
         FetchRequest::get(url)
             .header("Referer", self.referer())
             .limit_bytes(8 * 1024 * 1024)
+            // 网页健康时 <1s 返回；20s 默认值只在站点挂起时白烧预算，
+            // 配合传输层重试（重试轮次再收 8s），最坏链路仍可预期。
+            .timeout(Duration::from_secs(12))
     }
 
     async fn page_text(&self, env: &SourceEnv, url: String) -> Result<String, SourceError> {
@@ -327,14 +333,21 @@ impl HongguoSource {
         request
             .headers
             .insert("User-Agent".into(), APP_USER_AGENT.into());
-        request.headers.insert("Accept".into(), "application/json".into());
         request
             .headers
-            .insert("Content-Type".into(), "application/json; charset=utf-8".into());
+            .insert("Accept".into(), "application/json".into());
+        request.headers.insert(
+            "Content-Type".into(),
+            "application/json; charset=utf-8".into(),
+        );
         request.headers.insert("X-XS-From-Web".into(), "0".into());
         request.headers.insert("Sdk-Version".into(), "2".into());
-        request.headers.insert("Comment-Source".into(), "601".into());
-        request.headers.insert("Server-Channel".into(), "1000".into());
+        request
+            .headers
+            .insert("Comment-Source".into(), "601".into());
+        request
+            .headers
+            .insert("Server-Channel".into(), "1000".into());
         request
             .headers
             .insert("X-Khronos".into(), headers.x_khronos);
@@ -430,10 +443,16 @@ impl HongguoSource {
         let mut seen = std::collections::HashSet::new();
         let mut max_pages = 0u32;
         let mut failures = Vec::new();
-        for (route, name) in routes {
+        // 路由页并行拉取：健康时总耗时 = 最慢一页而非各页之和；
+        // 站点抖动（实测约半数请求挂满超时）时，串行会让一个坏页
+        // 吃光调用方的整个时间预算。join_all 在当前任务内轮询，无额外线程。
+        let fetches = routes.into_iter().map(|(route, name)| {
             let url = self.category_url(&format!("{route}?page={page}"));
-            match self.page_text(env, url).await {
-                Ok(body) => match Self::parse_category_page(&body, name) {
+            async move { self.page_text(env, url).await.map(|body| (name, body)) }
+        });
+        for result in join_all(fetches).await {
+            match result {
+                Ok((name, body)) => match Self::parse_category_page(&body, name) {
                     Ok((dramas, total)) => {
                         max_pages = max_pages.max(total);
                         for drama in dramas {
@@ -505,7 +524,6 @@ impl HongguoSource {
             warning: "红果网页搜索暂不可用，当前为联想结果（最多 10 条）".into(),
         })
     }
-
 }
 
 impl HongguoSource {
@@ -587,7 +605,10 @@ fn parse_search_page(body: &str, keyword: &str, page: u32) -> Result<Page, Sourc
     let content = router_loader_map(&data, &["search_(keyword)/page", "search_"])
         .ok_or_else(|| SourceError::parse("hongguo", "搜索结果为空"))?;
     if content.get("isSuccess").and_then(Value::as_bool) == Some(false) {
-        return Err(SourceError::parse("hongguo", "搜索接口返回 isSuccess=false"));
+        return Err(SourceError::parse(
+            "hongguo",
+            "搜索接口返回 isSuccess=false",
+        ));
     }
     // 站点会校验回传的 query 与请求一致，避免把别的词的结果当成当前结果。
     let returned = content.get("query").map(text_of).unwrap_or_default();
@@ -662,6 +683,7 @@ impl SourcePlugin for HongguoSource {
             name: "红果".into(),
             group: "duanju".into(),
             api_level: CURRENT_API_LEVEL,
+            content_types: vec![ContentType::ShortDrama],
             capabilities: vec![
                 Capability::Catalog,
                 Capability::Detail,
@@ -822,8 +844,8 @@ impl SourcePlugin for HongguoSource {
             .map(|drama| drama.into_drama())
             .filter(|drama| !drama.id.is_empty())
             .collect();
-        let has_more = items.len() >= RECOMMEND_PAGE_SIZE as usize
-            && (total_pages == 0 || page < total_pages);
+        let has_more =
+            items.len() >= RECOMMEND_PAGE_SIZE as usize && (total_pages == 0 || page < total_pages);
         Ok(RecommendPage {
             items,
             cursor: RecommendCursor {
@@ -869,7 +891,7 @@ impl SourcePlugin for HongguoSource {
         if video_id.is_empty() || !video_id.chars().all(|c| c.is_ascii_digit()) {
             return Err(SourceError::parse("hongguo", "章节 ID 无效，无法加载弹幕"));
         }
-        if start_ms < 0 || start_ms >= DANMAKU_MAX_WINDOW_MS {
+        if !(0..DANMAKU_MAX_WINDOW_MS).contains(&start_ms) {
             return Err(SourceError::parse("hongguo", "弹幕时间轴超出可查询范围"));
         }
         let identity = self.identity(env).await?;

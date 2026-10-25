@@ -32,6 +32,86 @@ pub enum Capability {
     Series,
 }
 
+/// 内容类型：只做粗分类（商店筛选、发现页聚合），**不改变数据模型**。
+///
+/// 电影 = `episodes` 为 1 的 `Drama`，剧集/动漫 = 多 `Chapter`，
+/// 类型特有的元信息先由 `tags` 承载（EXTENSION-ECOSYSTEM.md §1.3）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ContentType {
+    /// 短剧。
+    ShortDrama,
+    /// 电影。
+    Movie,
+    /// 电视剧 / 网剧。
+    Tv,
+    /// 动漫。
+    Anime,
+    /// 综艺。
+    Variety,
+    /// 纪录片。
+    Documentary,
+}
+
+impl ContentType {
+    /// 全部类型，顺序即商店筛选片的展示顺序。
+    pub const ALL: [Self; 6] = [
+        Self::ShortDrama,
+        Self::Movie,
+        Self::Tv,
+        Self::Anime,
+        Self::Variety,
+        Self::Documentary,
+    ];
+
+    /// 规范写法（也是规则 JSON / 索引 JSON 里的取值）。
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ShortDrama => "short-drama",
+            Self::Movie => "movie",
+            Self::Tv => "tv",
+            Self::Anime => "anime",
+            Self::Variety => "variety",
+            Self::Documentary => "documentary",
+        }
+    }
+
+    /// 解析。宽容三种常见写法：`short-drama` / `short_drama` / `shortdrama`，
+    /// 作者写错分隔符不应该让整包加载失败。
+    pub fn parse(text: &str) -> Option<Self> {
+        let normalized: String = text
+            .chars()
+            .filter(|c| *c != '-' && *c != '_' && !c.is_whitespace())
+            .flat_map(char::to_lowercase)
+            .collect();
+        Self::ALL
+            .into_iter()
+            .find(|kind| kind.as_str().replace('-', "") == normalized)
+    }
+}
+
+impl std::fmt::Display for ContentType {
+    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        out.write_str(self.as_str())
+    }
+}
+
+impl serde::Serialize for ContentType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ContentType {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::parse(&raw).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "未知内容类型 {raw}（可用：short-drama / movie / tv / anime / variety / documentary）"
+            ))
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceMeta {
     pub id: String,
@@ -39,11 +119,18 @@ pub struct SourceMeta {
     pub group: String,
     pub api_level: u32,
     pub capabilities: Vec<Capability>,
+    /// 内容类型标注；空表示未标注（不参与类型筛选，但照常可用）。
+    pub content_types: Vec<ContentType>,
 }
 
 impl SourceMeta {
     pub fn supports(&self, capability: Capability) -> bool {
         self.capabilities.contains(&capability)
+    }
+
+    /// 是否覆盖某内容类型。未标注时返回 `false`。
+    pub fn covers(&self, content_type: ContentType) -> bool {
+        self.content_types.contains(&content_type)
     }
 }
 
@@ -199,6 +286,7 @@ mod tests {
                 group: "test".into(),
                 api_level: CURRENT_API_LEVEL,
                 capabilities: vec![Capability::Catalog],
+                content_types: vec![ContentType::ShortDrama],
             },
         })
     }
@@ -217,5 +305,38 @@ mod tests {
         let plugin = stub("wuguo");
         assert!(plugin.meta().supports(Capability::Catalog));
         assert!(!plugin.meta().supports(Capability::Search));
+    }
+
+    #[test]
+    fn content_type_parsing_is_forgiving() {
+        for text in ["short-drama", "short_drama", "ShortDrama", "shortdrama"] {
+            assert_eq!(
+                ContentType::parse(text),
+                Some(ContentType::ShortDrama),
+                "{text}"
+            );
+        }
+        assert_eq!(ContentType::parse("tv"), Some(ContentType::Tv));
+        assert_eq!(ContentType::parse("动漫"), None);
+        assert_eq!(ContentType::ShortDrama.to_string(), "short-drama");
+    }
+
+    #[test]
+    fn content_type_round_trips_through_json() {
+        let text =
+            serde_json::to_string(&vec![ContentType::Movie, ContentType::Anime]).expect("ser");
+        assert_eq!(text, r#"["movie","anime"]"#);
+        let back: Vec<ContentType> = serde_json::from_str(&text).expect("de");
+        assert_eq!(back, vec![ContentType::Movie, ContentType::Anime]);
+        // 未知类型必须报错而不是静默丢弃：商店分类依赖这个值。
+        let err = serde_json::from_str::<Vec<ContentType>>(r#"["短剧"]"#).expect_err("must fail");
+        assert!(err.to_string().contains("未知内容类型"), "{err}");
+    }
+
+    #[test]
+    fn covers_reports_membership_only() {
+        let meta = stub("wuguo").meta();
+        assert!(meta.covers(ContentType::ShortDrama));
+        assert!(!meta.covers(ContentType::Movie));
     }
 }

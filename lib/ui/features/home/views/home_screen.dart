@@ -243,6 +243,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
+  void _changeContentType(String? type) {
+    _catalog.changeContentType(type);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
   void _changeCategory(String category) {
     _catalog.changeCategory(category);
   }
@@ -434,6 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onConfirmSelection: _confirmSelection,
       onToggleSearch: _toggleSearch,
       onChangeGroup: _changeGroup,
+      onChangeContentType: _changeContentType,
       onChangeCategory: _changeCategory,
       onSwipeCategory: catalog.swipeCategory,
       onRefreshCatalog: _refreshCatalog,

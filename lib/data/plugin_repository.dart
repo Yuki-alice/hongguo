@@ -15,6 +15,7 @@ class PluginEntry {
     required this.installed,
     required this.enabled,
     required this.signed,
+    this.contentTypes = const [],
   });
 
   final String id;
@@ -29,7 +30,12 @@ class PluginEntry {
   /// 来源仓库是否签名（未签名仓库每次升级都要用户确认）。
   final bool signed;
 
+  /// 内容类型（`short-drama` / `movie` / …）。空表示作者未标注。
+  final List<String> contentTypes;
+
   bool get isCode => kind == 'component';
+
+  bool hasType(String type) => contentTypes.contains(type);
 
   PluginEntry copyWith({bool? installed, bool? enabled}) => PluginEntry(
     id: id,
@@ -39,6 +45,7 @@ class PluginEntry {
     installed: installed ?? this.installed,
     enabled: enabled ?? this.enabled,
     signed: signed,
+    contentTypes: contentTypes,
   );
 }
 
@@ -196,7 +203,14 @@ class PluginRepository {
     if (!initialized) return 0;
     final catalog = await api.sourceCatalog();
     SourceSite.reportFromEngine(
-      catalog.map((site) => (id: site.id, name: site.name, group: site.group)),
+      catalog.map(
+        (site) => (
+          id: site.id,
+          name: site.name,
+          group: site.group,
+          contentTypes: site.contentTypes,
+        ),
+      ),
     );
     return catalog.length;
   }
@@ -209,5 +223,6 @@ class PluginRepository {
     installed: summary.installed,
     enabled: summary.enabled,
     signed: summary.signed,
+    contentTypes: summary.contentTypes,
   );
 }

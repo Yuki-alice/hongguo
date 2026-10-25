@@ -70,7 +70,7 @@ extension MediaMergeOperations on MediaLibrary {
         final job = current[id];
         if (job == null ||
             !job.completed ||
-            _sourceVersion(job) != task.versions[id]) {
+            job.revision != task.versions[id]) {
           throw AppFailure('原分集已删除、重新下载或未完成，请重新建立合并任务；已保存的处理进度保留');
         }
         jobs.add(job);

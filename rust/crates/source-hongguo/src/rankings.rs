@@ -261,7 +261,11 @@ pub fn merge_loader_content(raw: &str, loader_key: &str) -> Option<Value> {
             // 后续若找到带正文的那段就替换。
             let richer = best
                 .as_ref()
-                .map(|current| value.as_object().is_some_and(|map| map.len() > current.as_object().map_or(0, |m| m.len())))
+                .map(|current| {
+                    value
+                        .as_object()
+                        .is_some_and(|map| map.len() > current.as_object().map_or(0, |m| m.len()))
+                })
                 .unwrap_or(true);
             if richer {
                 best = Some(value);
@@ -416,7 +420,8 @@ mod tests {
     #[test]
     fn parses_first_page() {
         let body = fixture("hot-drama", 1, "hongguo", &[(1, "111"), (2, "222")]);
-        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");        assert_eq!(page.items.len(), 2);
+        let page = parse_ranking_page(&body, "hongguo-hot", 1).expect("解析成功");
+        assert_eq!(page.items.len(), 2);
         assert_eq!(page.items[0].rank, 1);
         assert_eq!(page.items[0].drama.id, "hongguo:111");
         assert_eq!(page.items[0].metric, "1万热度");

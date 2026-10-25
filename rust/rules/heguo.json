@@ -3,6 +3,7 @@
   "id": "heguo",
   "name": "河果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.kuaikaw.cn",
   "kind": "next",
   "capabilities": [

@@ -11,10 +11,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use guo_host::ScriptLimits;
 use guo_plugin_host::{InstalledPlugin, PluginKind, PluginManifest, PluginStore};
 use guo_source_api::{SourcePlugin, SourceRegistry};
 
 use crate::rule_source::RuleSource;
+use crate::script_source::ScriptSource;
 
 /// 代码插件加载器：把清单与 `plugin.wasm` 路径变成可调用站源。
 ///
@@ -94,6 +96,39 @@ fn load_one(
             let source = load_component(&manifest, &path)?;
             Ok(vec![std::sync::Arc::from(source)])
         }
+        PluginKind::Script => {
+            let entry = manifest
+                .entry
+                .as_deref()
+                .ok_or_else(|| "脚本插件缺少 entry".to_string())?;
+            let path = directory.join(entry);
+            let text = fs::read_to_string(&path)
+                .map_err(|err| format!("读取 {} 失败：{err}", path.display()))?;
+            let limits = script_limits(&manifest);
+            // 装配期没有 tokio 上下文：`load` 走同步路径，不会碰 spawn_blocking。
+            let env = crate::script_source::placeholder_env();
+            let source =
+                ScriptSource::load(&env, text, limits, manifest.permissions.network.clone())
+                    .map_err(|err| err.to_string())?;
+            Ok(vec![
+                std::sync::Arc::new(source) as std::sync::Arc<dyn SourcePlugin>
+            ])
+        }
+    }
+}
+
+/// 脚本插件的资源上限来自清单；`timeout_ms = 0` 视为未配置，回落默认值，
+/// 否则中断处理器会立刻触发，脚本永远跑不完。
+///
+/// 对外暴露是为了让离线校验工具（`check_plugin`）用同一套预算，
+/// 避免「工具里通过、装进宿主超时」这种两套阈值导致的假通过。
+pub fn script_limits(manifest: &PluginManifest) -> ScriptLimits {
+    match manifest.permissions.script {
+        Some(script) if script.timeout_ms > 0 && script.memory_kb > 0 => ScriptLimits {
+            timeout: std::time::Duration::from_millis(script.timeout_ms),
+            memory_bytes: (script.memory_kb as usize).saturating_mul(1024),
+        },
+        _ => ScriptLimits::default(),
     }
 }
 
@@ -317,6 +352,95 @@ mod tests {
         assert!(report.loaded.is_empty());
         assert_eq!(report.failed.len(), 1);
         assert!(report.failed[0].1.contains("模拟编译失败"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// 装一个脚本插件并加载进注册表：验证 `kind = "script"` 的完整链路。
+    const SCRIPT: &str = r#"
+        function describe() {
+            return { id: 'guo.script', name: '脚本源', group: 'duanju', apiLevel: 1 };
+        }
+        function catalog(input) {
+            return {
+                items: [{ sourceId: '7', title: '脚本剧名', cover: 'https://x.test/7.jpg' }],
+                hasMore: false,
+                page: input.page,
+            };
+        }
+    "#;
+
+    fn install_script(store: &PluginStore, id: &str, version: &str, script: &str) {
+        let manifest = format!(
+            "spec = 1\nid = \"{id}\"\nname = \"脚本\"\nversion = \"{version}\"\nkind = \"script\"\nentry = \"main.js\"\n\
+             api = {{ level = 1, min_host = \"0.3.0\" }}\n\
+             [permissions]\nnetwork = []\n\
+             [permissions.script]\ntimeout_ms = 5000\nmemory_kb = 32768\n"
+        );
+        let archive = archive_of(&[
+            ("plugin.toml", manifest.as_bytes()),
+            ("main.js", script.as_bytes()),
+        ]);
+        let sha = sha256_hex(&archive);
+        let index_json = format!(
+            r#"[{{"id":"{id}","name":"脚本","version":"{version}","kind":"script","api":1,"minHost":"0.3.0","size":{},"sha256":"{sha}","path":"plugins/{id}.zip"}}]"#,
+            archive.len()
+        );
+        let index = parse_index(&index_json).expect("index");
+        let entry = select_entry(&index, id, None).expect("entry");
+        install_package(
+            store,
+            entry,
+            &archive,
+            &InstallRequest {
+                repo_id: "official",
+                repo_signed: false,
+                now: 1,
+            },
+            PackageLimits::default(),
+        )
+        .expect("install");
+    }
+
+    #[test]
+    fn loads_script_plugins_into_registry() {
+        let root = temporary_root("script");
+        let store = PluginStore::open(&root);
+        install_script(&store, "guo.script", "1.0.0", SCRIPT);
+
+        let mut registry = SourceRegistry::new();
+        let report = load_installed(&store, &mut registry, &no_components);
+        assert_eq!(
+            report.loaded,
+            vec!["guo.script"],
+            "失败：{:?}",
+            report.failed
+        );
+
+        let source = registry
+            .get("guo.script")
+            .expect("脚本源必须按 describe().id 注册");
+        assert!(source.meta().supports(guo_source_api::Capability::Catalog));
+        assert!(!source.meta().supports(guo_source_api::Capability::Danmaku));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn broken_script_is_reported_not_fatal() {
+        let root = temporary_root("badscript");
+        let store = PluginStore::open(&root);
+        // describe 合法但 catalog 返回了宿主解析不了的结构。
+        install_script(
+            &store,
+            "guo.badscript",
+            "1.0.0",
+            "function describe(){ return {id:'guo.badscript', name:'坏', group:'t', apiLevel:1}; }\n\
+             function catalog(){ return 'not an object'; }",
+        );
+
+        let mut registry = SourceRegistry::new();
+        let report = load_installed(&store, &mut registry, &no_components);
+        // 加载期只跑 describe，结构问题要到调用时才暴露——这里应当装得上。
+        assert_eq!(report.loaded, vec!["guo.badscript"]);
         let _ = fs::remove_dir_all(&root);
     }
 

@@ -3,10 +3,25 @@ import 'dart:convert';
 import 'package:hoshi/app_build.dart';
 
 class SourceSite {
-  const SourceSite(this.id, this.name, this.description);
+  const SourceSite(
+    this.id,
+    this.name,
+    this.description, {
+    this.contentTypes = const [],
+  });
   final String id;
   final String name;
   final String description;
+
+  /// 内容类型（`short-drama` / `movie` / …）。由引擎上报，空表示未标注。
+  ///
+  /// 编译期常量表里不写死类型：类型是站源/扩展的属性，只有引擎知道真值
+  /// （插件装的源也在这里出现），写死会让「装了动漫源但显示短剧」这种错
+  /// 没法靠更新扩展修好。
+  final List<String> contentTypes;
+
+  /// 是否属于某个内容类型。未标注的源不属于任何类型。
+  bool hasType(String type) => contentTypes.contains(type);
   bool get onlineSearch => id == 'hongguo' || pagedSearch;
   bool get pagedSearch =>
       id == 'huangju' || id == 'yeguo' || id == 'dsd' || duanjuPaged;
@@ -84,6 +99,26 @@ class SourceSite {
 
   static bool _synced = false;
 
+  /// 2026-10-24 实网复测确认「点进去必坏」的源（`check_source` 取流未过）。
+  ///
+  /// 站点常复活，因此**只隐藏 UI 入口，不删源码**；复测恢复后从本表移除。
+  /// 清单与复测记录见 `docs/PLAN.md`。
+  static const _offlineIds = {
+    // 目录可读、取流必失败：用户点进详情就等于看到「播放失败」。
+    'niuguo', // 解析服务器挂，取流 20s 超时
+    'huangju', // 分集目录 404
+    'huaguo', // 分集目录解析失败
+    'fanguo', // 取流解析失败
+    'guanguo', // 分集目录解析失败
+    'xingguo', // 分集目录解析失败
+    // 目录都进不去。
+    'cloudfront', // 4001
+    'huangguoai', // 入口超时
+    'huangguo-video', // 403
+    'wuguo', // 空响应
+    'dsd', // 入口超时
+  };
+
   /// 当前可用站源。引擎同步过就以引擎为准；否则用内置表兜底。
   static List<SourceSite> get values {
     if (!_synced) return knownValues;
@@ -94,19 +129,27 @@ class SourceSite {
   ///
   /// 引擎只给 id / name / group，展示文案仍优先取编译期版本：
   /// 「帝果 · 分类视频」这类描述是产品文案，不该由引擎的 group 字段决定。
+  /// 已确认不可用的源（[_offlineIds]）在写入前剔除，UI 不会再给出必坏入口。
   static void reportFromEngine(
-    Iterable<({String id, String name, String group})> entries,
+    Iterable<
+      ({String id, String name, String group, List<String> contentTypes})
+    >
+    entries,
   ) {
     _reported
       ..clear()
       ..addEntries(
-        entries.map((entry) {
+        entries.where((entry) => !_offlineIds.contains(entry.id)).map((entry) {
           final known = knownValues.where((site) => site.id == entry.id);
+          // 文案取编译期版本，**类型取引擎**：类型属于扩展，不属于产品文案。
           return MapEntry(
             entry.id,
-            known.isNotEmpty
-                ? known.first
-                : SourceSite(entry.id, entry.name, entry.group),
+            SourceSite(
+              entry.id,
+              known.isNotEmpty ? known.first.name : entry.name,
+              known.isNotEmpty ? known.first.description : entry.group,
+              contentTypes: entry.contentTypes,
+            ),
           );
         }),
       );

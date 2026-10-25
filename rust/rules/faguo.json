@@ -3,6 +3,7 @@
   "id": "faguo",
   "name": "发果",
   "group": "duanju",
+  "contentTypes": ["short-drama"],
   "base": "https://www.xzyx168.com",
   "kind": "html",
   "capabilities": [

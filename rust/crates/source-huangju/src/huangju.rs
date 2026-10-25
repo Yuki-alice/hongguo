@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 use guo_source_api::{Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv, SourceError};
 
 /// 剧果（huangju.net）接口站源。
@@ -42,6 +42,7 @@ impl HuangjuSource {
                 name: "剧果".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![
                     Capability::Catalog,
                     Capability::Detail,

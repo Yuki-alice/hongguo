@@ -2616,6 +2616,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pluginsNoMatch => '没有匹配的规则';
 
   @override
+  String get pluginsTypeAll => '全部类型';
+
+  @override
+  String get contentTypeShortDrama => '短剧';
+
+  @override
+  String get contentTypeMovie => '电影';
+
+  @override
+  String get contentTypeTv => '剧集';
+
+  @override
+  String get contentTypeAnime => '动漫';
+
+  @override
+  String get contentTypeVariety => '综艺';
+
+  @override
+  String get contentTypeDocumentary => '纪录片';
+
+  @override
+  String get contentTypeUnlabeled => '未标注';
+
+  @override
   String get pluginsAddRule => '添加规则';
 
   @override

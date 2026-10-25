@@ -3,7 +3,7 @@
 > 本文件是**历史记录**：按轮次记录每一轮做了什么、修了什么、验证数据。
 > 当前状态与后续计划见 `docs/PLAN.md`；设计与 ADR 见 `docs/ARCHITECTURE.md`。
 
-## 状态总览（截至第三十六轮，2026-10-24）
+## 状态总览（截至第三十八轮，2026-10-24）
 
 | 阶段 | 状态 |
 | --- | --- |
@@ -16,7 +16,7 @@
 | 取流 | ✅ 含 HLS 解析、CDN Cookie / Origin 透传 |
 | 下载引擎 | ✅ 断点续传 + HLS 分片 + AES-128 + 暂停续传 + 索引落盘 |
 | 目录缓存 / 封面缓存 | ✅ 版本化落盘 + TTL + 分页合并；封面按哈希缓存 |
-| 播放与弹幕 | ✅ 播放计划补 Cookie / Origin / `danmakuId`；弹幕按 60 秒窗口 |
+| 播放与弹幕 | ✅ 播放计划补 Cookie / Origin / `danmakuId`；弹幕按服务端 30 秒游标推进 |
 | 资源设置 | ✅ 迁入引擎（目录限流 / 下载并发） |
 | Flutter 接入 | ✅ engine-only 单栈，能力矩阵驱动 UI 门控 |
 | 诊断 | ✅ `/settings/diagnostics`：能力矩阵 / 插件报告 / 最近错误 / 计数 |
@@ -97,6 +97,86 @@
 人工截图，后续可考虑重建一小批只覆盖「不许回归」的用例（路由、Hero、空态）。
 
 > 其余已知限制（站源可达性、能力位缺失）见 `docs/PLAN.md` §5 / §6。
+
+## 第三十八轮：后端交接收口（2026-10-24）
+
+依据 `docs/HANDOFF-BACKEND-TASKS.md` 收掉剩余六项。重点是**去掉同一任务的
+第二个执行入口**，以及把「离线全绿、线上全坏」的盲区补成实网金丝雀。
+
+### 1. 下载任务不再双跑
+
+桥接层 `enqueue_download` 内部已经 `pump_downloads`，Dart 的
+`enqueueDownloads` 却还 `unawaited(_runDownload(id))`：一个任务同时被 worker 和
+手动 `runDownload` 驱动，续传会从同一断点重入、进度字节来回跳。
+现在登记即执行，`_runDownload` 删除；`EngineRepository.runDownload` 保留但标注
+「仅诊断用」，避免以后又被 UI 接回去。
+
+新增 `tests/download_worker_test.rs`：本地 HTTP 服务 + 两个任务，只登记、
+额外再 `pump` 一次（模拟 resume 补员），断言不手动 `run_download` 也能全部完成，
+产物字节数正确。这条用例同时替代了原先编译不过的 `worker_probe`。
+
+### 2. 红果实网金丝雀
+
+红果是主源，之前只有夹具回放。新增 `tests/hongguo_live.rs`，5 条用例不加
+`#[ignore]`，断网即红：
+
+| 用例 | 断言 |
+| --- | --- |
+| 目录 / 详情 | 目录 ≥ 10 条；详情有分集；`video_url` 为 `hongguo-cenc://`；`source` 为纯数字 |
+| 弹幕游标 | 必须返回 `end_ms > 0`，否则 Dart 无法推进窗口 |
+| 弹幕跨窗口 | 用上一段 `end_ms` 请求下一段，游标必须继续前进 |
+| 榜单 | 四频道 × 首页 20 条，名次从 1 严格递增 |
+| 联想 | 「总裁」有结果 |
+
+调试中发现并行跑 5 条金丝雀会偶发拿到缺游标的退化响应，单跑必过——站点对并发
+敏感。用例间加 `tokio::sync::Mutex` 串行化后稳定；这个现象记入 `PLAN.md` §5。
+两个临时探针（`worker_probe.rs` / `hongguo_danmaku_probe.rs`）随本次任务删除。
+
+### 3. 合并清理的版本闸门
+
+`expectedVersions` 原先传的是 `_sourceVersion(job)` 拼出的
+`created-bytes-quality` 复合串，桥接层 `int.tryParse(...) ?? 0` 恒为 0，
+与引擎 `revision`（≥1）永不相等 → 合并完成后**永远拒绝清理**原分集。
+现在闸门全链路用 `revision`：`DownloadRepository.controlDownloadBatch` 的参数
+类型改为 `Map<String, int>`，`MergeQueueJob.versions` 落盘整数，合并前置检查
+改为 `job.revision != task.versions[id]`。复合串只保留给 `_sourceVersion` 的
+展示 / 去重用途。
+
+### 4. 失败写入诊断
+
+桥接层统一的 `run()` 在错误与超时两条路径上都调用 `engine.record_error`，
+取 `guo_engine_core::current()`，因此规则目录这类不持有 `Arc<Engine>` 的入口
+也能覆盖。诊断页「最近错误」不再只在初始化阶段有内容。
+
+### 5. 死源入口隐藏
+
+一次性探针对 17 个源逐个 `check_source(playback = true)`，结果与登记见
+`PLAN.md` §5.1：11 个源取流不可用（6 个只能看不能播 + 5 个进不去），
+已从 `SourceSite` 的 UI 清单剔除，源码 / 插件保留。存活 6 个：
+红果、猫果、芽果、河果、王果、饭果。
+
+### 6. 签名向量生成器落库
+
+`tests/hongguo_sign_vectors.json` 的生成器原先只活在临时目录，会话结束即丢。
+现在落在 `tests/tools/vectorgen/`（Go）：`sign.go` 是
+`reference/guoapp2/native/core/provider_hongguo_comment_sign.go` 的原样副本
+（只改 package），`main.go` 固定 3 查询 × 3 nonce × 2 时间戳 + 4 条 SM3。
+`go run .` 的输出与仓库向量逐字节一致（仅行尾差异），参考实现更新后同步
+`sign.go` 再重新生成即可。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test -p guo_engine --no-run` | ✅ 全部测试二进制编译通过 |
+| `cargo test -p guo_engine --test hongguo_live` | ✅ 5/5（串行化后连跑两次稳定） |
+| `cargo test -p guo_engine --test download_worker_test` | ✅ 1/1 |
+| `dart analyze lib` | ✅ 0 error / 0 warning（Dart 3.13.5，与 CI `FLUTTER_VERSION=3.47.7` 一致） |
+| `flutter analyze --no-fatal-infos` | ✅ 0 error / 0 warning；25 条 info 级提示不阻断（CI 同样只拦 error / warning） |
+| `cargo clippy --workspace --all-targets -- -D warnings` | ✅ |
+| `cargo test --workspace` | ✅ 全绿（实网用例按 `#[ignore]` 跳过，红果金丝雀除外） |
+| `cargo fmt --all -- --check` | ✅ |
+| `go vet ./...`（vectorgen） | ✅ |
 
 
 
@@ -2400,3 +2480,242 @@ serde 默认值是 CSS 写法 `a@href`，会被加载期校验直接拒绝。
 | `cargo clippy --all-targets -D warnings` | ✅ 零告警（本轮修掉 6 项新引入的告警） |
 | `dart analyze`（引擎 Dart 层） | ✅ 零问题 |
 | 四个新增站源的真实站点请求 | ⬜ 未执行，属开发快照 |
+
+## 第十二轮：扩展运行时落地（regex + JS 一等公民）
+
+对应 `EXTENSION-ECOSYSTEM.md` 路线 A1 + A2 + 猫果试点对拍。
+
+### A1 正则提取（rule-engine）
+
+`RuleKind` 增加 `regex`：`item` 全局匹配切条目块，块内字段取首个匹配的第 1 捕获组；
+`(?is)` 内联 flag 与 Go `regexp` 基本一致，guoapp2 的正则可近乎原样搬运。
+加载期 `validate_regexes()` 校验，正则写错在 `RuleDocument::from_json` 即报错。
+`EpisodesSpec::Regex` 必须排在 untagged `Json` 之前（后者字段全 `serde(default)`，
+会静默吞掉 `{"pattern":…}`，有专项测试盯着）。正则一次解析编译一次（`CompiledFields`），
+不重蹈 P1-3「每字段重编译」覆辙。
+
+### A2 JS 一等公民（`kind = "script"`）
+
+- `host/src/js_host.rs`：QuickJS 宿主，Rust 侧只注册一个 `__host_call(kind, payload)`，
+  `ctx.fetch/store/log/now` 全由 JS shim 拼装；`timeout_ms` / `memory_kb` 上限生效，
+  死循环被中断；错误经 `globalThis.__last_host_error` 取回真实原因。
+- `runtime/src/script_source.rs`：`ScriptSource` 实现**全部**方法（目录/搜索/详情/榜单/
+  推荐/联想/弹幕/季），按加载期探测的导出生成能力位——补能力不再改 IDL。
+- 域名白名单：`ctx.fetch` 只放行清单 `permissions.network`；清单未声明任何主机一律拒绝。
+- 装配期无 tokio 上下文：`invoke_sync` 当前线程执行（`spawn_blocking` 在 FRB 同步
+  桥接里会 panic，这个坑已用测试钉住）。
+- `plugin-host`：`PluginKind::Script`，zip 容器与安装/回滚链路复用。
+
+### 猫果试点对拍
+
+`examples/extensions/maoguo/`（约 130 行 JS）vs `source-maoguo`（683 行编译 crate），
+同一份夹具逐字段对拍：签名（含中文 UTF-8）、详情、搜索、目录全部一致；
+`category` 字段脚本版更全（编译版丢字符串形态 tags）。
+契约修正：脚本返回全可选宽松结构，`source` / 复合 id 等归属字段由宿主补齐。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace`（排除 `live`） | ✅ **573 通过 / 0 失败**（含 5 条重试单测） |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| `guo-bench` | ✅ 与基线一致（wuguo 2522µs vs 2436µs，噪声内） |
+| 实网金丝雀（`hongguo_live`） | ✅ **5 轮：5/5 ×4、4/5 ×1**（修复后，详见下） |
+
+### ⚠️ 实网金丝雀咬到真问题（已修复）
+
+`hongguo_live` 曾 3/5 红。排查结论修正如下——
+
+**不是反爬拦截，是响应不稳定 + 串行放大。**「挑战页」其实是字节系每页都带的
+SDK 前置脚本（设置 `gfkadpd` 灰度 cookie），页面本身含完整 `_ROUTER_DATA`；
+真正的问题是经由当前网络路径约半数请求挂满超时或断流（curl 直测同样复现，
+与请求头/压缩协商无关）。
+
+修复分两层：
+
+1. **传输层幂等 GET 重试**（`host/src/transport.rs`）：最多 3 次尝试，
+   退避 300/900ms；重试条件 = 网络错误（含超时）/ 5xx / 200+空响应体；
+   重试轮次超时收紧到 8s；POST 非幂等永不重试。5 条本机脚本服务器单测。
+2. **分类路由页并行拉取**（`source-hongguo/src/source.rs`）：4 个路由页
+   `join_all` 并行，总耗时从 Σ 变 max；网页请求超时收紧到 12s
+   （`FetchRequest::timeout` builder 新增）。最坏链路 ≈ 12+8+8+退避 ≈ 29s，
+   不再吃光调用方 30s 预算。
+
+修复前 catalog 单请求成功率 ≈ 50%，4 页串行全成 ≈ 6%；修复后单页 ≈ 87.5%，
+且并行互不拖累。**金丝雀 5 轮实测：5/5 ×4、4/5 ×1**——从「必挂」到「偶发」，
+残余抖动属网络路径本身。后续若仍偶发，可考虑 GET_ATTEMPTS 提到 4（代价是最坏耗时增长）。
+
+## 第十三轮：多步编排 `preflight`（A3）
+
+野果类站点的取数链路是「发现站点 → 取 script 配置 → 请求」，单请求规则无法表达。
+`preflight` 把它声明式化：
+
+```jsonc
+"preflight": [
+  { "name": "站点", "url": "{base}/api/site", "extract": { "vars": { "site": "$.data.site" } } },
+  { "name": "配置", "url": "{var:site}/api/config", "extract": { "vars": { "token": "$.token" } } }
+],
+"catalog": { "url": "{var:host}/list?t={var:token}&page={page}" }
+```
+
+### 设计
+
+- **变量 token**：`{var:name}`，与 `{page}`/`{md5:…}` 同一条渲染管线（`template.rs`）。
+- **零 IO 纪律不变**：`rule-engine/src/preflight.rs` 只做「响应文本 → 变量表」；
+  请求由 `runtime/src/rule_source.rs` 驱动。
+- **加载期校验**（不是运行时）：
+  - 第 N 步只能引用第 1..N-1 步的变量，逆序引用报错；
+  - 主动作段引用未声明变量报错（preflight 为空时同样生效——这条是测试逼出来的 bug）；
+  - 变量名重复声明报错；正则 / CSS 选择器写错报错；步骤缺 `url` / `extract.vars` 报错。
+- **提取为空 = 失败**：空串注入地址会发出「看起来正常」的坏请求，必须报错并带上变量名。
+- **缓存**：`preflightTtl`（缺省 300s，0 = 每次重跑）；锁只在读写缓存时持有，
+  网络请求不持锁——否则并发目录请求会被前置步骤串行化。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace`（排除 `live`） | ✅ **592 通过 / 0 失败**（+19：规则 14 / 运行时 5） |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+
+端到端用例（`rule_source.rs::preflight_tests`）覆盖：变量注入目录地址、两步串接、
+TTL 内不重跑、`ttl=0` 每次重跑、失败带步骤名。
+
+## 第十四轮：内容类型标注（A6）+ 离线校验工具（A5）
+
+两件事一起做，因为 A5 是验证 A6 的唯一手段——先有工具再标类型，才不会「标错了没人发现」。
+
+### A6：内容类型只加标签，不动模型
+
+`Drama` + `Chapter` 已经能表达电影（`episodes` = 1）/ 剧集 / 动漫，多内容类型不需要新模型，
+只需要一层粗分类。链路如下：
+
+| 位置 | 字段 | 谁写 |
+| --- | --- | --- |
+| `rules.json` | `contentTypes: ["short-drama"]` | 扩展作者（唯一输入） |
+| `main.js` | `describe().contentTypes` | 脚本包作者 |
+| `plugin.toml` | `content_types` | `pack_rules` 从规则派生 |
+| `index.json` | `contentTypes` | 同上 |
+| `SourceMeta.content_types` | `Vec<ContentType>` | 宿主加载时填 |
+
+- `ContentType`：`short-drama / movie / tv / anime / variety / documentary`，
+  解析宽容三种分隔符写法，序列化固定 kebab-case；未知值**报错不静默丢弃**
+  （否则商店分类会静默错位）。
+- 清单 / 索引与包内声明不一致 → 安装期 `PluginError::Integrity` 拒绝；
+  索引为空则视为「未标注」放行（老包不受影响）。
+- 商店：可安装区加筛选片（只显示实际存在的类型）+ 卡片类型标签 + `n/m` 计数；
+  已安装卡片同样显示类型（来自清单）。
+- 官方 9 条规则全部标注 `short-drama`，`dist/rules` 重新打包（哈希随之更新）。
+
+### A5：`check_plugin` 离线校验 / 冒烟
+
+```bash
+cargo run -p guo-runtime --bin check_plugin -- rust/examples/extensions/maoguo
+cargo run -p guo-runtime --bin check_plugin -- dist/rules/plugins/guo.dsd/guo.dsd-1.0.0.zip
+cargo run -p guo-runtime --bin check_plugin -- <包> --live   # 真实发一次目录/搜索
+cargo run -p guo-runtime --bin check_plugin -- <包> --json   # CI
+```
+
+实现放 `runtime/src/check.rs`（库），bin 只是薄壳——校验逻辑因此能被普通集成测试覆盖。
+校验走宿主同一条加载路径，不做「工具侧宽松」的二次实现。
+
+### 工具第一次跑就咬到两个真问题
+
+1. **猫果示例包根本装不上**：清单写 `timeout_ms = 10000`，校验上限 5000。
+   上限原本按 CPU 时间设，但脚本里的 `ctx.fetch` 在 JS 线程上等网络，墙钟才是约束。
+   上限改 30s，与 `ScriptLimits` 默认 10s 自洽。
+2. **猫果接口现场验签失败**：`--live` 返回 `code 44010120 验签失败`，四种参数顺序皆然
+   → 站点已改签名规则。编译源与脚本包同时失效，正是「站源与应用分离」的存在理由；
+   也说明 `--live` 该进发版检查清单。离线测试用夹具，不受影响。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **610 通过 / 0 失败**（+18：校验工具 8 / 插件宿主 4 / 规则引擎 3 / 契约层 3） |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| 9 个官方规则包逐个 `check_plugin` | ✅ 全通过 |
+| `flutter gen-l10n` + `dart analyze lib` | ✅ 无新增问题（23 条既有 info 未动） |
+
+### 已知残余
+
+- 发现页按类型聚合未做：`sourceCatalog()` 还没暴露 `contentTypes`（A6 的另一半，等发现页动工时一并加）。
+- 猫果站点已变更签名规则：需要单独一轮「站源修版」，正好用来验证 A4 的扩展更新流程。
+
+## 第十五轮：发现页类型聚合 + 猫果修版（A4 第一个真实用例）
+
+### 1. 发现页按内容类型聚合（A6 的另一半）
+
+上一轮只把类型送到商店；`sourceCatalog()` 还没暴露类型，发现页看不见。本轮补齐：
+
+| 位置 | 改动 |
+| --- | --- |
+| `bridge/api/mod.rs` | `SourceSummary.content_types`（FRB 重新生成） |
+| `SourceSite` | 新增 `contentTypes`；`reportFromEngine` 改成「名字取编译期、类型取引擎」 |
+| `CatalogController` | `contentTypes` / `contentType` / `changeContentType()`，源分组按类型过滤 |
+| 发现页源菜单 | 多类型时顶部出现类型行（全部 / 短剧 / 电影 …），单类型时不出现 |
+| 商店 | 上一轮已做（筛选片 + 标签 + 计数） |
+
+三条判断：
+
+1. **类型取引擎，文案取编译期**。`SourceSite.allKnownValues` 是编译期常量表，把类型
+   写死在那里，装一个动漫源就会显示成短剧，且**没法靠更新扩展修好**——类型属于扩展。
+2. **类型筛选只在多类型时出现**。现在 11 个源全是短剧，摆一排只有一个选项的筛选片
+   是纯噪音；`contentTypesOf` 返回「实际出现过的类型」而不是固定六类。
+3. **切换类型要换源**。选「电影」时当前源若是短剧源，目录会继续显示短剧内容；
+   `changeContentType` 在这种情况下自动换到该类型的第一个源，并在该类型只剩一个源时
+   关掉「全部源」聚合。
+
+`contentTypesOf` / `sourcesOfType` 抽成静态纯函数，脱离 `LocalStore` 可测：
+`test/domain/source_content_types_test.dart` 10 条（顺序稳定、去重、未知类型排后、
+未标注不落入任何类型、`_offlineIds` 剔除）。
+
+> 顺带补上了 Dart 侧一直空着的 `test/` 目录。运行需要 Flutter ≥ 3.47（Dart 3.12+，
+> 见 `pubspec.yaml` 的 sdk 约束）；本机 `flutter` 默认指向 3.38.5，跑测试要显式用
+> `3.47.7` 那份，并带 `NO_PROXY=localhost,127.0.0.1`（否则 `flutter_tester` 的
+> WebSocket 握手会被本机代理拦掉，报 `Invalid WebSocket upgrade request`）。
+
+### 2. 猫果修版：上一轮的「站点改了签名」是误判
+
+上一轮 `--live` 报 `44010120 验签失败`，当时记的结论是「站点已改签名规则」。
+本轮先用编译源发真请求验证：
+
+- 新增 `bridge/tests/maoguo_live.rs`（`--ignored`）：目录 / 详情 / 搜索 **0.73s 全通过**。
+- 站点没改任何规则。真因在示例脚本：`ctx.fetch({ url })` 只发了地址，
+  没带 `qm-params` 与 `authorization`。七猫鉴权是**两层**——URL 的 `sign` 只是第一层。
+
+修复示例脚本（这就是 A4 想要的形态：站点变了只改扩展，不动应用）：
+
+- 自带 Base64（宿主只保证 `crypto.md5`）+ 64 项字符映射表 + `authorization` 签名；
+- `qm-params` 的 JSON 键按字典序拼（与 `serde_json` 输出逐字节一致）；
+- 导出 `headers({sessionId})` 供对拍。
+
+`script_maoguo_parity.rs` 新增一条用例，把两个实现的 `qm-params` / `sign` 钉在同一串字节上。
+`check_plugin --live` 实测：目录 62 条（首条「抚远不远」）、搜索「都市」10 条。
+
+**教训**（已写进 EXTENSION-ECOSYSTEM §3.4）：对拍只能证明「两边算得一样」，
+证明不了「站点还认这套」。所以每个源都该有一条真请求用例，结论进文档前先跑它。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **611 通过 / 0 失败**（+1 请求头对拍） |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| `cargo test -p guo_engine --test maoguo_live -- --ignored` | ✅ 1 通过（真网络） |
+| `check_plugin --live examples/extensions/maoguo` | ✅ 目录 62 / 搜索 10 |
+| `flutter test` | ✅ 10 通过 |
+| `dart analyze lib` | ✅ 无 error / warning（23 条既有 info 未动） |
+
+### 已知残余
+
+- **A4 本体**：11 个短剧源里只有猫果迁到了脚本形态，其余仍是编译 crate。
+- **发现页类型聚合的 UI 未做视觉验证**：本机只有短剧源，多类型菜单在真机上没出现过，
+  目前靠纯函数单测兜底。
+- 商店 / 发现页仍无 widget 测试（`test/` 现在只有纯逻辑用例）。
+
+> 交接文档：`docs/HANDOVER.md`（2026-10-25）。接手继续做 A4 请从那里开始。

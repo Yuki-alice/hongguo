@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use guo_source_api::{Capability, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
+use guo_source_api::{Capability, ContentType, SourceMeta, SourcePlugin, CURRENT_API_LEVEL};
 use guo_source_api::{Chapter, Detail, Drama, FetchRequest, Media, Page, SourceEnv, SourceError};
 
 /// 黄果视频（huangguo.video）。
@@ -28,6 +28,7 @@ impl HuangguoVideoSource {
                 name: "黄果视频".into(),
                 group: "duanju".into(),
                 api_level: CURRENT_API_LEVEL,
+                content_types: vec![ContentType::ShortDrama],
                 capabilities: vec![Capability::Catalog, Capability::Detail],
             },
         }

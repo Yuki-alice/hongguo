@@ -4828,6 +4828,54 @@ abstract class AppLocalizations {
   /// **'没有匹配的规则'**
   String get pluginsNoMatch;
 
+  /// No description provided for @pluginsTypeAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部类型'**
+  String get pluginsTypeAll;
+
+  /// No description provided for @contentTypeShortDrama.
+  ///
+  /// In zh, this message translates to:
+  /// **'短剧'**
+  String get contentTypeShortDrama;
+
+  /// No description provided for @contentTypeMovie.
+  ///
+  /// In zh, this message translates to:
+  /// **'电影'**
+  String get contentTypeMovie;
+
+  /// No description provided for @contentTypeTv.
+  ///
+  /// In zh, this message translates to:
+  /// **'剧集'**
+  String get contentTypeTv;
+
+  /// No description provided for @contentTypeAnime.
+  ///
+  /// In zh, this message translates to:
+  /// **'动漫'**
+  String get contentTypeAnime;
+
+  /// No description provided for @contentTypeVariety.
+  ///
+  /// In zh, this message translates to:
+  /// **'综艺'**
+  String get contentTypeVariety;
+
+  /// No description provided for @contentTypeDocumentary.
+  ///
+  /// In zh, this message translates to:
+  /// **'纪录片'**
+  String get contentTypeDocumentary;
+
+  /// No description provided for @contentTypeUnlabeled.
+  ///
+  /// In zh, this message translates to:
+  /// **'未标注'**
+  String get contentTypeUnlabeled;
+
   /// No description provided for @pluginsAddRule.
   ///
   /// In zh, this message translates to:

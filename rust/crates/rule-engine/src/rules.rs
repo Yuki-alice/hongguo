@@ -1,11 +1,12 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 use serde_json::Value;
 
-use guo_source_api::{FetchRequest, SourceError};
+use guo_source_api::{ContentType, FetchRequest, SourceError};
 
-/// 站源取数方式：`html` 走 CSS 选择器，`json` 走接口路径，`next` 先取页面内嵌 JSON。
+/// 站源取数方式：`html` 走 CSS 选择器，`json` 走接口路径，`next` 先取页面内嵌 JSON，
+/// `regex` 走正则切块（站点结构没有稳定 DOM 时用它，例如黄果）。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RuleKind {
@@ -13,6 +14,7 @@ pub enum RuleKind {
     Html,
     Json,
     Next,
+    Regex,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -28,6 +30,11 @@ pub struct RuleDocument {
     pub kind: RuleKind,
     #[serde(default)]
     pub capabilities: Vec<String>,
+    /// 内容类型（`short-drama` / `movie` / `tv` / `anime` / `variety` / `documentary`）。
+    ///
+    /// 只用于商店筛选与发现页聚合，不影响解析逻辑；空表示未标注。
+    #[serde(default)]
+    pub content_types: Vec<ContentType>,
     /// 每个请求都会带上的请求头，可被分段规格覆盖。
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
@@ -44,30 +51,183 @@ pub struct RuleDocument {
     pub search: Option<SearchRule>,
     #[serde(default)]
     pub resolve: Option<ResolveRule>,
+    /// 前置编排：主请求之前按顺序取一次会话 / 配置，把结果注入后续模板。
+    #[serde(default)]
+    pub preflight: Vec<PreflightStep>,
+    /// 前置结果的复用秒数；缺省 300，`0` 表示每次操作都重跑。
+    #[serde(default)]
+    pub preflight_ttl: Option<u64>,
+}
+
+/// 前置编排的一步：发一个请求，再从响应里提取变量。
+///
+/// 典型形态（野果类站点）：
+/// 1. 取首页拿站点配置；2. 用配置里的 `token` 请求搜索接口。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreflightStep {
+    /// 步骤名，只用于错误定位与文档可读性。
+    #[serde(default)]
+    pub name: String,
+    /// 地址模板，可用 `{base}` / `{ts}` 与**先前步骤**产出的 `{var:name}`。
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub request: RequestRule,
+    #[serde(default)]
+    pub extract: ExtractRule,
+}
+
+/// 从响应里提取变量：变量名 → JSONPath / CSS 选择器 / 正则。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractRule {
+    /// 响应形态；缺省 `json`（多数前置接口返回 JSON）。
+    #[serde(default)]
+    pub kind: Option<RuleKind>,
+    #[serde(default)]
+    pub vars: BTreeMap<String, String>,
 }
 
 /// 收集一个动作段里所有可能含模板的字符串（地址候选、Referer、请求头值）。
 fn collect_templates(
-    label: &'static str,
+    label: &str,
     url: &str,
     urls: &[UrlRule],
     request: &RequestRule,
-    out: &mut Vec<(&'static str, String)>,
+    out: &mut Vec<(String, String)>,
 ) {
     if !url.trim().is_empty() {
-        out.push((label, url.to_string()));
+        out.push((label.to_string(), url.to_string()));
     }
     for candidate in urls {
         if !candidate.url.trim().is_empty() {
-            out.push((label, candidate.url.clone()));
+            out.push((label.to_string(), candidate.url.clone()));
         }
     }
     if let Some(referer) = &request.referer {
-        out.push((label, referer.clone()));
+        out.push((label.to_string(), referer.clone()));
     }
     for value in request.headers.values() {
-        out.push((label, value.clone()));
+        out.push((label.to_string(), value.clone()));
     }
+    if let Some(body) = &request.body {
+        // 请求体里的字符串同样是模板（`{"$int":"{page}"}`），
+        // 之前只渲染不校验，写错 token 会静默发出坏请求，这里一并收进来。
+        push_json_templates(label, body, out);
+    }
+}
+
+fn push_json_templates(label: &str, value: &Value, out: &mut Vec<(String, String)>) {
+    match value {
+        Value::String(text) => out.push((label.to_string(), text.clone())),
+        Value::Array(items) => {
+            for item in items {
+                push_json_templates(label, item, out);
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values() {
+                push_json_templates(label, item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// 步骤在报错里的称呼：`#0 取配置`，无名时就是 `#0`。
+fn preflight_label(index: usize, step: &PreflightStep) -> String {
+    let name = step.name.trim();
+    if name.is_empty() {
+        format!("#{index}")
+    } else {
+        format!("#{index} {name}")
+    }
+}
+
+/// 校验一段模板里的 `{var:…}` 引用都在已声明集合内。
+fn check_var_scope(
+    rule: &RuleDocument,
+    label: &str,
+    template: &str,
+    declared: &BTreeSet<String>,
+) -> Result<(), SourceError> {
+    for token in crate::template::tokens_in(template) {
+        if !token.starts_with("var:") {
+            continue;
+        }
+        match crate::template::parse(token) {
+            Some(crate::template::Token::Var(name)) if declared.contains(name) => {}
+            Some(crate::template::Token::Var(_)) => {
+                let known = if declared.is_empty() {
+                    "无".to_string()
+                } else {
+                    declared.iter().cloned().collect::<Vec<_>>().join("、")
+                };
+                return Err(rule.rule_error(&format!(
+                    "{label} 引用了未声明的 preflight 变量 {{{token}}}（已声明：{known}）"
+                )));
+            }
+            _ => return Err(rule.rule_error(&format!("{label} 的变量名不合法：{{{token}}}"))),
+        }
+    }
+    Ok(())
+}
+
+/// 校验单个变量的提取表达式：变量名合法、表达式能编译。
+fn validate_extract(
+    rule: &RuleDocument,
+    label: &str,
+    name: &str,
+    expression: &str,
+    kind: Option<RuleKind>,
+) -> Result<(), SourceError> {
+    if name.trim().is_empty() {
+        return Err(rule.rule_error(&format!("preflight {label} 的变量名为空")));
+    }
+    let expression = expression.trim();
+    if expression.is_empty() {
+        return Err(rule.rule_error(&format!("preflight {label} 的变量 {name} 缺少提取表达式")));
+    }
+    match kind.unwrap_or(RuleKind::Json) {
+        // JSONPath 的解析非常宽松（看不懂的段会被忽略），没有可靠的预校验，
+        // 交给 `extract_vars` 在取不到值时带变量名报错。
+        RuleKind::Json | RuleKind::Next => Ok(()),
+        RuleKind::Regex => regex::Regex::new(expression).map(|_| ()).map_err(|err| {
+            rule.rule_error(&format!("preflight {label} 的变量 {name} 正则无效：{err}"))
+        }),
+        RuleKind::Html => {
+            let selector = expression.split('@').next().unwrap_or(expression).trim();
+            scraper::Selector::parse(selector)
+                .map(|_| ())
+                .map_err(|err| {
+                    rule.rule_error(&format!(
+                        "preflight {label} 的变量 {name} 选择器无效：{err:?}"
+                    ))
+                })
+        }
+    }
+}
+
+/// 把一组正则候选收进待校验清单。
+fn push_list<'a>(out: &mut Vec<(&'static str, &'a str)>, label: &'static str, items: &'a [String]) {
+    for item in items {
+        out.push((label, item));
+    }
+}
+
+/// 收集一个字段规格里用到的全部正则（空串由调用方统一判空，这里照收）。
+fn push_fields<'a>(
+    out: &mut Vec<(&'static str, &'a str)>,
+    label: &'static str,
+    fields: &'a RuleFields,
+) {
+    push_list(out, label, &fields.id.0);
+    push_list(out, label, &fields.title.0);
+    push_list(out, label, &fields.cover.0);
+    push_list(out, label, &fields.episodes.0);
+    push_list(out, label, &fields.category.0);
+    push_list(out, label, &fields.description.0);
 }
 
 fn default_group() -> String {
@@ -208,12 +368,39 @@ pub struct DetailRule {
     pub description: Option<String>,
 }
 
-/// 分集列表：HTML 用 CSS 选择器，JSON 用路径与字段规格。
+/// 分集列表：HTML 用 CSS 选择器，JSON 用路径与字段规格，正则型站源用 [`EpisodesRegex`]。
+///
+/// `Regex` 必须排在 `Json` 前面：`EpisodesRule` 的字段全带 `#[serde(default)]`，
+/// 换成任意顺序会让 `{"pattern": …}` 静默落进 `Json` 变体并得到空分集。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
 pub enum EpisodesSpec {
     Selectors(SelectorList),
+    Regex(Box<EpisodesRegex>),
     Json(Box<EpisodesRule>),
+}
+
+impl EpisodesSpec {
+    pub fn regex(&self) -> Option<&EpisodesRegex> {
+        match self {
+            Self::Regex(spec) => Some(spec),
+            _ => None,
+        }
+    }
+}
+
+/// 正则型站源的分集规格。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodesRegex {
+    /// 全局匹配分集条目。**第 1 个捕获组是分集地址**。
+    pub pattern: String,
+    /// 分集标题所在的捕获组；省略时用第 2 组（没有则留空，由序号补标题）。
+    #[serde(default)]
+    pub title_group: Option<usize>,
+    /// 分集标题为空时的兜底模板，支持 `{n}`。
+    #[serde(default)]
+    pub title_template: Option<String>,
 }
 
 impl Default for EpisodesSpec {
@@ -290,6 +477,10 @@ pub struct ResolveRule {
     /// JSON/内嵌 JSON 站源的播放地址路径候选。
     #[serde(default)]
     pub url_paths: Vec<String>,
+    /// 正则型站源的播放地址正则候选：取第一个命中的第 1 个捕获组，
+    /// 没有捕获组则取整段匹配。
+    #[serde(default)]
+    pub url_regex: Vec<String>,
     #[serde(default)]
     pub request: RequestRule,
 }
@@ -407,6 +598,8 @@ pub struct TemplateCtx<'a> {
     pub category: &'a str,
     pub keyword: &'a str,
     pub id: &'a str,
+    /// `preflight` 提取出来的变量；没有前置编排时为 `None`。
+    pub vars: Option<&'a BTreeMap<String, String>>,
 }
 
 impl RuleDocument {
@@ -558,8 +751,52 @@ impl RuleDocument {
         match self.kind {
             RuleKind::Html => self.validate_selectors()?,
             RuleKind::Json | RuleKind::Next => self.validate_paths()?,
+            RuleKind::Regex => self.validate_regexes()?,
         }
         self.validate_templates()?;
+        self.validate_preflight()?;
+        Ok(())
+    }
+
+    /// 加载期编译全部正则。
+    ///
+    /// 与选择器同理：正则写错时静默返回空列表，看起来像站点改版，
+    /// 排查成本远高于在加载时就报错。
+    pub fn validate_regexes(&self) -> Result<(), SourceError> {
+        let mut patterns: Vec<(&'static str, &str)> = Vec::new();
+        if let Some(catalog) = &self.catalog {
+            push_list(&mut patterns, "catalog.item", &catalog.item.0);
+            push_fields(&mut patterns, "catalog", &catalog.fields);
+            if let Some(next) = &catalog.next {
+                patterns.push(("catalog.next", next));
+            }
+            if let Some(pattern) = &catalog.fields.id_pattern {
+                patterns.push(("catalog.fields.idPattern", pattern));
+            }
+        }
+        if let Some(search) = &self.search {
+            push_list(&mut patterns, "search.item", &search.item.0);
+            push_fields(&mut patterns, "search", &search.fields);
+        }
+        if let Some(detail) = &self.detail {
+            if let Some(spec) = detail.episodes.regex() {
+                patterns.push(("detail.episodes.pattern", &spec.pattern));
+            }
+            push_fields(&mut patterns, "detail", &detail.fields);
+        }
+        if let Some(resolve) = &self.resolve {
+            for (index, pattern) in resolve.url_regex.iter().enumerate() {
+                patterns.push(("resolve.urlRegex", pattern));
+                let _ = index;
+            }
+        }
+        for (label, pattern) in patterns {
+            if pattern.trim().is_empty() {
+                return Err(self.rule_error(&format!("{label} 的正则不能为空")));
+            }
+            regex::Regex::new(pattern)
+                .map_err(|err| self.rule_error(&format!("{label} 的正则无效 {pattern}：{err}")))?;
+        }
         Ok(())
     }
 
@@ -572,33 +809,11 @@ impl RuleDocument {
             return Err(self.rule_error(&format!("base 不应包含模板占位符 {{{token}}}")));
         }
 
-        let mut templates: Vec<(&'static str, String)> = Vec::new();
-        if let Some(catalog) = &self.catalog {
-            collect_templates(
-                "catalog",
-                &catalog.url,
-                &catalog.urls,
-                &catalog.request,
-                &mut templates,
-            );
-        }
-        if let Some(search) = &self.search {
-            collect_templates(
-                "search",
-                &search.url,
-                &search.urls,
-                &search.request,
-                &mut templates,
-            );
-        }
-        if let Some(detail) = &self.detail {
-            if let Some(url) = &detail.url {
-                templates.push(("detail", url.clone()));
-            }
-            collect_templates("detail", "", &detail.urls, &detail.request, &mut templates);
-        }
-        if let Some(resolve) = &self.resolve {
-            collect_templates("resolve", "", &[], &resolve.request, &mut templates);
+        let mut templates: Vec<(String, String)> = Vec::new();
+        self.collect_action_templates(&mut templates);
+        for (index, step) in self.preflight.iter().enumerate() {
+            let label = preflight_label(index, step);
+            collect_templates(&label, &step.url, &[], &step.request, &mut templates);
         }
 
         for (label, template) in &templates {
@@ -613,6 +828,85 @@ impl RuleDocument {
         Ok(())
     }
 
+    /// 主动作段（目录 / 搜索 / 详情 / 取流）里所有可能含模板的字符串。
+    fn collect_action_templates(&self, out: &mut Vec<(String, String)>) {
+        if let Some(catalog) = &self.catalog {
+            collect_templates(
+                "catalog",
+                &catalog.url,
+                &catalog.urls,
+                &catalog.request,
+                out,
+            );
+        }
+        if let Some(search) = &self.search {
+            collect_templates("search", &search.url, &search.urls, &search.request, out);
+        }
+        if let Some(detail) = &self.detail {
+            if let Some(url) = &detail.url {
+                out.push(("detail".to_string(), url.clone()));
+            }
+            collect_templates("detail", "", &detail.urls, &detail.request, out);
+        }
+        if let Some(resolve) = &self.resolve {
+            collect_templates("resolve", "", &[], &resolve.request, out);
+        }
+    }
+
+    /// 校验前置编排：步骤自身合法，变量引用不越界。
+    ///
+    /// 变量作用域按顺序收窄：第 N 步只能引用第 1..N-1 步产出的变量，
+    /// 主动作段可以引用全部。写错名字在加载期就报错——否则运行时渲染出
+    /// 空串，请求会带着「看起来正常」的坏地址发出去。
+    fn validate_preflight(&self) -> Result<(), SourceError> {
+        // 即使没有任何步骤也要往下走：主动作段引用 `{var:x}` 时必须报错，
+        // 否则运行时渲染成空串，请求带着缺参地址发出去。
+        let mut declared: BTreeSet<String> = BTreeSet::new();
+        for (index, step) in self.preflight.iter().enumerate() {
+            let label = preflight_label(index, step);
+            if step.url.trim().is_empty() {
+                return Err(self.rule_error(&format!("preflight {label} 缺少 url")));
+            }
+            check_var_scope(
+                self,
+                &format!("preflight {label}.url"),
+                &step.url,
+                &declared,
+            )?;
+            let mut step_templates: Vec<(String, String)> = Vec::new();
+            collect_templates(
+                &format!("preflight {label}"),
+                "",
+                &[],
+                &step.request,
+                &mut step_templates,
+            );
+            for (template_label, template) in &step_templates {
+                check_var_scope(self, template_label, template, &declared)?;
+            }
+            if step.extract.vars.is_empty() {
+                return Err(self.rule_error(&format!(
+                    "preflight {label} 的 extract.vars 为空：至少声明一个变量"
+                )));
+            }
+            for (name, expression) in &step.extract.vars {
+                validate_extract(self, &label, name, expression, step.extract.kind)?;
+                if !declared.insert(name.clone()) {
+                    return Err(
+                        self.rule_error(&format!("preflight 变量 {name} 重复声明（{label}）"))
+                    );
+                }
+            }
+        }
+        // 主动作段只能引用声明过的变量。
+        let mut templates: Vec<(String, String)> = Vec::new();
+        self.collect_action_templates(&mut templates);
+        for (label, template) in &templates {
+            check_var_scope(self, label, template, &declared)?;
+        }
+        Ok(())
+    }
+
     pub fn expand(&self, template: &str, page: u32, category: &str, query: &str) -> String {
         self.render(
             template,
@@ -621,6 +915,8 @@ impl RuleDocument {
                 category,
                 keyword: query,
                 id: "",
+
+                vars: None,
             },
         )
     }
@@ -707,6 +1003,14 @@ impl RuleDocument {
                 let rendered = self.render_with(inner, ctx, encode_keyword);
                 hmac_sha256_hex(key.as_bytes(), rendered.as_bytes())
             }
+            Token::Var(name) => ctx
+                .vars
+                .and_then(|vars| vars.get(name))
+                .cloned()
+                // 变量缺失只可能发生在 preflight 失败后——调用方在这种情况下
+                // 会中止操作，不会走到渲染。留空串而非字面量，避免把 `{var:x}`
+                // 原样拼进地址发出一个"看起来正常"的坏请求。
+                .unwrap_or_default(),
         })
     }
 
@@ -907,14 +1211,14 @@ impl EpisodesSpec {
     pub fn selectors(&self) -> Option<&SelectorList> {
         match self {
             Self::Selectors(list) => Some(list),
-            Self::Json(_) => None,
+            Self::Regex(_) | Self::Json(_) => None,
         }
     }
 
     pub fn json(&self) -> Option<&EpisodesRule> {
         match self {
             Self::Json(spec) => Some(spec.as_ref()),
-            Self::Selectors(_) => None,
+            Self::Selectors(_) | Self::Regex(_) => None,
         }
     }
 }
@@ -1106,6 +1410,37 @@ mod tests {
     }"#;
 
     #[test]
+    fn parses_content_types() {
+        let text = SAMPLE.replace(
+            r#""capabilities": ["catalog", "detail", "search"],"#,
+            r#""capabilities": ["catalog", "detail", "search"],
+        "contentTypes": ["short-drama", "movie"],"#,
+        );
+        let rule = RuleDocument::from_json(&text).expect("parse");
+        assert_eq!(rule.content_types.len(), 2);
+        assert_eq!(rule.content_types[0], ContentType::ShortDrama);
+        assert_eq!(rule.content_types[1], ContentType::Movie);
+    }
+
+    #[test]
+    fn rejects_unknown_content_type() {
+        let text = SAMPLE.replace(
+            r#""capabilities": ["catalog", "detail", "search"],"#,
+            r#""capabilities": ["catalog", "detail", "search"],
+        "contentTypes": ["短剧"],"#,
+        );
+        let err = RuleDocument::from_json(&text).expect_err("must fail");
+        assert!(err.to_string().contains("未知内容类型"), "{err}");
+    }
+
+    #[test]
+    fn missing_content_types_is_allowed() {
+        // 老规则包没有这个字段：必须仍能加载，只是商店里显示「未标注」。
+        let rule = RuleDocument::from_json(SAMPLE).expect("parse");
+        assert!(rule.content_types.is_empty());
+    }
+
+    #[test]
     fn parses_and_validates_rule_document() {
         let rule = RuleDocument::from_json(SAMPLE).expect("parse");
         assert_eq!(rule.id, "wuguo");
@@ -1185,6 +1520,8 @@ mod tests {
             category: "",
             keyword: "",
             id: "9#extra",
+
+            vars: None,
         };
         let url = rule.render("/x?p={md5:abc}&t={ts10}&page={page}", &ctx);
         assert!(url.contains("p=900150983cd24fb0d6963f7d28e17f72"), "{url}");
@@ -1211,6 +1548,8 @@ mod tests {
             category: "都市",
             keyword: "",
             id: "",
+
+            vars: None,
         };
         let request = rule.build_request(&catalog.request, "https://x.test/a".into(), &ctx);
         assert_eq!(request.method, guo_source_api::Method::Post);
@@ -1236,12 +1575,16 @@ mod tests {
             category: "462",
             keyword: "",
             id: "",
+
+            vars: None,
         };
         let without = TemplateCtx {
             page: 3,
             category: "",
             keyword: "",
             id: "",
+
+            vars: None,
         };
         let candidates = vec![
             UrlRule {
@@ -1383,5 +1726,152 @@ mod tests {
             .replace("\"id\": \"wuguo\"", "\"id\": \"Wu Guo\"");
         let err = RuleDocument::from_json(&text).expect_err("id 必须是小写");
         assert!(err.to_string().contains("id"), "{err}");
+    }
+}
+
+#[cfg(test)]
+mod preflight_tests {
+    use super::*;
+
+    fn document(preflight: &str, catalog_url: &str) -> String {
+        format!(
+            r#"{{
+                "schema": "1.0",
+                "id": "yeguo",
+                "name": "野果",
+                "base": "https://x.test",
+                "kind": "json",
+                "catalog": {{ "url": "{catalog_url}", "items": ["data.list"], "fields": {{ "id": ["$.id"] }} }},
+                "detail": {{ "episodes": {{ "paths": ["data.eps"], "videoUrl": ["$.url"] }} }},
+                "preflight": {preflight}
+            }}"#
+        )
+    }
+
+    #[test]
+    fn renders_declared_variables() {
+        let json = document(
+            r#"[
+                { "name": "配置", "url": "{base}/cfg", "extract": { "vars": { "token": "$.data.token" } } }
+            ]"#,
+            "list?page={page}&t={var:token}",
+        );
+        let rule = RuleDocument::from_json(&json).expect("rule");
+        let mut vars = BTreeMap::new();
+        vars.insert("token".to_string(), "tk-1".to_string());
+        let ctx = TemplateCtx {
+            page: 2,
+            category: "",
+            keyword: "",
+            id: "",
+            vars: Some(&vars),
+        };
+        assert_eq!(
+            rule.render("list?page={page}&t={var:token}", &ctx),
+            "list?page=2&t=tk-1"
+        );
+        // 没传 vars 时渲染为空串而不是字面量：调用方在 preflight 失败时
+        // 会中止操作，走到这里说明变量确实为空。
+        assert_eq!(rule.render("t={var:token}", &TemplateCtx::default()), "t=");
+    }
+
+    #[test]
+    fn rejects_undeclared_variable() {
+        let json = document("[]", "list?t={var:missing}");
+        let err = RuleDocument::from_json(&json).expect_err("must fail");
+        assert!(err.to_string().contains("missing"), "{err}");
+        assert!(err.to_string().contains("未声明"), "{err}");
+    }
+
+    #[test]
+    fn step_cannot_reference_a_later_step() {
+        let json = document(
+            r#"[
+                { "name": "取站点", "url": "{base}/site?t={var:token}",
+                  "extract": { "vars": { "site": "$.site" } } },
+                { "name": "取配置", "url": "{base}/cfg",
+                  "extract": { "vars": { "token": "$.token" } } }
+            ]"#,
+            "list",
+        );
+        let err = RuleDocument::from_json(&json).expect_err("must fail");
+        assert!(err.to_string().contains("token"), "{err}");
+    }
+
+    #[test]
+    fn rejects_duplicate_variable_names() {
+        let json = document(
+            r#"[
+                { "url": "{base}/a", "extract": { "vars": { "t": "$.t" } } },
+                { "url": "{base}/b", "extract": { "vars": { "t": "$.t" } } }
+            ]"#,
+            "list",
+        );
+        let err = RuleDocument::from_json(&json).expect_err("must fail");
+        assert!(err.to_string().contains("重复"), "{err}");
+    }
+
+    #[test]
+    fn rejects_invalid_extract_expressions() {
+        let bad_regex = document(
+            r#"[{ "url": "{base}/a", "extract": { "kind": "regex", "vars": { "t": "(" } } }]"#,
+            "list",
+        );
+        let err = RuleDocument::from_json(&bad_regex).expect_err("must fail");
+        assert!(err.to_string().contains("正则"), "{err}");
+
+        let bad_selector = document(
+            r#"[{ "url": "{base}/a", "extract": { "kind": "html", "vars": { "t": "div[[" } } }]"#,
+            "list",
+        );
+        let err = RuleDocument::from_json(&bad_selector).expect_err("must fail");
+        assert!(err.to_string().contains("选择器"), "{err}");
+    }
+
+    #[test]
+    fn requires_url_and_extract_vars() {
+        let missing_url = document(
+            r#"[{ "name": "空", "extract": { "vars": { "t": "$.t" } } }]"#,
+            "list",
+        );
+        let err = RuleDocument::from_json(&missing_url).expect_err("must fail");
+        assert!(err.to_string().contains("url"), "{err}");
+
+        let missing_vars = document(r#"[{ "url": "{base}/a" }]"#, "list");
+        let err = RuleDocument::from_json(&missing_vars).expect_err("must fail");
+        assert!(err.to_string().contains("extract.vars"), "{err}");
+    }
+
+    #[test]
+    fn variables_work_in_headers_and_bodies() {
+        let json = document(
+            r#"[
+                { "url": "{base}/cfg", "extract": { "vars": { "token": "$.token" } } }
+            ]"#,
+            "list",
+        )
+        .replace(
+            r#""catalog": { "url": "list", "items": ["data.list"], "fields": { "id": ["$.id"] } }"#,
+            r#""catalog": { "url": "list", "items": ["data.list"], "fields": { "id": ["$.id"] },
+                "request": { "method": "POST", "headers": { "X-Token": "{var:token}" },
+                             "body": { "t": "{var:token}" } } }"#,
+        );
+        let rule = RuleDocument::from_json(&json).expect("rule");
+        let mut vars = BTreeMap::new();
+        vars.insert("token".to_string(), "tk".to_string());
+        let ctx = TemplateCtx {
+            page: 1,
+            category: "",
+            keyword: "",
+            id: "",
+            vars: Some(&vars),
+        };
+        let catalog = rule.catalog.as_ref().expect("catalog");
+        let request = rule.build_request(&catalog.request, "https://x.test/list".into(), &ctx);
+        assert_eq!(
+            request.headers.get("X-Token").map(String::as_str),
+            Some("tk")
+        );
+        assert_eq!(request.body.as_deref(), Some(r#"{"t":"tk"}"#.as_bytes()));
     }
 }

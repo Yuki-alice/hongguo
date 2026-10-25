@@ -31,6 +31,8 @@ pub enum Token<'a> {
     Transform { kind: Transform, inner: &'a str },
     /// `{hmac:sha256:<key>:<inner>}`
     Hmac { key: &'a str, inner: &'a str },
+    /// `{var:<name>}`：`preflight` 步骤提取出来的变量。
+    Var(&'a str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,6 +87,15 @@ pub fn parse(token: &str) -> Option<Token<'_>> {
             return None;
         }
         return Some(Token::Hmac { key, inner });
+    }
+    if let Some(name) = token.strip_prefix("var:") {
+        // 变量名限定为标识符：脏名字（空格、花括号）几乎都是模板写错，
+        // 加载期拒绝比运行时渲染出空值好定位得多。
+        let valid = !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'));
+        return valid.then_some(Token::Var(name));
     }
     Some(match token {
         "page" => Token::Page,
@@ -208,9 +219,26 @@ mod tests {
 
     #[test]
     fn rejects_unknown_tokens() {
-        for bad in ["foo", "{page}", "", "md5", "hmac:sha256:", "hmac:md5:a:b"] {
+        for bad in [
+            "foo",
+            "{page}",
+            "",
+            "md5",
+            "hmac:sha256:",
+            "hmac:md5:a:b",
+            "var:",
+            "var:a b",
+            "var:{x}",
+        ] {
             assert_eq!(parse(bad), None, "{bad} 不应被接受");
         }
+    }
+
+    #[test]
+    fn recognizes_preflight_variables() {
+        assert_eq!(parse("var:token"), Some(Token::Var("token")));
+        assert_eq!(parse("var:cfg.host"), Some(Token::Var("cfg.host")));
+        assert_eq!(parse("var:cfg-host_1"), Some(Token::Var("cfg-host_1")));
     }
 
     #[test]

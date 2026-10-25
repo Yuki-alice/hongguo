@@ -364,6 +364,8 @@ impl<'a> JsonRuleExecutor<'a> {
                 category: "",
                 keyword: "",
                 id: &drama.source_id,
+
+                vars: None,
             },
         );
         jsonpath::absolute(&self.rule.base, &url)

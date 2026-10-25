@@ -1146,6 +1146,7 @@ dependencies = [
  "guo-source-api",
  "reqwest",
  "rquickjs",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -1198,6 +1199,7 @@ name = "guo-rule-engine"
 version = "0.3.0"
 dependencies = [
  "guo-source-api",
+ "regex",
  "scraper",
  "serde",
  "serde_json",
@@ -1236,6 +1238,7 @@ version = "0.3.0"
 dependencies = [
  "aes",
  "async-trait",
+ "futures-util",
  "guo-media",
  "guo-source-api",
  "serde",

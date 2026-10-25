@@ -17,7 +17,7 @@ class MergeQueueJob {
   final Drama drama;
   final List<String> jobIds;
   final List<int> episodes;
-  final Map<String, String> versions;
+  final Map<String, int> versions;
   final DateTime created;
   final bool cleanup;
   String get outputId => 'merged-$id';
@@ -63,7 +63,13 @@ class MergeQueueJob {
         state = data['state'] as String;
     final ids = (data['jobIds'] as List).cast<String>();
     final episodes = (data['episodes'] as List).cast<int>();
-    final versions = Map<String, String>.from(data['versions'] as Map);
+    // 版本闸门存引擎 `revision`（自增整数），必须与 `controlDownloadBatch`
+    // 的期望版本同源；旧记录里的复合串无法解析时落 0，闸门会拒绝执行
+    // 而不是误删文件（安全侧失败）。
+    final versions = {
+      for (final entry in (data['versions'] as Map).entries)
+        entry.key as String: int.tryParse('${entry.value}') ?? 0,
+    };
     if (!RegExp(r'^[a-zA-Z0-9_-]{1,100}$').hasMatch(id) ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,64}$').hasMatch(owner) ||
         !{
@@ -255,9 +261,7 @@ class MergeQueue {
       }
       for (final jobs in selections) {
         final ids = jobs.map((job) => job.id).toList();
-        final versions = {
-          for (final job in jobs) job.id: library._sourceVersion(job),
-        };
+        final versions = {for (final job in jobs) job.id: job.revision};
         if (_jobs.any(
           (job) =>
               job.owner == library.store.profile.id &&
@@ -451,8 +455,7 @@ class MergeQueue {
       for (final id in task.jobIds) {
         final job = current[id];
         if (job == null) continue;
-        if (!job.completed ||
-            library._sourceVersion(job) != task.versions[id]) {
+        if (!job.completed || job.revision != task.versions[id]) {
           throw AppFailure('原分集已改变，已保留文件；合并成品仍可播放');
         }
         ids.add(id);

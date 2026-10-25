@@ -3,7 +3,9 @@ use serde_json::Value;
 
 use guo_source_api::{Chapter, Drama, Page, SourceError};
 
-use super::{embedded, JsonRuleExecutor, RuleDocument, RuleFields, RuleKind, SelectorList};
+use super::{
+    embedded, JsonRuleExecutor, RegexExecutor, RuleDocument, RuleFields, RuleKind, SelectorList,
+};
 
 pub struct RuleExecutor<'a> {
     rule: &'a RuleDocument,
@@ -18,6 +20,7 @@ impl<'a> RuleExecutor<'a> {
     pub fn parse_catalog(&self, body: &str, page: u32) -> Result<Page, SourceError> {
         match self.rule.kind {
             RuleKind::Html => self.parse_catalog_html(body, page),
+            RuleKind::Regex => RegexExecutor::new(self.rule).parse_catalog(body, page),
             kind => {
                 JsonRuleExecutor::new(self.rule).parse_catalog(&self.read_root(body, kind)?, page)
             }
@@ -27,6 +30,7 @@ impl<'a> RuleExecutor<'a> {
     pub fn parse_search(&self, body: &str, page: u32) -> Result<Page, SourceError> {
         match self.rule.kind {
             RuleKind::Html => self.parse_search_html(body, page),
+            RuleKind::Regex => RegexExecutor::new(self.rule).parse_search(body, page),
             kind => {
                 JsonRuleExecutor::new(self.rule).parse_search(&self.read_root(body, kind)?, page)
             }
@@ -36,6 +40,7 @@ impl<'a> RuleExecutor<'a> {
     pub fn parse_chapters(&self, body: &str, drama: &Drama) -> Result<Vec<Chapter>, SourceError> {
         match self.rule.kind {
             RuleKind::Html => self.parse_chapters_html(body, drama),
+            RuleKind::Regex => RegexExecutor::new(self.rule).parse_chapters(body, drama),
             kind => {
                 JsonRuleExecutor::new(self.rule).parse_chapters(&self.read_root(body, kind)?, drama)
             }
@@ -44,21 +49,27 @@ impl<'a> RuleExecutor<'a> {
 
     /// 用详情返回的资料补齐剧目字段；HTML 站源没有结构化资料，保持原样。
     pub fn fill_drama(&self, body: &str, drama: &mut Drama) {
-        if self.rule.kind == RuleKind::Html {
-            return;
-        }
-        if let Ok(root) = self.read_root(body, self.rule.kind) {
-            JsonRuleExecutor::new(self.rule).fill_drama(&root, drama);
+        match self.rule.kind {
+            RuleKind::Html => {}
+            RuleKind::Regex => RegexExecutor::new(self.rule).fill_drama(body, drama),
+            kind => {
+                if let Ok(root) = self.read_root(body, kind) {
+                    JsonRuleExecutor::new(self.rule).fill_drama(&root, drama);
+                }
+            }
         }
     }
 
-    /// 内嵌 JSON 与接口站源直接从规则路径取播放地址。
+    /// 内嵌 JSON 与接口站源直接从规则路径取播放地址，正则型站源走 `urlRegex`。
     pub fn media_url(&self, body: &str) -> Option<String> {
-        if self.rule.kind == RuleKind::Html {
-            return None;
+        match self.rule.kind {
+            RuleKind::Html => None,
+            RuleKind::Regex => RegexExecutor::new(self.rule).media_url(body),
+            kind => {
+                let root = self.read_root(body, kind).ok()?;
+                JsonRuleExecutor::new(self.rule).media_url(&root)
+            }
         }
-        let root = self.read_root(body, self.rule.kind).ok()?;
-        JsonRuleExecutor::new(self.rule).media_url(&root)
     }
 
     fn read_root(&self, body: &str, kind: RuleKind) -> Result<Value, SourceError> {
@@ -70,6 +81,7 @@ impl<'a> RuleExecutor<'a> {
                 .or_else(|| serde_json::from_str(body).ok())
                 .ok_or_else(|| SourceError::parse("json", "页面未返回可解析的数据")),
             RuleKind::Html => Err(SourceError::parse("json", "HTML 站源不需要 JSON 解析")),
+            RuleKind::Regex => Err(SourceError::parse("json", "正则型站源不需要 JSON 解析")),
         }
     }
 
@@ -303,7 +315,7 @@ fn select_and_read(
 }
 
 /// 取节点内第一个非空文本，避免把嵌套的评分、集数标签也拼进标题。
-fn first_text(element: scraper::ElementRef<'_>) -> String {
+pub(crate) fn first_text(element: scraper::ElementRef<'_>) -> String {
     for text in element.text() {
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
         if !normalized.is_empty() {
@@ -314,7 +326,7 @@ fn first_text(element: scraper::ElementRef<'_>) -> String {
 }
 
 /// `scraper` 只解析文档结构，不还原实体；标题里的 `&amp;` 需要手动解码。
-fn decode_entities(raw: &str) -> String {
+pub(crate) fn decode_entities(raw: &str) -> String {
     let text = raw.trim();
     if !text.contains('&') {
         return text.to_string();
@@ -354,7 +366,10 @@ fn has_selector(document: &Html, selector: &str) -> bool {
     }
 }
 
-fn extract_id(raw: &str) -> String {
+/// 从链接里抽出主键（`…/detail/id/101.html` → `101`）。
+///
+/// 正则型站源没有 DOM 可依赖，与 HTML 路径共用同一个回退逻辑。
+pub(crate) fn extract_id(raw: &str) -> String {
     let cleaned = raw.split(['?', '#']).next().unwrap_or(raw);
     let last = cleaned
         .rsplit('/')

@@ -20,6 +20,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
+use guo_source_api::ContentType;
+
 use crate::error::PluginError;
 use crate::manifest::{PluginKind, PluginManifest};
 use crate::package::UnpackedPackage;
@@ -51,6 +53,9 @@ pub struct InstalledPlugin {
     /// 该 id 是否存在其它版本（可回滚）。
     #[serde(default)]
     pub rollback_version: Option<Version>,
+    /// 内容类型（来自清单；缺省表示未标注）。
+    #[serde(default)]
+    pub content_types: Vec<ContentType>,
 }
 
 /// 单个插件的持久化状态。
@@ -206,6 +211,7 @@ impl PluginStore {
             enabled: true,
             directory: destination.display().to_string(),
             rollback_version: rollback,
+            content_types: manifest.content_types.clone(),
         })
     }
 
@@ -290,6 +296,7 @@ impl PluginStore {
                 enabled: state.plugins.get(&id).map(|s| s.enabled).unwrap_or(true),
                 directory: directory.display().to_string(),
                 rollback_version: previous,
+                content_types: manifest.content_types,
             });
         }
         out.sort_by(|a, b| a.id.cmp(&b.id));

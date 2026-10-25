@@ -2671,8 +2671,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PluginSummary dco_decode_plugin_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return PluginSummary(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -2681,6 +2681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installed: dco_decode_bool(arr[4]),
       enabled: dco_decode_bool(arr[5]),
       signed: dco_decode_bool(arr[6]),
+      contentTypes: dco_decode_list_String(arr[7]),
     );
   }
 
@@ -2830,14 +2831,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SourceSummary dco_decode_source_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return SourceSummary(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       group: dco_decode_String(arr[2]),
       apiLevel: dco_decode_u_32(arr[3]),
       capabilities: dco_decode_list_String(arr[4]),
+      contentTypes: dco_decode_list_String(arr[5]),
     );
   }
 
@@ -3750,6 +3752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_installed = sse_decode_bool(deserializer);
     var var_enabled = sse_decode_bool(deserializer);
     var var_signed = sse_decode_bool(deserializer);
+    var var_contentTypes = sse_decode_list_String(deserializer);
     return PluginSummary(
       id: var_id,
       name: var_name,
@@ -3758,6 +3761,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installed: var_installed,
       enabled: var_enabled,
       signed: var_signed,
+      contentTypes: var_contentTypes,
     );
   }
 
@@ -3916,12 +3920,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_group = sse_decode_String(deserializer);
     var var_apiLevel = sse_decode_u_32(deserializer);
     var var_capabilities = sse_decode_list_String(deserializer);
+    var var_contentTypes = sse_decode_list_String(deserializer);
     return SourceSummary(
       id: var_id,
       name: var_name,
       group: var_group,
       apiLevel: var_apiLevel,
       capabilities: var_capabilities,
+      contentTypes: var_contentTypes,
     );
   }
 
@@ -4685,6 +4691,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.installed, serializer);
     sse_encode_bool(self.enabled, serializer);
     sse_encode_bool(self.signed, serializer);
+    sse_encode_list_String(self.contentTypes, serializer);
   }
 
   @protected
@@ -4799,6 +4806,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.group, serializer);
     sse_encode_u_32(self.apiLevel, serializer);
     sse_encode_list_String(self.capabilities, serializer);
+    sse_encode_list_String(self.contentTypes, serializer);
   }
 
   @protected

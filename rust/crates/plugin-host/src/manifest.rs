@@ -6,6 +6,8 @@ use std::str::FromStr;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
+use guo_source_api::ContentType;
+
 use crate::error::PluginError;
 
 /// 当前支持的包格式版本。
@@ -63,7 +65,7 @@ impl<'de> serde::Deserialize<'de> for PluginId {
     }
 }
 
-/// 插件类型。声明式与代码插件共用同一 zip 容器，内容不同。
+/// 插件类型。三种形态共用同一 zip 容器，内容不同。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginKind {
@@ -71,6 +73,8 @@ pub enum PluginKind {
     Declarative,
     /// 单个 WASM 组件。
     Component,
+    /// 一个 JS 脚本（`entry` 指向 `main.js`）。
+    Script,
 }
 
 impl PluginKind {
@@ -78,6 +82,7 @@ impl PluginKind {
         match self {
             Self::Declarative => "declarative",
             Self::Component => "component",
+            Self::Script => "script",
         }
     }
 }
@@ -163,6 +168,10 @@ pub struct PluginManifest {
     pub license: Option<String>,
     #[serde(default)]
     pub permissions: PluginPermissions,
+    /// 内容类型标注。**仅用于分发与商店展示**：运行期以规则 JSON / 脚本
+    /// `describe()` 的声明为准，两者不一致由 `check_plugin` 报错。
+    #[serde(default)]
+    pub content_types: Vec<ContentType>,
     /// 声明式插件的规则列表；`kind = "declarative"` 时不能为空。
     #[serde(default, rename = "rules")]
     pub rules: Vec<RuleEntry>,
@@ -220,6 +229,13 @@ impl PluginManifest {
                     ));
                 }
             }
+            PluginKind::Script => {
+                let Some(entry) = &self.entry else {
+                    return Err(PluginError::invalid("清单", "脚本插件必须声明 entry"));
+                };
+                check_relative(entry, "entry")?;
+                // 脚本插件允许同时带 [[rules]]：规则定义结构、脚本做签名与解密。
+            }
         }
         for host in &self.permissions.network {
             let host = host.trim();
@@ -231,10 +247,13 @@ impl PluginManifest {
             }
         }
         if let Some(script) = self.permissions.script {
-            if script.timeout_ms == 0 || script.timeout_ms > 5_000 {
+            // 上限取 30s：脚本里的 `ctx.fetch` 会在 JS 线程上等网络，
+            // 多步编排的站点（猫果/野果）10s 是正常值，卡 5s 会把合法脚本判死。
+            // 这仍然是硬上限——中断处理器按墙钟时间生效。
+            if script.timeout_ms == 0 || script.timeout_ms > 30_000 {
                 return Err(PluginError::invalid(
                     "permissions.script",
-                    "timeout_ms 必须在 1..=5000",
+                    "timeout_ms 必须在 1..=30000",
                 ));
             }
             if script.memory_kb == 0 || script.memory_kb > 32 * 1024 {
