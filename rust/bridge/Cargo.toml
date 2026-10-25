@@ -22,7 +22,6 @@ guo-rule-engine = { path = "../crates/rule-engine" }
 guo-runtime = { path = "../crates/runtime" }
 guo-source-api = { path = "../crates/source-api" }
 guo-source-hongguo = { path = "../crates/source-hongguo" }
-guo-source-maoguo = { path = "../crates/source-maoguo" }
 guo-source-niuguo = { path = "../crates/source-niuguo" }
 guo-source-yaguo = { path = "../crates/source-yaguo" }
 guo-source-huangju = { path = "../crates/source-huangju" }

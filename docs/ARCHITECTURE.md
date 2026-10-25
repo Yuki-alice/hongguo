@@ -16,8 +16,8 @@
 | 项 | 数值 | 来源 |
 | --- | --- | --- |
 | Rust 源文件 | 131 个 | `find rust -name '*.rs'`（不含 target） |
-| Rust crate | 15 个 + 桥接层 | `rust/crates/` + `rust/bridge/` |
-| 随包插件 | 7 个，合计 469 KB（zip） | `assets/bundled_plugins/` |
+| Rust crate | 14 个 + 桥接层 | `rust/crates/` + `rust/bridge/` |
+| 随包扩展 | 6 个 Wasm + 1 个脚本（猫果 1.1.0），合计约 404 KB | `assets/bundled_plugins/` |
 | 随包声明式规则 | 9 条 | `rust/rules/` |
 | FRB API 函数 | 52 个（40 站源 + 12 插件） | `rust/bridge/src/api/` |
 | FRB Stream | 1 个（下载进度） | `download_progress_stream` |
@@ -90,7 +90,7 @@ Flutter UI
        └─ Diagnostics（能力矩阵 / 最近错误 / 计数）
 ```
 
-## 5. Rust 工作区（15 crate）
+## 5. Rust 工作区（14 crate）
 
 | crate | 职责 | 依赖谁 |
 | --- | --- | --- |
@@ -104,7 +104,6 @@ Flutter UI
 | `engine` | **进程级单例**：装配、会话、缓存、调度、诊断、预装、迁移、封面、设置 | 上面全部 |
 | `bench` | 解析热路径基准 | rule-engine / runtime |
 | `source-hongguo` | 红果主源（签名、`_ROUTER_DATA`） | source-api |
-| `source-maoguo` | 猫果（多签名 + 自定义分页） | source-api |
 | `source-niuguo` | 牛果（AES-ECB 响应解密） | source-api |
 | `source-yaguo` | 芽果（设备登录令牌） | source-api |
 | `source-huangju` | 剧果（访客令牌 + CDN Cookie） | source-api |
@@ -174,16 +173,17 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 | 类型 | 来源 | 数量 | 加载方式 |
 | --- | --- | --- | --- |
 | 主源 | `source-hongguo` 编译 | 1 | `BuiltinSources` 注入 |
-| 编译代码源 | `source-*` crate | 7 | 同上 |
+| 编译代码源 | `source-*` crate | 6 | 同上 |
 | 声明式规则 | `rust/rules/*.json` | 9 | `include_str!` 随包 |
-| 官方 Wasm 插件 | `assets/bundled_plugins/*.zip` | 7 | 首次启动预装 → 注册表 |
+| 随包 Wasm 插件 | `assets/bundled_plugins/*.zip` | 6 | 首次启动预装 → 注册表 |
+| 随包脚本扩展 | 同上（`kind: "script"`） | 1（猫果 1.1.0） | 同上，QuickJS 宿主加载（ADR-13） |
 
 **当前是双轨**：猫果 / 牛果 / 芽果 / 剧果 / 黄果三源**同时**有编译版与插件版。
 这是刻意的——`docs/PLUGIN-BOUNDARY.md` 的迁移完成前，删掉编译版会让正式包丢源。
 
 ### 7.2 包格式（`spec = 1`）
 
-- 清单 `plugin.toml`：`kind = "declarative" | "component"`，`api.level <= 1`；
+- 清单 `plugin.toml`：`kind = "declarative" | "component" | "script"`，`api.level <= 1`；
 - 包：zip，SHA-256 校验，`PackageLimits`（单文件 8 MiB / 总量 32 MiB / 512 条目）；
 - 仓库：`repo.toml` + `index.json`，可选 Ed25519 签名（TOFU 记录指纹）；
 - 预装：`repo_id = "bundled"`，只装不覆盖（已有同版本或更高版本则跳过）。
@@ -220,7 +220,6 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 
 | 插件 id | 名称 | 验证重点 | 大小 |
 | --- | --- | --- | --- |
-| `guo.maoguo` | 猫果 | 请求签名（MD5 + 字符映射） | 70 KB |
 | `guo.yaguo` | 芽果 | 登录态跨实例复用 | 85 KB |
 | `guo.niuguo` | 牛果 | AES-128-ECB 响应解密 | 50 KB |
 | `guo.huangju` | 剧果 | CDN 签名 Cookie 透传 | 70 KB |

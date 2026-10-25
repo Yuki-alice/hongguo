@@ -1,15 +1,16 @@
 [
     {
       "id": "guo.maoguo",
-      "name": "maoguo",
-      "version": "1.0.0",
-      "kind": "component",
+      "name": "猫果",
+      "version": "1.1.0",
+      "kind": "script",
       "api": 1,
       "minHost": "0.3.0",
       "author": "official",
-      "size": 71639,
-      "sha256": "475cc75820f56b51a8f4e31309fd1205e6479940e605ac7a5c6c500a2af4c16c",
-      "path": "plugins/guo.maoguo/guo.maoguo-1.0.0.zip"
+      "contentTypes": ["short-drama"],
+      "size": 4894,
+      "sha256": "7af0698459cd676ad66e4d675a6f07d1de9e5ba4d5212947e58d9d8ddf06f9f6",
+      "path": "guo.maoguo-1.1.0.zip"
     },
     {
       "id": "guo.yaguo",

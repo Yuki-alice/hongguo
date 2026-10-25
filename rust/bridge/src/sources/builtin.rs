@@ -16,7 +16,6 @@ use guo_source_api::SourceRegistry;
 use guo_source_hongguo::HongguoSource;
 use guo_source_huangguo::{HuangguoAiSource, HuangguoVideoSource, LegacySource};
 use guo_source_huangju::HuangjuSource;
-use guo_source_maoguo::MaoguoSource;
 use guo_source_niuguo::NiuguoSource;
 use guo_source_yaguo::YaguoSource;
 
@@ -27,7 +26,6 @@ use guo_source_yaguo::YaguoSource;
 pub fn register_builtin_sources(registry: &mut SourceRegistry) {
     // 主源固定注册：它随包分发，不走插件体系（ARCHITECTURE.md §5）。
     registry.register(Arc::new(HongguoSource::new()));
-    registry.register(Arc::new(MaoguoSource::new()));
     registry.register(Arc::new(NiuguoSource::new()));
     registry.register(Arc::new(YaguoSource::new()));
     registry.register(Arc::new(HuangjuSource::new()));

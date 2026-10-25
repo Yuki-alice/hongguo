@@ -30,7 +30,7 @@
 | A1 | 规则引擎补 regex 提取 | ✅ |
 | A2 | JS 脚本扩展升为一等公民 | ✅ |
 | A3 | 多步编排 `preflight` | ✅ |
-| A4 | **把站源从编译代码搬到扩展包** | 🚧 进行中（1/10 完成） |
+| A4 | **把站源从编译代码搬到扩展包** | 🚧 进行中（猫果全链路完成：脚本包已随包分发、crate 已下线；剩 4 站） |
 | A5 | 离线校验 / 冒烟工具 `check_plugin` | ✅ |
 | A6 | 内容类型标注 + 商店/发现页筛选 | ✅ |
 
@@ -63,13 +63,12 @@ rust/
     runtime/         把「规则」与「脚本」包装成 SourcePlugin：
                      rule_source.rs / script_source.rs / plugins.rs（加载器）/ check.rs
     plugin-host/     包格式与仓库：manifest / package(zip) / repository / store /
-                     installer / pack_rules(bin)
+                     installer / pack_rules(bin) / pack_script(bin)
     plugin-wasm/     L2 Wasm 组件宿主（**已冻结**，只维护不加功能）
     engine/          进程级单例：注册表装配、插件加载、缓存、下载调度、诊断
     source-hongguo/  主源（永久内置，字节签名 SM3/Argus/Ladon）
     source-huangguo/ 黄果三入口（cloudfront / ai / video）
     source-huangju/  剧果（访客令牌 + 401 刷新 + slug 详情）
-    source-maoguo/   猫果（**已有等价脚本包，crate 待下线**）
     source-niuguo/   牛果（Base64 + AES-ECB，密钥=请求 URI 前 16 字节）
     source-yaguo/    芽果（登录接口 + 会话缓存）
     bench/           热路径基准（guo-bench）
@@ -122,9 +121,9 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 
 | 通道 | 位置 | 数量 | 说明 |
 | --- | --- | --- | --- |
-| 编译 crate | `bridge/src/sources/builtin.rs` | 8 个源 | 红果（主源，永久）、猫果、牛果、芽果、剧果、黄果三入口 |
+| 编译 crate | `bridge/src/sources/builtin.rs` | 7 个源 | 红果（主源，永久）、牛果、芽果、剧果、黄果三入口 |
 | 编译进二进制的规则 | `engine/src/engine.rs` 的 `BUILTIN_RULES`（`include_str!`） | 9 条 | 迁移期保留 |
-| 随包 Wasm 组件 | `assets/bundled_plugins/*.zip` | 7 个 | **历史遗留，见 4.3** |
+| 随包扩展 | `assets/bundled_plugins/*.zip` | 6 个 Wasm + 1 个脚本（猫果 1.1.0） | Wasm 是**历史遗留，见 4.3** |
 
 另有仓库通道：`rust/dist/rules/`（官方仓库，9 条规则插件包），供「从仓库安装/更新」用。
 
@@ -141,9 +140,9 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 `SourceRegistry::register` 只是 `push`，`get` 取**第一个**匹配，`metas()` **不去重**。
 
 - 装配顺序：编译 crate → `BUILTIN_RULES` → 已安装插件。
-- 所以同名 id 时**编译版永远生效**，`assets/bundled_plugins` 里那 7 个 Wasm 包
-  （cloudfront / huangguo-ai / huangguo-video / huangju / maoguo / niuguo / yaguo）
-  实际是**死重**（每个 70–180KB 白打进行安装包）。
+- 所以同名 id 时**编译版永远生效**，`assets/bundled_plugins` 里那 6 个 Wasm 包
+  （cloudfront / huangguo-ai / huangguo-video / huangju / niuguo / yaguo）
+  实际是**死重**（每个 34–180KB 白打进行安装包）。
 - `metas()` 不去重 → `sourceCatalog()` 里同名 id 会出现两条；Dart 侧
   `SourceSite.reportFromEngine` 用 Map 去重（后者覆盖），所以 UI 上看不出来。
 
@@ -156,7 +155,7 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 | 源 | 形态 | 行数 | 迁移建议 |
 | --- | --- | --- | --- |
 | 红果 hongguo | crate | 3698 | **不迁移**。主源永久内置（ARCHITECTURE §5） |
-| 猫果 maoguo | crate + L1 脚本 | 684 / 脚本 322 | **crate 待下线**（脚本已实网通过） |
+| 猫果 maoguo | L1 脚本 | 脚本 322 | ✅ **已完成**（第十六轮：随包 1.1.0，crate 已删） |
 | 芽果 yaguo | crate | 780 | 登录接口 + 会话缓存 → L1（`ctx.store` 存 token） |
 | 牛果 niuguo | crate | 434 | AES-ECB，密钥=请求 URI 前 16 字节 → L1（脚本里自带 AES） |
 | 剧果 huangju | crate | 537 | 访客令牌 + 401 刷新 → L1（需要 `ctx.fetch` 拿到 status） |
@@ -193,7 +192,7 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 ```bash
 cd rust
 
-cargo test --workspace -- --skip live     # 全量离线测试：当前 611 通过 / 0 失败
+cargo test --workspace -- --skip live     # 全量离线测试：当前 602 通过 / 0 失败
 cargo clippy --workspace --all-targets -- -D warnings   # 必须零告警
 cargo fmt --all --check                   # 必须干净
 
@@ -296,37 +295,25 @@ cd /e/hongguo && flutter_rust_bridge_codegen generate
 
 ## 8. 下一步：A4 逐源迁移手册
 
-### 8.0 前置任务：让 L1 脚本包真正随包分发
+### 8.0 前置任务：让 L1 脚本包真正随包分发 —— ✅ 已完成（第十六轮）
 
-**现状缺口**：猫果脚本只存在于 `rust/examples/extensions/maoguo/`，
-**没有进** `assets/bundled_plugins/`，也没进 `dist/rules/`。也就是说
-「脚本形态能替代 crate」已被证明，但「脚本包能随应用发出去」这条链还没走通。
-**A4 必须先补这一步**，否则每迁一个源都是死代码。
+猫果已走完全链路：`pack_script` 打包（`plugin-host/src/bin/pack_script.rs`，
+哈希/大小/索引条目由同一段代码生成，杜绝手算 sha256）→
+`assets/bundled_plugins/guo.maoguo-1.1.0.zip`（4.9KB，替换 71KB 的 Wasm 包，
+索引条目改 `kind: "script"`）→ `builtin.rs` 删注册 → 删依赖 →
+删 `rust/crates/source-maoguo/`。对拍测试改为金标准
+（`bridge/tests/script_maoguo_golden.rs`），实网金丝雀 `maoguo_live.rs`
+改走 ScriptSource。
 
-资源布局是现成的（`lib/data/bundled_plugins.dart` 已实现）：
+**给后续源复用的 SOP**：把 `examples/extensions/<id>/` 的版本号 +1
+（预装是「只装不覆盖」，被替换的 Wasm 包都是 1.0.0）→
+`cargo run -q -p guo-plugin-host --bin pack_script -- examples/extensions/<id> ../assets/bundled_plugins`
+→ 把 stdout 的 JSON 粘进 `assets/bundled_plugins/index.json` →
+`check_plugin` 校验 → 删 crate（金标准先行：删之前先把关键输出抓成金标准）。
 
-```
-assets/bundled_plugins/index.json                 # 官方索引，可含多条
-assets/bundled_plugins/guo.<id>-<ver>.zip         # 平铺，文件名要与索引 path 的尾段一致
-```
-
-步骤：
-
-1. 把 `examples/extensions/maoguo/{plugin.toml,main.js}` 打成 zip
-   （结构：zip 根目录下直接是 `plugin.toml` 与 `main.js`）。
-2. 命名 `guo.maoguo-1.1.0.zip`，放到 `assets/bundled_plugins/`。
-3. 在 `assets/bundled_plugins/index.json` 里替换原有 `guo.maoguo` 条目：
-   `kind: "script"`、`path: "plugins/guo.maoguo/guo.maoguo-1.1.0.zip"`、
-   正确的 `size` / `sha256` / `contentTypes`。
-   版本号必须 > 1.0.0——预装是「只装不覆盖」，同版本会被跳过。
-4. `bridge/src/sources/builtin.rs` 去掉 `registry.register(Arc::new(MaoguoSource::new()))`，
-   删 crate 依赖（`bridge/Cargo.toml`、workspace members）。
-5. 跑通后再删 `rust/crates/source-maoguo/` 与 `bridge/tests/script_maoguo_parity.rs`
-   里对 `MaoguoSource` 的引用（**先删注册与依赖，最后删 crate**，避免中途无法对拍）。
-
-> 打包脚本目前没有：`pack_rules` 只处理只读规则的纯 JSON 插件。
-> 建议加 `pack_script`（或给 `pack_rules` 加 `--kind script`），
-> 因为手算 sha256 + 写索引很容易错，而错了的表现是「安装被拒」而不是「明显报错」。
+注意一个语义差异：Wasm 包的 `describe()` 返回包 id（`guo.yaguo` 这类），
+脚本包返回**源语义 id**（`maoguo`，与原编译版一致，收藏/历史/下载主键无缝延续）。
+`PluginStore::set_enabled` 用**包 id**，注册表查**源 id**——写测试时别混。
 
 ### 8.1 单源迁移 SOP（每迁一个源照这个走）
 
@@ -348,7 +335,7 @@ assets/bundled_plugins/guo.<id>-<ver>.zip         # 平铺，文件名要与索�
 
 | 顺序 | 源 | 形态 | 关键难点 | 验收 |
 | --- | --- | --- | --- | --- |
-| 1 | maoguo | L1（已完成） | 只差打包与下线 crate | `--live` 目录 62 / 搜索 10 |
+| 1 | maoguo | L1 | ✅ **已完成**（第十六轮） | `--live` 目录 62 / 搜索 10 |
 | 2 | niuguo | L1 | AES-ECB 解密，密钥是**实际发出**的 URI 前 16 字节 | 对拍明文 JSON 逐字段相等 |
 | 3 | huangju | L1 | 访客令牌 + 401 刷新重试；详情用 slug | 冷启动能拿令牌、过期能刷新 |
 | 4 | yaguo | L1 | 登录接口 + 会话缓存 → 用 `ctx.store` | token 复用与过期重登 |
@@ -369,7 +356,7 @@ assets/bundled_plugins/guo.<id>-<ver>.zip         # 平铺，文件名要与索�
 ## 9. 已知缺陷与风险（按严重度）
 
 1. **三通道重复注册**（§4.3）：编译版永远赢，Wasm 包是死重，`metas()` 不去重。
-   迁移完成后必须收敛，否则包体白增 ~800KB，且 `sourceCatalog()` 有重复 id。
+   迁移完成后必须收敛，否则包体白增（6 个 Wasm 包合计约 400KB），且 `sourceCatalog()` 有重复 id。
 2. **脚本包还没走通分发链路**（§8.0）：猫果脚本只在本仓库 examples 里。
    这是 A4 的硬前置。
 3. **`_offlineIds` 是手工维护的黑名单**：11 个源被隐藏（niuguo / huangju / huaguo /
@@ -403,7 +390,7 @@ assets/bundled_plugins/guo.<id>-<ver>.zip         # 平铺，文件名要与索�
 
 ```bash
 cd /e/hongguo/rust
-cargo test --workspace -- --skip live        # 期望 611 通过 / 0 失败
+cargo test --workspace -- --skip live        # 期望 602 通过 / 0 失败
 cargo clippy --workspace --all-targets -- -D warnings   # 期望零告警
 cargo run -q -p guo-runtime --bin check_plugin -- examples/extensions/maoguo
 cargo run -q -p guo-runtime --bin check_plugin -- examples/extensions/maoguo --live

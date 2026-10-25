@@ -183,7 +183,7 @@ function catalog(input) {              // input: { page, category }
 ### 2.4 试点对拍：猫果脚本包 vs 编译源（2026-10-25）
 
 第一个真实脚本扩展：`rust/examples/extensions/maoguo/`（`main.js` + `plugin.toml`，
-约 130 行 JS），对拍测试 `bridge/tests/script_maoguo_parity.rs`——同一个 `ScriptEnv`
+约 130 行 JS），对拍测试 `bridge/tests/script_maoguo_golden.rs`（原名 script_maoguo_parity，编译版删除后改金标准）——同一个 `ScriptEnv`
 下，脚本源与 `source-maoguo` 编译源各自解析**同一份离线夹具**，逐字段断言相等。
 
 | 对拍项 | 结果 |
@@ -312,7 +312,7 @@ function catalog(input) {              // input: { page, category }
 
    修复：示例脚本补 `base64`（自带，宿主只保证 `crypto.md5`）+ 字符映射表 +
    `authorization` 签名，`headers({sessionId})` 导出给对拍测试；
-   `script_maoguo_parity.rs` 新增一条钉住 `qm-params` / `sign` 逐字节相等的用例。
+   `script_maoguo_golden.rs` 钉住 `qm-params` / `sign` 逐字节相等。
    之后 `check_plugin --live` 实测：目录 62 条、搜索「都市」10 条。
 
 ## 4. 社区配套（决定生态成败的部分）

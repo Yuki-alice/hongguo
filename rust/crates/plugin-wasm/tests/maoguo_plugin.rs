@@ -4,9 +4,9 @@
 //! 夹具喂给假传输层，验证「WIT v2 → 组件 → 宿主能力注入 → 签名请求 → 解析」
 //! 整条链路，不访问真实站点。
 //!
-//! 与编译版的关系：站点知识（签名串、字段名）两侧必须逐项一致。签名一致性
-//! 由 `examples/plugins/maoguo` 的单元测试与 `crates/source-maoguo` 的签名测试
-//! 共同锁定。
+//! 与脚本包的关系：站点知识（签名串、字段名）以脚本实现为准
+//! （`bridge/tests/script_maoguo_golden.rs` 的金标准）；本测试只锁定
+//! Wasm 组件宿主链路本身（L2 冻结通道，见 ADR-13）。
 
 use std::sync::{Arc, Mutex};
 

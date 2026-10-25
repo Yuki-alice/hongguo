@@ -99,7 +99,7 @@ UI 侧按 `capabilities` 隐藏这些入口，不会出现「点了才报错」�
 
 1. 建 `hoshi-plugins` 仓库，迁出规则 JSON、插件包与夹具；
 2. 宿主收缩预装白名单，规则改为从默认仓库拉取；
-3. 逐个删除 `source-maoguo` / `source-niuguo` / `source-yaguo` / `source-huangju` /
+3. 逐个删除 ~~`source-maoguo`~~（✅ 2026-10-25 已删，脚本包随包分发）/ `source-niuguo` / `source-yaguo` / `source-huangju` /
    `source-huangguo`（红果保留）；
 4. 删除对应的 `bridge` 依赖与 `register_builtin_sources` 注册行。
 

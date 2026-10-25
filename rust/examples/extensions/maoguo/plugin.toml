@@ -1,7 +1,7 @@
 spec = 1
 id = "guo.maoguo"
 name = "猫果"
-version = "1.0.0"
+version = "1.1.0"
 kind = "script"
 entry = "main.js"
 # 内容类型：分发与商店展示用；运行期以脚本 describe() 声明为准（check_plugin 校验一致性）。

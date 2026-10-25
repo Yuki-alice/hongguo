@@ -1272,17 +1272,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "guo-source-maoguo"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "guo-media",
- "guo-source-api",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "guo-source-niuguo"
 version = "0.3.0"
 dependencies = [
@@ -1323,7 +1312,6 @@ dependencies = [
  "guo-source-hongguo",
  "guo-source-huangguo",
  "guo-source-huangju",
- "guo-source-maoguo",
  "guo-source-niuguo",
  "guo-source-yaguo",
  "semver",

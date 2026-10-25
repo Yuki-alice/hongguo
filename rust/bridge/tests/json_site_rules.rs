@@ -29,9 +29,10 @@ fn ctx<'a>(page: u32, category: &'a str, keyword: &'a str, id: &'a str) -> Templ
 fn builtin_registry_loads_every_shipped_rule() {
     let registry = builtin_registry();
     let metas = registry.metas();
+    // 猫果已迁出为脚本扩展（A4 第一个），不再出现在内置注册表。
     for id in [
-        "maoguo", "wuguo", "huaguo", "fanguo", "guanguo", "xingguo", "heguo", "wangguo", "dsd",
-        "faguo", "niuguo", "huangju",
+        "wuguo", "huaguo", "fanguo", "guanguo", "xingguo", "heguo", "wangguo", "dsd", "faguo",
+        "niuguo", "huangju",
     ] {
         assert!(
             metas.iter().any(|meta| meta.id == id),

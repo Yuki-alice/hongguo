@@ -1,7 +1,7 @@
 //! HLS 播放列表解析与 AES-128 分片解密。
 //!
 //! 纯函数、无 IO（测试里的 AES 加密除外）：`rule-engine`、`runtime` 与
-//! `source-maoguo` 共用同一套 m3u8 处理，避免各站源重复实现。
+//! 各站源（编译源与脚本源）共用同一套 m3u8 处理，避免重复实现。
 
 use serde::{Deserialize, Serialize};
 

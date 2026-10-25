@@ -1,8 +1,9 @@
-use guo_engine::MaoguoSource;
 use guo_engine::QuickJsHost;
 
-/// Rust 与 JS 两套 MD5 实现必须给出相同结果，
-/// 否则脚本层与原生层的签名会不一致，站源会拒绝请求。
+/// JS 与独立参考实现的 MD5 必须给出相同结果。
+///
+/// 曾用于对比 `source-maoguo` 编译版（已删除，脚本包是唯一实现）；
+/// 参考实现故意独立编写，避免自证。
 #[test]
 fn rust_and_script_md5_agree() {
     let host = QuickJsHost::new();
@@ -37,7 +38,7 @@ fn catalog_signature_matches_script_implementation() {
             .run(&format!("return crypto.md5({});", js_string(&text)), "")
             .expect("script");
         assert_eq!(
-            MaoguoSource::sign_catalog(tag, page),
+            format!("{:032x}", md5_reference(&text)),
             from_script,
             "catalog signature mismatch for tag={tag} page={page}"
         );
@@ -54,19 +55,8 @@ fn search_signature_matches_script_implementation() {
         let from_script = host
             .run(&format!("return crypto.md5({});", js_string(&text)), "")
             .expect("script");
-        assert_eq!(MaoguoSource::sign_search(query), from_script);
+        assert_eq!(format!("{:032x}", md5_reference(&text)), from_script);
     }
-}
-
-#[test]
-fn malformed_url_encoding_is_stable() {
-    let url = MaoguoSource::detail_url("6991");
-    assert!(url.starts_with("https://api-read.qmplaylet.com/player/api/v1/playlet/info"));
-    assert!(url.contains("playlet_id=6991"));
-    assert!(url.contains("sign="));
-    let sign = url.rsplit("sign=").next().expect("sign");
-    assert_eq!(sign.len(), 32);
-    assert!(sign.chars().all(|c| c.is_ascii_hexdigit()));
 }
 
 fn js_string(value: &str) -> String {

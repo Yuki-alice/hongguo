@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use guo_engine_core::{Engine, EngineConfig, EngineError};
 use guo_plugin_host::PluginStore;
 
-const MAOGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.maoguo-1.0.0.zip");
+const MAOGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.maoguo-1.1.0.zip");
 const YAGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.yaguo-1.0.0.zip");
 const INDEX: &str = include_str!("../../../../assets/bundled_plugins/index.json");
 
@@ -33,7 +33,7 @@ fn no_builtins(_registry: &mut guo_source_api::SourceRegistry) {}
 fn bundled() -> Vec<guo_engine_core::BundledPackage> {
     vec![
         guo_engine_core::BundledPackage {
-            name: "guo.maoguo-1.0.0.zip".into(),
+            name: "guo.maoguo-1.1.0.zip".into(),
             index_json: INDEX,
             archive: MAOGUO_ZIP,
         },
@@ -66,7 +66,7 @@ fn source_ids(engine: &Engine) -> Vec<String> {
 fn disabling_a_plugin_removes_its_source_but_keeps_sessions() {
     let dir = temp_dir("disable");
     let engine = engine_at(&dir).expect("engine");
-    assert!(source_ids(&engine).contains(&"guo.maoguo".to_string()));
+    assert!(source_ids(&engine).contains(&"maoguo".to_string()));
 
     // 模拟插件写过会话：引擎的会话存储是独立文件。
     let store = engine.store();
@@ -87,7 +87,7 @@ fn disabling_a_plugin_removes_its_source_but_keeps_sessions() {
     engine.rebuild_registry(no_builtins).expect("rebuild");
 
     assert!(
-        !source_ids(&engine).contains(&"guo.maoguo".to_string()),
+        !source_ids(&engine).contains(&"maoguo".to_string()),
         "停用后该源必须从注册表消失"
     );
     // 另一个插件不受影响。

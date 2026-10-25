@@ -2719,3 +2719,58 @@ cargo run -p guo-runtime --bin check_plugin -- <包> --json   # CI
 - 商店 / 发现页仍无 widget 测试（`test/` 现在只有纯逻辑用例）。
 
 > 交接文档：`docs/HANDOVER.md`（2026-10-25）。接手继续做 A4 请从那里开始。
+
+## 第十六轮：A4 首站收口——猫果脚本包随包分发，`source-maoguo` 下线
+
+HANDOVER §8.0 的硬前置：**脚本包必须能随应用发出去**，否则每迁一个源都是死代码。
+本轮把这条链走通，并完成第一个源的完整迁移（examples → bundled → 下线 crate）。
+
+### pack_script
+
+`plugin-host/src/bin/pack_script.rs`：与 `pack_rules` 同款思路的构建步骤——
+读扩展目录的 `plugin.toml` 与入口脚本 → zip（根目录平铺）→ 算 sha256 / size →
+写 `<output>/<id>-<version>.zip` 并在 stdout 打印索引条目 JSON。
+手算哈希错的表现是「安装被拒」而不是明显报错，所以坚决不做手工步骤。
+
+### 随包分发
+
+- `examples/extensions/maoguo` 版本 1.0.0 → **1.1.0**（预装是「只装不覆盖」，
+  同版本会被跳过；旧 Wasm 包正是 1.0.0，必须递增才能替换）；
+- `assets/bundled_plugins/guo.maoguo-1.1.0.zip`（**4.9KB**，替换 71KB 的 Wasm 包），
+  旧 zip 删除；`index.json` 的 maoguo 条目改为 `kind: "script"` + contentTypes；
+- `check_plugin` 离线校验通过。
+
+### `source-maoguo` 下线（5 crate → 4）
+
+金标准先行：趁编译版还在，用临时探针把脚本源的全部关键输出抓成金标准
+（4 组签名串、qm-params / authorization 请求头、目录 66 条的逐条字段、
+详情 33 集的 id / 标题 / 播放地址、详情请求 URL 的签名参数），
+然后重写测试、删 crate：
+
+- `script_maoguo_parity.rs` → **`script_maoguo_golden.rs`**：从「脚本 vs 编译版」
+  变成「脚本 vs 金标准」，新增详情请求 URL 形态断言；
+- `maoguo_live.rs` 实网金丝雀改走 **ScriptSource**（编译版已删，脚本就是唯一实现）；
+- `maoguo_fixtures.rs` 删除（与金标准测试重复）；`signature_parity.rs` 改用
+  测试内独立 MD5 参考实现（不再引用编译版）；三个探针示例删除；
+- `builtin.rs` 删注册、`bridge` 删依赖、`lib.rs` 删再导出。
+
+**发现并钉住的一个语义差异**：Wasm 包的 `describe()` 返回 `guo.maoguo`
+（包 id = 源 id），脚本包返回**源语义 id `maoguo`**（与原编译版一致）——
+收藏 / 历史 / 下载主键因此无缝延续。`set_enabled` 用包 id、注册表查源 id，
+两者在 Wasm 包上恰好相同，脚本包上分叉了；`plugin_toggle.rs` 已按此修正。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **602 通过 / 0 失败** |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| `cargo test -p guo_engine --test maoguo_live -- --ignored` | ✅ 1 通过（真网络，0.89s） |
+| `check_plugin assets/bundled_plugins/guo.maoguo-1.1.0.zip` | ✅ 通过 |
+
+### 已知残余
+
+- 其余 6 个 Wasm 随包包仍是死重（编译版优先），待逐源迁移后清空；
+- A4 剩余：niuguo → huangju → yaguo → huangguo×3（HANDOVER §8.2）；
+- `SourceRegistry` 同 id 不去重仍未修（HANDOVER §8.3）。
