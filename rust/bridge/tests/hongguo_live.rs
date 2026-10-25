@@ -208,3 +208,31 @@ async fn danmaku_live_advances_to_the_next_window() {
         second.end_ms
     );
 }
+
+/// 取流降级链：第一集必须能拿到可播地址（djapi 或公开试看通道）。
+///
+/// 2026-10-25 起取流链路为「djapi 解析 → 网页试看」两级；djapi 当前
+/// 返回 parse=0，本用例实际压在试看通道上。djapi 恢复数据后这里会
+/// 拿到全画质 CENC 流，断言依然成立。
+#[tokio::test]
+async fn resolve_live_returns_playable_media_for_the_first_episode() {
+    let _permit = LIVE_SERIAL.lock().await;
+    let source = source();
+    let env = env();
+    let drama = first_drama(&source, &env).await;
+    let detail = tokio::time::timeout(STEP_TIMEOUT, source.detail(&env, &drama.source_id))
+        .await
+        .expect("详情请求超时")
+        .expect("在线详情");
+    let chapter = detail.chapters.first().expect("详情应有分集");
+
+    let media = tokio::time::timeout(STEP_TIMEOUT, source.resolve(&env, &detail.drama, chapter))
+        .await
+        .expect("取流请求超时")
+        .expect("第一集应能取到播放地址");
+    assert!(
+        media.url.starts_with("http"),
+        "播放地址应是 HTTP(S)：{}",
+        media.url
+    );
+}

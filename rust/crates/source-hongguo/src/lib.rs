@@ -11,6 +11,7 @@
 mod argus;
 mod capabilities;
 mod device;
+mod playback;
 mod rankings;
 mod router;
 mod sign;
@@ -23,6 +24,9 @@ pub use capabilities::{
     SUGGESTION_LIMIT,
 };
 pub use device::DeviceIdentity;
+pub use playback::{
+    content_key, decode_playback_response, parse_playback, PlaybackOutcome, PlaybackVariant,
+};
 pub use rankings::{board_path, boards, find_board, parse_ranking_page, PAGE_SIZE};
 pub use router::{parse_router_data, router_loader_map, HongguoDrama};
 pub use sign::{gorgon, SignInputs};

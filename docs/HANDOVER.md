@@ -359,7 +359,9 @@ cd /e/hongguo && flutter_rust_bridge_codegen generate
    fanguo / guanguo / xingguo / cloudfront / huangguoai / huangguo-video / wuguo / dsd）。
    源复活后不更新这张表 = 用户永远看不到它。迁移时逐个复测。
 4. **多类型菜单没有视觉验证**：本机只有短剧源，发现页的类型筛选行从没在真机上出现过。
-   逻辑有单测兜底，UI 没有。
+   逻辑有单测兜底，UI 没有。（2026-10-25 起实机走查进行中：macOS debug 构建可跑，
+   已借此发现并修复 `_offlineIds` 的两个缺陷——`huangju` 错杀、`guo.` 包 id 漏过滤；
+   走查其余部分待续。）
 5. **`hongguo_live` 偶发 4/5**：网络抖动集中时重试耗尽。持续出现可把 `GET_ATTEMPTS` 提到 4。
 6. **黄果 ai/video 两个入口自 2026-10-21 起全部超时**：只有离线对拍，没有在线验证。
 

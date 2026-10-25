@@ -103,7 +103,7 @@ Flutter UI
 | `plugin-wasm` | Wasm 组件宿主、能力注入、提取原语实现 | rule-engine / source-api / wasmtime |
 | `engine` | **进程级单例**：装配、会话、缓存、调度、诊断、预装、迁移、封面、设置 | 上面全部 |
 | `bench` | 解析热路径基准 | rule-engine / runtime |
-| `source-hongguo` | 红果主源（签名、`_ROUTER_DATA`） | source-api |
+| `source-hongguo` | 红果主源（签名、`_ROUTER_DATA`、djapi 取流降级链） | source-api |
 | `source-niuguo` | 牛果（AES-ECB 响应解密） | source-api |
 | `source-huangguo` | 黄果三源（旧版 / AI / 视频） | source-api |
 | `bridge` | 只做 FRB 边界 | 全部 |

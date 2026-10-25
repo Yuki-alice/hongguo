@@ -554,6 +554,52 @@ impl HongguoSource {
         Err(last.unwrap_or(SourceError::NoResult))
     }
 
+    /// 第三方解析接口：`djapi.999888456.xyz`，v2 加密响应 + CENC 密钥。
+    ///
+    /// 协议细节见 [`crate::playback`]；该函数只负责构造引用、发请求、
+    /// 把候选变成 [`Media`]（选最高画质，全部画质写进 `qualities`）。
+    async fn resolve_via_playback_api(
+        &self,
+        env: &SourceEnv,
+        series_id: &str,
+        video_id: &str,
+    ) -> Result<Media, SourceError> {
+        let reference = serde_json::json!({
+            "content_type": 1004,
+            "from_video_id": "",
+            "series_id": series_id,
+            "vid": video_id,
+            "video_platform": 3,
+        });
+        use base64::Engine as _;
+        let encoded =
+            base64::engine::general_purpose::STANDARD.encode(reference.to_string().as_bytes());
+        let url = format!(
+            "{}?id={}",
+            crate::playback::PLAYBACK_API,
+            urlencode(&encoded)
+        );
+        let body = self.page_text(env, url).await?;
+        match crate::playback::parse_playback(&body)? {
+            crate::playback::PlaybackOutcome::NoResult => Err(SourceError::NoResult),
+            crate::playback::PlaybackOutcome::Variants(variants) => {
+                let best = variants.iter().max_by_key(|item| item.quality).unwrap();
+                let mut qualities: Vec<u32> = variants.iter().map(|item| item.quality).collect();
+                qualities.sort_unstable();
+                qualities.dedup();
+                qualities.reverse(); // 契约约定降序
+                Ok(Media {
+                    url: best.url.clone(),
+                    referer: crate::playback::PLAYBACK_MEDIA_REFERER.into(),
+                    cenc_key: hex::encode(best.key),
+                    quality: best.quality,
+                    qualities,
+                    ..Default::default()
+                })
+            }
+        }
+    }
+
     /// 取（并按需创建）设备身份。缓存到进程内，避免每次请求两次 IO。
     async fn identity(&self, env: &SourceEnv) -> Result<crate::DeviceIdentity, SourceError> {
         if let Some(cached) = self.identity.get() {
@@ -793,10 +839,29 @@ impl SourcePlugin for HongguoSource {
         if series_id.is_empty() || !series_id.chars().all(|c| c.is_ascii_digit()) {
             return Err(SourceError::parse("hongguo", "缺少剧 ID，请刷新剧库后重试"));
         }
+        // 通道 1：第三方解析接口（Go 版主通道）。2026-10-25 实测服务存活但
+        // 对全部请求返回 parse=0（无解析结果），静默落到下一通道；
+        // 一旦它恢复数据，这里直接给出全画质 CENC 流，无需发版。
+        let mut playback_error = None;
+        match self
+            .resolve_via_playback_api(env, &series_id, &video_id)
+            .await
+        {
+            Ok(media) => return Ok(media),
+            Err(SourceError::NoResult) => {}
+            Err(err) => playback_error = Some(err),
+        }
+        // 通道 2：网页播放页。`video_player_info` 若回归优先用它，
+        // 否则落到 `publicVideoSeo` 公开试看（固定 360p，多数剧仅第 1 集）。
         let body = self
             .page_text(env, self.player_url(&series_id, &video_id))
             .await?;
-        Self::parse_player_page(&body, &series_id, &video_id)
+        match Self::parse_player_page(&body, &series_id, &video_id) {
+            Ok(media) => Ok(media),
+            // 两条通道都失败时优先暴露解析通道的具体错误——它能区分
+            // 「服务没数据」「版本不支持」「密钥损坏」，比网页侧的笼统文案可定位。
+            Err(web_error) => Err(playback_error.unwrap_or(web_error)),
+        }
     }
 
     async fn ranking_boards(&self, _env: &SourceEnv) -> Result<Vec<RankingBoard>, SourceError> {

@@ -1238,9 +1238,11 @@ version = "0.3.0"
 dependencies = [
  "aes",
  "async-trait",
+ "base64 0.23.1",
  "futures-util",
  "guo-media",
  "guo-source-api",
+ "hex",
  "serde",
  "serde_json",
  "tokio",

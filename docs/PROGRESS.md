@@ -2929,3 +2929,66 @@ SOP 第一步再次立功：**剧果复活了**。历史记录（10-21 详情 40
 | 猫果 / 芽果 / 剧果 | L1 脚本 | ✅ 全链路完成（随包 1.1.0，crate 已删，实网验证） |
 | 牛果 / 黄果 ×3 | 编译 crate | ⚠️ 站点死，迁移暂缓（探针留存） |
 | 9 条声明式规则 | L0 | 已是最终形态（随包 + dist 仓库双通道） |
+
+## 第二十轮：红果取流降级链——djapi 通道完整移植（v2 解密 + CENC 密钥）
+
+视觉验证走查发现页时用户定性「红果视频流解析根本没有实现」。实网探针
+（`bridge/tests/hongguo_playback_probe.rs`，#[ignore] 留存）把今天全部
+取流通道逐一过筛：
+
+| 通道 | 2026-10-25 实测 |
+| --- | --- |
+| 播放页 `video_player_info` | ❌ 仍未回归（10 月起下线） |
+| `publicVideoSeo` 公开试看 | ✅ 仅第 1 集（ep1 360p HTTP 200 / 753KB；ep2 无字段 + 401） |
+| 第三方解析 djapi | ✅ 服务存活、协议不变，v2 解密成功但内容仍为 `{"parse":0,"url":""}` |
+| App `video_model/v1/` | ❌ 依旧空响应体 |
+
+结论：匿名全量画质的上游仍然全断，但**解析层确实缺失**——Go 参考的
+djapi 通道（当时以「服务已死、不要做无用功」为由搁置）本轮完整移植：
+
+### 实现（`crates/source-hongguo/src/playback.rs`）
+
+- `decode_playback_response`：`v2.<api_+hex>.<base64>` 三段格式，mask 链还原
+  32 字节 material → AES-128-CBC 解密 → PKCS#7；明文响应原样透传；
+- `content_key`：`spade_a` 的交错编码还原 + Base36 填充校验 + 十六进制密钥，
+  `app_v2` / `web_v2` 版本按 Go 同款拒绝；
+- `parse_playback`：`parse` / `jx` 真值拒绝（Go 字面清单语义等价）、
+  `key_urls` 候选过滤（空地址 / 坏 kid / 密钥损坏逐条跳过）、画质取 name 数字；
+- `resolve` 升级为**两级降级链**：djapi（`parse=0` 视作 NoResult 静默落通道）
+  → 网页播放页（`video_player_info` 若回归 → 公开试看）；两通道皆败时
+  优先暴露解析通道的具体错误（可区分「无数据 / 版本不支持 / 密钥损坏」）；
+- `Media` 契约的 `cenc_key` / `quality` / `qualities` 首次有了生产者——
+  djapi 恢复数据的那一刻，红果直接拿到全画质 CENC 流，无需发版。
+
+### 向量对拍（沿用 vectorgen 模式）
+
+`tests/tools/vectorgen` 新增 `playback.go`：解码函数从 Go 参考逐字复制，
+另附严格逆运算编码器构造输入（v2 编码自检、spade_a 编码自检——
+「seed 字节是编码内容末两字节」的布局就是在自检失败里纠正的）。
+`hongguo_playback_vectors.json`：3 组响应向量（含线上真实 parse=0 形态）
++ 5 组密钥向量（含 app_v2/web_v2 拒绝）。Rust 侧
+`hongguo_playback_vectors.rs` 全量对拍。
+
+### 实机验证顺手修的真 bug（同轮提交）
+
+实机走查发现页源菜单抓到两个 `_offlineIds` 缺陷：剧果已复活却被死源清单
+错杀；旧 Wasm 安装以包 id（`guo.niuguo`）注册、按语义 id 的过滤拦不住。
+修复：`huangju` 出清单；`reportFromEngine` 对 `guo.` 前缀包 id 做语义
+归一后再过滤。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **595 通过 / 0 失败** |
+| `hongguo_playback_vectors` | ✅ 5/5（v2 解密 + 密钥 + 候选选择 + parse=0 + 二次跳转拒绝） |
+| `hongguo_live`（真网络） | ✅ 6/6，新增取流用例：第一集实测取到可播地址 |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `dart analyze lib/domain/models.dart` | ✅ 无告警 |
+
+### 已知残余
+
+- djapi 后端何时恢复数据不可控；恢复后取流即全画质，无需改动；
+- `video_model/v1/` 与播放页 `video_player_info` 若回归，需要再评估
+  「登录态全画质」通道（HANDOFF §1.4 的 CENC 密钥来源问题随之解决）；
+- 视觉验证走查（商店筛选片 / 多类型菜单）进行到一半，待续。

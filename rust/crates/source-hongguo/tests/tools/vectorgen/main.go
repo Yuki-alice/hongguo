@@ -1,16 +1,21 @@
-// 评论签名向量生成器。
+// 评论签名与播放通道向量生成器。
 //
-// 向量文件 `tests/hongguo_sign_vectors.json` 是 Rust 实现与 Go 参考实现的
-// 唯一对拍依据：任何一处算法偏差都必须在这里暴露，否则只会在线上表现为
-// 「签名校验失败」。
+// 向量文件是 Rust 实现与 Go 参考实现的唯一对拍依据：任何一处算法偏差
+// 都必须在这里暴露，否则只会在线上表现为「签名校验失败」或「取流解密失败」。
 //
 // 生成器曾经只存在于临时目录，随会话丢失。现在它随仓库保存：
 //
 //	cd rust/crates/source-hongguo/tests/tools/vectorgen
-//	go run . > ../../hongguo_sign_vectors.json
+//	go run .
 //
-// `sign.go` 是 `reference/guoapp2/native/core/provider_hongguo_comment_sign.go`
-// 的原样副本（仅改 package 名）。参考实现若更新，先同步该文件再重新生成。
+// 一次性写出两份向量：
+//   - ../../hongguo_sign_vectors.json     评论签名 + SM3（sign.go）
+//   - ../../hongguo_playback_vectors.json djapi v2 解密 + 内容密钥（playback.go）
+//
+// `sign.go` 与 `playback.go` 里的解码函数分别是
+// `provider_hongguo_comment_sign.go` / `provider_hongguo_playback.go`
+// 的原样副本（仅改 package 名与剥离 Downloader 依赖）。
+// 参考实现若更新，先同步这两个文件再重新生成。
 package main
 
 import (
@@ -18,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"os"
 	"time"
 )
 
@@ -82,6 +88,22 @@ func decodeNonce(value string) hongguoCommentNonce {
 }
 
 func main() {
+	writeJSON("../../hongguo_sign_vectors.json", generateSignVectors())
+	writeJSON("../../hongguo_playback_vectors.json", generatePlaybackVectors())
+}
+
+func writeJSON(path string, value any) {
+	encoded, err := json.MarshalIndent(value, "", " ")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(path, append(encoded, '\n'), 0o644); err != nil {
+		panic(err)
+	}
+	fmt.Printf("写入 %s\n", path)
+}
+
+func generateSignVectors() vectors {
 	out := vectors{}
 	for _, query := range queries {
 		for _, nonce := range nonces {
@@ -114,9 +136,5 @@ func main() {
 			InputHex: input,
 		})
 	}
-	encoded, err := json.MarshalIndent(out, "", " ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(encoded))
+	return out
 }

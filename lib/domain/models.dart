@@ -105,18 +105,18 @@ class SourceSite {
   /// 清单与复测记录见 `docs/PLAN.md`。
   static const _offlineIds = {
     // 目录可读、取流必失败：用户点进详情就等于看到「播放失败」。
-    'niuguo', // 解析服务器挂，取流 20s 超时
-    'huangju', // 分集目录 404
+    'niuguo', // 解析服务器挂，取流 20s 超时（2026-10-25 复测仍挂）
     'huaguo', // 分集目录解析失败
     'fanguo', // 取流解析失败
     'guanguo', // 分集目录解析失败
     'xingguo', // 分集目录解析失败
     // 目录都进不去。
-    'cloudfront', // 4001
-    'huangguoai', // 入口超时
-    'huangguo-video', // 403
+    'cloudfront', // 4001（2026-10-25 复测仍拒参数）
+    'huangguoai', // 六镜像全部网络失败（2026-10-25 复测）
+    'huangguo-video', // 超时（2026-10-25 复测）
     'wuguo', // 空响应
     'dsd', // 入口超时
+    // 剧果（huangju）2026-10-25 实网复测已恢复并完成脚本化迁移，从本表移除。
   };
 
   /// 当前可用站源。引擎同步过就以引擎为准；否则用内置表兜底。
@@ -136,10 +136,19 @@ class SourceSite {
     >
     entries,
   ) {
+    bool offline(String id) {
+      if (_offlineIds.contains(id)) return true;
+      // 旧版 Wasm 安装以包 id（`guo.niuguo`）注册成源，语义 id 在死源清单
+      // 里也必须拦下，否则存量设备的「必坏入口」会从插件通道漏回来。
+      const prefix = 'guo.';
+      if (id.startsWith(prefix)) return _offlineIds.contains(id.substring(prefix.length));
+      return false;
+    }
+
     _reported
       ..clear()
       ..addEntries(
-        entries.where((entry) => !_offlineIds.contains(entry.id)).map((entry) {
+        entries.where((entry) => !offline(entry.id)).map((entry) {
           final known = knownValues.where((site) => site.id == entry.id);
           // 文案取编译期版本，**类型取引擎**：类型属于扩展，不属于产品文案。
           return MapEntry(

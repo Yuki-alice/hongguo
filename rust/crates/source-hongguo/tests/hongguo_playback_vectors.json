@@ -1,0 +1,48 @@
+{
+ "response": [
+  {
+   "note": "服务无解析结果（2026-10-25 实测线上真实形态）",
+   "body": "v2.api_495b7a110f448775f7e73c83d646e57b65ac250a05cde14849191b54c6afa99d.V8ZOX0ozYsBn/LQqQdBoaJ4tzrUwNNj/fcBoVU5Ho4M=",
+   "plain": "{\"parse\":0,\"url\":\"\"}"
+  },
+  {
+   "note": "带 key_urls 的正常响应",
+   "body": "v2.api_495b7a110f448775f7e73c83d646e57b65ac250a05cde14849191b54c6afa99d.wNPTlzklt43AIWWdVxzq7u4Tdp9yD9WWjg9nfiXPY98m+RC+70KuuowfAbB4FA8eeRkP81NnJkI6LGGDMeVWwbWLdpgW/bpaUszULPnb9kj7RLWtcEqJF/etD98YkJHUd6+NhaPPA2mpXsbDJaJNdtikxxBC8XlpUGZ7M9G8pSMgSLzxA2NUUUbS5BNHqU4RV5LWVflHvCqnLUVOTKjcNg==",
+   "plain": "{\"key_urls\":[{\"kid\":\"000102030405060708090a0b0c0d0e0f\",\"name\":\"720p\",\"spade_a\":\"PLACEHOLDER\",\"src\":\"https://media.example/list.m3u8\"}],\"parse\":\"1\"}"
+  },
+  {
+   "note": "明文响应原样透传",
+   "body": "{\"parse\":0,\"url\":\"\"}",
+   "plain": "{\"parse\":0,\"url\":\"\"}"
+  }
+ ],
+ "key": [
+  {
+   "note": "常规密钥",
+   "spade_a": "lr0T+1u8EvVZvBL3X7sR9UG4DvdfpybeXacm3FugJd6loioybil0fX95e2E=",
+   "key_hex": "00112233445566778899aabbccddeeff"
+  },
+  {
+   "note": "全零密钥",
+   "spade_a": "lr0T+1S9E/pbvBz7VLwc9FWyEvVashL6W70T9Vq9E/RZstYigsWYkZOVl40=",
+   "key_hex": "00000000000000000000000000000000"
+  },
+  {
+   "note": "高位密钥与长 tag",
+   "spade_a": "qb0pxlK/K8d6iTTEeY8yxXiDBf95hQP8UbMe/VCxHPpXvNgsgsWYkZOVl43ZxsTGwg==",
+   "key_hex": "fedcba9876543210fedcba9876543210"
+  },
+  {
+   "note": "app_v2 版本必须拒绝",
+   "spade_a": "mL0T+1u8EvVZvBL3X7sR9UG4DvdfpybeXacm3FugJd6loioyeWhoR24q",
+   "key_hex": "00112233445566778899aabbccddeeff",
+   "is_error": true
+  },
+  {
+   "note": "web_v2 版本必须拒绝",
+   "spade_a": "mL0T+1u8EvVZvBL3X7sR9UG4DvdfpybeXacm3FugJd6loioyb316R24q",
+   "key_hex": "00112233445566778899aabbccddeeff",
+   "is_error": true
+  }
+ ]
+}

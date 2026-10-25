@@ -10,6 +10,9 @@ guo-media = { path = "../media" }
 guo-source-api = { path = "../source-api" }
 aes.workspace = true
 async-trait.workspace = true
+# djapi 取流通道：v2 响应与 spade_a 的 Base64、密钥十六进制。
+base64.workspace = true
+hex.workspace = true
 # `future::join_all` 并行拉取分类路由页；reqwest 传递依赖里已有，零增量。
 futures-util = "0.3"
 serde.workspace = true
