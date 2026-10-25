@@ -11,7 +11,7 @@ use guo_engine_core::{Engine, EngineConfig, EngineError};
 use guo_plugin_host::PluginStore;
 
 const MAOGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.maoguo-1.1.0.zip");
-const YAGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.yaguo-1.0.0.zip");
+const YAGUO_ZIP: &[u8] = include_bytes!("../../../../assets/bundled_plugins/guo.yaguo-1.1.0.zip");
 const INDEX: &str = include_str!("../../../../assets/bundled_plugins/index.json");
 
 fn temp_dir(name: &str) -> PathBuf {
@@ -38,7 +38,7 @@ fn bundled() -> Vec<guo_engine_core::BundledPackage> {
             archive: MAOGUO_ZIP,
         },
         guo_engine_core::BundledPackage {
-            name: "guo.yaguo-1.0.0.zip".into(),
+            name: "guo.yaguo-1.1.0.zip".into(),
             index_json: INDEX,
             archive: YAGUO_ZIP,
         },
@@ -91,7 +91,7 @@ fn disabling_a_plugin_removes_its_source_but_keeps_sessions() {
         "停用后该源必须从注册表消失"
     );
     // 另一个插件不受影响。
-    assert!(source_ids(&engine).contains(&"guo.yaguo".to_string()));
+    assert!(source_ids(&engine).contains(&"yaguo".to_string()));
 
     let token = rt.block_on(async {
         use guo_source_api::SourceStore;
@@ -112,14 +112,14 @@ fn re_enabling_restores_the_source_without_losing_session() {
         .set_enabled("guo.yaguo", false)
         .expect("disable");
     engine.rebuild_registry(no_builtins).expect("rebuild 1");
-    assert!(!source_ids(&engine).contains(&"guo.yaguo".to_string()));
+    assert!(!source_ids(&engine).contains(&"yaguo".to_string()));
 
     plugin_store.set_enabled("guo.yaguo", true).expect("enable");
     engine.rebuild_registry(no_builtins).expect("rebuild 2");
-    assert!(source_ids(&engine).contains(&"guo.yaguo".to_string()));
+    assert!(source_ids(&engine).contains(&"yaguo".to_string()));
 
     // 重新装配后源实例是新的，但会话存储在引擎上，仍然一致。
-    let source = engine.source("guo.yaguo").expect("source");
+    let source = engine.source("yaguo").expect("source");
     assert_eq!(source.meta().name, "芽果");
     let _ = std::fs::remove_dir_all(&dir);
 }

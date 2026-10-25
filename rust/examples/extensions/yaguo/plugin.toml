@@ -1,0 +1,21 @@
+spec = 1
+id = "guo.yaguo"
+name = "芽果"
+version = "1.1.0"
+kind = "script"
+entry = "main.js"
+# 内容类型：分发与商店展示用；运行期以脚本 describe() 声明为准（check_plugin 校验一致性）。
+content_types = ["short-drama"]
+
+[api]
+level = 1
+min_host = "0.3.0"
+
+[permissions]
+# 白名单是硬约束：脚本请求这些主机之外的地址会被宿主直接拒绝。
+# 业务接口在 app.whjzjx.cn；设备登录在 u.shytkjgs.com，两者都要声明。
+network = ["app.whjzjx.cn", "u.shytkjgs.com"]
+
+[permissions.script]
+timeout_ms = 15000
+memory_kb = 32768

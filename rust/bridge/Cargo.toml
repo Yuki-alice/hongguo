@@ -23,7 +23,6 @@ guo-runtime = { path = "../crates/runtime" }
 guo-source-api = { path = "../crates/source-api" }
 guo-source-hongguo = { path = "../crates/source-hongguo" }
 guo-source-niuguo = { path = "../crates/source-niuguo" }
-guo-source-yaguo = { path = "../crates/source-yaguo" }
 guo-source-huangju = { path = "../crates/source-huangju" }
 guo-source-huangguo = { path = "../crates/source-huangguo" }
 async-trait.workspace = true

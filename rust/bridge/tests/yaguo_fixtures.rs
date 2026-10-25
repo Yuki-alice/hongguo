@@ -1,25 +1,49 @@
-//! 芽果的离线对拍：夹具是 2026-10-21 的真实接口响应。
+//! 芽果的离线夹具测试：夹具是 2026-10-21 的真实接口响应。
 //!
 //! 芽果的迁移重点：
 //! 1. 首次请求先设备登录，令牌在 6 小时内复用；
 //! 2. 令牌失效（401）时丢弃并重新登录一次；
 //! 3. 分类取 `theater/classes` 的**顶层分组**，`9`（排行榜）走独立接口；
 //! 4. 分集自带 MP4 地址，取流不抓页面。
+//!
+//! 本文件原为编译版（`source-yaguo`，已删除）的测试；现为脚本包的
+//! 行为金标准——同一批夹具、同一批断言，驱动 `ScriptSource`。
+//! 令牌复用依赖 `ctx.store`：脚本每次调用都是全新运行时，
+//! 必须用共享的内存 store 才能验证「不重复登录」。
+//! 实网验证在 `yaguo_live.rs`。
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
 use guo_engine::{
-    Capability, Chapter, Drama, FetchRequest, FetchResponse, LogSink, Method, SourceEnv,
-    SourceError, SourcePlugin, SourceStore, Transport, YaguoSource,
+    placeholder_env, Capability, Chapter, Drama, FetchRequest, FetchResponse, LogSink, Method,
+    ScriptLimits, ScriptSource, SourceEnv, SourceError, SourcePlugin, SourceStore, Transport,
 };
+
+const SCRIPT: &str = include_str!("../../examples/extensions/yaguo/main.js");
 
 const CLASSES: &str = include_str!("fixtures/yaguo_classes.json");
 const CATALOG: &str = include_str!("fixtures/yaguo_catalog.json");
 const RANKING: &str = include_str!("fixtures/yaguo_ranking.json");
 const DETAIL: &str = include_str!("fixtures/yaguo_detail.json");
 const SEARCH: &str = include_str!("fixtures/yaguo_search.json");
+
+/// 清单 `[permissions] network`：业务域 + 登录域。
+fn network() -> Vec<String> {
+    vec!["app.whjzjx.cn".to_string(), "u.shytkjgs.com".to_string()]
+}
+
+fn script_source() -> ScriptSource {
+    ScriptSource::load(
+        &placeholder_env(),
+        SCRIPT,
+        ScriptLimits::default(),
+        network(),
+    )
+    .expect("芽果脚本必须能加载")
+}
 
 #[derive(Clone)]
 struct RecordedRequest {
@@ -137,13 +161,22 @@ impl Transport for ScriptedTransport {
     }
 }
 
-struct NoopStore;
+/// 进程内共享 store：脚本没有跨调用的内存态，令牌复用全靠它。
+#[derive(Default)]
+struct MemStore {
+    values: Mutex<HashMap<String, String>>,
+}
+
 #[async_trait]
-impl SourceStore for NoopStore {
-    async fn get(&self, _: &str) -> Result<Option<String>, SourceError> {
-        Ok(None)
+impl SourceStore for MemStore {
+    async fn get(&self, key: &str) -> Result<Option<String>, SourceError> {
+        Ok(self.values.lock().expect("store").get(key).cloned())
     }
-    async fn set(&self, _: &str, _: &str) -> Result<(), SourceError> {
+    async fn set(&self, key: &str, value: &str) -> Result<(), SourceError> {
+        self.values
+            .lock()
+            .expect("store")
+            .insert(key.to_string(), value.to_string());
         Ok(())
     }
 }
@@ -154,11 +187,11 @@ impl LogSink for NoopLog {
     fn warn(&self, _: &str) {}
 }
 
-fn env(transport: Arc<ScriptedTransport>) -> SourceEnv {
+fn env(transport: Arc<ScriptedTransport>, store: Arc<MemStore>) -> SourceEnv {
     SourceEnv {
         source_id: "yaguo".into(),
         transport,
-        store: Arc::new(NoopStore),
+        store,
         scripts: None,
         log: Arc::new(NoopLog),
     }
@@ -167,9 +200,12 @@ fn env(transport: Arc<ScriptedTransport>) -> SourceEnv {
 #[tokio::test]
 async fn catalog_logs_in_first_and_maps_wrapped_items() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "")
+    let page = script_source()
+        .catalog(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            1,
+            "",
+        )
         .await
         .expect("目录");
 
@@ -209,13 +245,14 @@ async fn catalog_logs_in_first_and_maps_wrapped_items() {
 #[tokio::test]
 async fn token_is_reused_across_calls() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
+    let store = Arc::new(MemStore::default());
+    let source = script_source();
     source
-        .catalog(&env(transport.clone()), 1, "")
+        .catalog(&env(transport.clone(), Arc::clone(&store)), 1, "")
         .await
         .expect("第一次目录");
     source
-        .catalog(&env(transport.clone()), 2, "")
+        .catalog(&env(transport.clone(), Arc::clone(&store)), 2, "")
         .await
         .expect("第二次目录");
 
@@ -225,9 +262,12 @@ async fn token_is_reused_across_calls() {
 #[tokio::test]
 async fn busy_login_is_retried() {
     let transport = Arc::new(ScriptedTransport::new_busy(2));
-    let source = YaguoSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "")
+    let page = script_source()
+        .catalog(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            1,
+            "",
+        )
         .await
         .expect("繁忙重试后应登录成功");
     assert_eq!(page.items.len(), 3);
@@ -237,9 +277,12 @@ async fn busy_login_is_retried() {
 #[tokio::test]
 async fn expired_token_triggers_one_relogin() {
     let transport = Arc::new(ScriptedTransport::new(1));
-    let source = YaguoSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "")
+    let page = script_source()
+        .catalog(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            1,
+            "",
+        )
         .await
         .expect("401 后应重新登录并成功");
     assert_eq!(page.items.len(), 3);
@@ -258,14 +301,13 @@ async fn expired_token_triggers_one_relogin() {
 #[tokio::test]
 async fn categories_read_top_level_groups() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let categories = source
-        .categories(&env(transport.clone()))
+    let categories = script_source()
+        .categories(&env(transport, Arc::new(MemStore::default())))
         .await
         .expect("分类");
 
     // Go 版在这里把 `data` 当成数组，实际响应是 `data.list`，导致分类永远读不到、
-    // 只能退回写死的两项。Rust 版按真实结构读取，得到站点完整的五个分组。
+    // 只能退回写死的两项。按真实结构读取，得到站点完整的五个分组。
     assert_eq!(
         categories
             .iter()
@@ -284,9 +326,12 @@ async fn categories_read_top_level_groups() {
 #[tokio::test]
 async fn ranking_category_uses_the_ranking_endpoint() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let page = source
-        .catalog(&env(transport.clone()), 1, "9")
+    let page = script_source()
+        .catalog(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            1,
+            "9",
+        )
         .await
         .expect("榜单");
 
@@ -306,9 +351,8 @@ async fn ranking_category_uses_the_ranking_endpoint() {
 #[tokio::test]
 async fn detail_maps_episodes_with_direct_media_urls() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let detail = source
-        .detail(&env(transport.clone()), "51")
+    let detail = script_source()
+        .detail(&env(transport, Arc::new(MemStore::default())), "51")
         .await
         .expect("详情");
 
@@ -332,9 +376,12 @@ async fn detail_maps_episodes_with_direct_media_urls() {
 #[tokio::test]
 async fn search_posts_the_query_and_reads_search_data() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let page = source
-        .search(&env(transport.clone()), "豪门", 1)
+    let page = script_source()
+        .search(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            "豪门",
+            1,
+        )
         .await
         .expect("搜索");
 
@@ -359,9 +406,12 @@ async fn search_posts_the_query_and_reads_search_data() {
 #[tokio::test]
 async fn blank_search_does_not_hit_the_network() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
-    let page = source
-        .search(&env(transport.clone()), "   ", 1)
+    let page = script_source()
+        .search(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            "   ",
+            1,
+        )
         .await
         .expect("空搜索");
     assert!(page.items.is_empty());
@@ -371,7 +421,6 @@ async fn blank_search_does_not_hit_the_network() {
 #[tokio::test]
 async fn resolve_passes_through_the_direct_media_url() {
     let transport = Arc::new(ScriptedTransport::new(0));
-    let source = YaguoSource::new();
     let chapter = Chapter {
         id: "51:1".into(),
         title: "第1集".into(),
@@ -379,8 +428,12 @@ async fn resolve_passes_through_the_direct_media_url() {
         video_url: "http://qcapp.xingya.com.cn/ep1.mp4?sign=abc".into(),
         ..Default::default()
     };
-    let media = source
-        .resolve(&env(transport.clone()), &Drama::default(), &chapter)
+    let media = script_source()
+        .resolve(
+            &env(transport.clone(), Arc::new(MemStore::default())),
+            &Drama::default(),
+            &chapter,
+        )
         .await
         .expect("取流");
     assert_eq!(media.url, "http://qcapp.xingya.com.cn/ep1.mp4?sign=abc");
@@ -393,8 +446,12 @@ async fn resolve_passes_through_the_direct_media_url() {
         source: "yaguo".into(),
         ..Default::default()
     };
-    let error = source
-        .resolve(&env(transport), &Drama::default(), &empty)
+    let error = script_source()
+        .resolve(
+            &env(transport, Arc::new(MemStore::default())),
+            &Drama::default(),
+            &empty,
+        )
         .await
         .expect_err("缺少地址应报错");
     assert!(error.to_string().contains("播放地址"), "{error}");
@@ -402,7 +459,7 @@ async fn resolve_passes_through_the_direct_media_url() {
 
 #[test]
 fn meta_declares_expected_capabilities() {
-    let meta = YaguoSource::new().meta();
+    let meta = script_source().meta();
     assert_eq!(meta.id, "yaguo");
     assert_eq!(meta.name, "芽果");
     for capability in [

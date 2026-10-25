@@ -3,13 +3,35 @@
 //! ```sh
 //! cargo test -p guo_engine --test yaguo_live -- --ignored --nocapture
 //! ```
+//!
+//! 离线夹具（`yaguo_fixtures.rs`）证明脚本行为没变，证明不了「站点还认
+//! 这套请求」；登录令牌、401 刷新这类会话行为必须真网验证。
+//! 历史教训见 maoguo_live.rs：结论进文档前先跑它。
 
 use std::sync::Arc;
 
-use guo_engine::{HttpTransport, LogSink, SourceEnv, SourcePlugin, SourceStore, YaguoSource};
+use guo_engine::{
+    placeholder_env, HttpTransport, LogSink, ScriptLimits, ScriptSource, SourceEnv, SourcePlugin,
+    SourceStore,
+};
+use guo_host::DEFAULT_USER_AGENT;
 
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const SCRIPT: &str = include_str!("../../examples/extensions/yaguo/main.js");
+
+/// 清单 `[permissions] network`：业务域 + 登录域。
+fn network() -> Vec<String> {
+    vec!["app.whjzjx.cn".to_string(), "u.shytkjgs.com".to_string()]
+}
+
+fn script_source() -> ScriptSource {
+    ScriptSource::load(
+        &placeholder_env(),
+        SCRIPT,
+        ScriptLimits::default(),
+        network(),
+    )
+    .expect("芽果脚本必须能加载")
+}
 
 struct NoopStore;
 #[async_trait::async_trait]
@@ -31,7 +53,7 @@ impl LogSink for NoopLog {
 fn env() -> SourceEnv {
     SourceEnv {
         source_id: "yaguo".into(),
-        transport: Arc::new(HttpTransport::new(USER_AGENT).expect("transport")),
+        transport: Arc::new(HttpTransport::new(DEFAULT_USER_AGENT).expect("transport")),
         store: Arc::new(NoopStore),
         scripts: None,
         log: Arc::new(NoopLog),
@@ -41,8 +63,7 @@ fn env() -> SourceEnv {
 #[tokio::test]
 #[ignore = "需要外网，手动执行：cargo test --test yaguo_live -- --ignored"]
 async fn categories_live_return_top_level_groups() {
-    let source = YaguoSource::new();
-    let categories = source.categories(&env()).await.expect("在线分类");
+    let categories = script_source().categories(&env()).await.expect("在线分类");
     assert!(
         categories.iter().any(|category| category.name == "剧场"),
         "分类里应有剧场：{categories:?}"
@@ -56,7 +77,7 @@ async fn categories_live_return_top_level_groups() {
 #[tokio::test]
 #[ignore = "需要外网，手动执行：cargo test --test yaguo_live -- --ignored"]
 async fn catalog_detail_and_resolve_live_yield_playable_url() {
-    let source = YaguoSource::new();
+    let source = script_source();
     let env = env();
     let page = source.catalog(&env, 1, "").await.expect("在线目录");
     assert!(!page.items.is_empty(), "在线目录不应为空");
@@ -86,7 +107,9 @@ async fn catalog_detail_and_resolve_live_yield_playable_url() {
 #[tokio::test]
 #[ignore = "需要外网，手动执行：cargo test --test yaguo_live -- --ignored"]
 async fn search_live_finds_results() {
-    let source = YaguoSource::new();
-    let page = source.search(&env(), "豪门", 1).await.expect("在线搜索");
+    let page = script_source()
+        .search(&env(), "豪门", 1)
+        .await
+        .expect("在线搜索");
     assert!(!page.items.is_empty(), "搜索「豪门」应有结果");
 }

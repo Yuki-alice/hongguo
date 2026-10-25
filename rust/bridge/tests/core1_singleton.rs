@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use guo_engine::{
-    Engine, EngineConfig, EngineErrorKind, FetchRequest, FetchResponse, SourceError, SourcePlugin,
-    SourceStore, Transport, YaguoSource,
+    placeholder_env, Engine, EngineConfig, EngineErrorKind, FetchRequest, FetchResponse,
+    ScriptLimits, ScriptSource, SourceError, SourcePlugin, SourceStore, Transport,
 };
 use guo_engine_core::{CancellationRegistry, DiskSourceStore, EngineError, NamespacedStore};
 
@@ -66,6 +66,8 @@ fn engine_with(directory: &std::path::Path) -> Engine {
 ///
 /// 这是「两次独立 FRB 调用只登录一次」的核心机制：令牌落在
 /// `Engine` 持有的会话存储里，而不是某个源实例的字段里。
+/// 脚本包没有跨调用内存态，这条路径在脚本形态下更关键——
+/// `ctx.store` 写的就是这里的 NamespacedStore。
 #[tokio::test]
 async fn namespaced_store_shares_tokens_across_instances() {
     let directory = std::env::temp_dir().join(format!(
@@ -80,7 +82,13 @@ async fn namespaced_store_shares_tokens_across_instances() {
     let store = Arc::new(NamespacedStore::new(disk.clone(), "yaguo"));
 
     // 第一个实例登录并写令牌。
-    let first = YaguoSource::new();
+    let first = ScriptSource::load(
+        &placeholder_env(),
+        include_str!("../../examples/extensions/yaguo/main.js"),
+        ScriptLimits::default(),
+        vec!["app.whjzjx.cn".to_string(), "u.shytkjgs.com".to_string()],
+    )
+    .expect("脚本加载");
     let transport = Arc::new(LoginOnly::new());
     let env = guo_engine::SourceEnv {
         source_id: "yaguo".into(),

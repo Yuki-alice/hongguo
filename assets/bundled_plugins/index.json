@@ -14,15 +14,16 @@
     },
     {
       "id": "guo.yaguo",
-      "name": "yaguo",
-      "version": "1.0.0",
-      "kind": "component",
+      "name": "芽果",
+      "version": "1.1.0",
+      "kind": "script",
       "api": 1,
       "minHost": "0.3.0",
       "author": "official",
-      "size": 86725,
-      "sha256": "f653fe7ce2bf2747fc20a992fa3c9888f0a02478b2a893eb649fda0935512790",
-      "path": "plugins/guo.yaguo/guo.yaguo-1.0.0.zip"
+      "contentTypes": ["short-drama"],
+      "size": 6038,
+      "sha256": "23e564d29d20fb6cebb2203316f22bf8a85cf6e69a138657db8455cad353dd6c",
+      "path": "guo.yaguo-1.1.0.zip"
     },
     {
       "id": "guo.niuguo",

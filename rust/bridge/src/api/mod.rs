@@ -1791,7 +1791,7 @@ mod tests {
             .into_iter()
             .map(|meta| meta.id)
             .collect();
-        for id in ["hongguo", "yaguo", "heguo", "dsd", "wuguo", "faguo"] {
+        for id in ["hongguo", "heguo", "dsd", "wuguo", "faguo"] {
             assert!(catalog.iter().any(|entry| entry == id), "{id} 未注册");
         }
         assert!(

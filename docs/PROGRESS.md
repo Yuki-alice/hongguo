@@ -2774,3 +2774,64 @@ HANDOVER §8.0 的硬前置：**脚本包必须能随应用发出去**，否则�
 - 其余 6 个 Wasm 随包包仍是死重（编译版优先），待逐源迁移后清空；
 - A4 剩余：niuguo → huangju → yaguo → huangguo×3（HANDOVER §8.2）；
 - `SourceRegistry` 同 id 不去重仍未修（HANDOVER §8.3）。
+
+## 第十七轮：A4 第二站——芽果脚本化，`source-yaguo` 下线
+
+按 SOP 先复测存活：牛果两台解析服务仍然超时（目录 / 详情正常，取流死），
+按「死源不迁移」跳过并登记；芽果实网探针 3/3 通过（1.61s），立项迁移。
+
+### 脚本包（`examples/extensions/yaguo/`，约 330 行 JS）
+
+完整移植四条链路 + 会话：设备登录（2010007 繁忙重试三次）、令牌 6h TTL、
+401/403 重登重试一次、分类顶层分组（9=榜单走独立接口）、目录包装节点、
+详情分集稳定排序、搜索 POST、封面三种形态递归补全、直链取流透传。
+
+**实现差异**：脚本每次调用都是全新 JS 运行时，编译版的内存令牌缓存不存在——
+令牌完全走 `ctx.store` 落盘（沿用编译版 `{value, obtained_at}` 落盘格式，
+跨重启复用）。域名白名单必须同时声明业务域与登录域。
+
+### 宿主改进：脚本异常消息回传（错误可定位契约）
+
+迁移中发现宿主把脚本抛出的异常压成无信息的 `"Exception"`——rquickjs 丢失
+message，而 `__last_host_error` 只记录宿主调用错误。补了一条专用通道：
+
+- SHIM 的 `__stringify_result` 在 catch 里调 `__hostCall('__script_error', message)`；
+- `host_call` 新增 `__script_error` 分支，把 message 作为宿主错误返回；
+- `execute` 已有的 `__last_host_error` 读取逻辑原样取回真实原因。
+
+效果：脚本里 `throw new Error('yaguo.resolve 分集缺少播放地址…')` 在 Rust 侧
+能看到完整消息（此前只剩 Exception）。宿主测试
+`script_exception_message_is_preserved` 钉住此行为。
+
+### 测试换轨
+
+- `yaguo_fixtures.rs`：编译版测试**原封不动换成驱动 ScriptSource**（同一批夹具、
+  同一批断言），新增共享 `MemStore` 验证「令牌复用不重复登录」——脚本形态下
+  这条路径比编译版更关键；
+- `yaguo_live.rs` 改走 ScriptSource（实网 3/3，1.51s）；
+- `core1_singleton.rs` 的令牌落盘测试改用脚本源（`ctx.store` 写的正是
+  NamespacedStore，路径更真实）；
+- 删 `source-yaguo`（773 行）、注册、依赖、再导出；`plugin_toggle.rs` 改用
+  随包脚本包，源 id 断言改语义 id `yaguo`（包 id 仍是 `guo.yaguo`）。
+
+### 分发
+
+`assets/bundled_plugins/guo.yaguo-1.1.0.zip`（6.0KB）替换 86.7KB 的 Wasm 包，
+索引条目 `kind: "script"`；`check_plugin` 离线 + `--live` 均通过
+（目录 24 条 / 搜索 4 条）。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| `cargo test --workspace -- --skip live` | ✅ **597 通过 / 0 失败** |
+| `cargo clippy --workspace --all-targets -D warnings` | ✅ 零告警 |
+| `cargo fmt --all --check` | ✅ 干净 |
+| `yaguo_live` / `maoguo_live`（真网络） | ✅ 3/3 + 1/1 |
+| `check_plugin examples/extensions/yaguo --live` | ✅ 目录 24 / 搜索 4 |
+
+### 已知残余
+
+- 牛果：解析服务挂，迁移暂缓（HANDOVER §8.2 已标注）；
+- 剩余迁移：剧果（访客令牌 + 401 刷新）→ 黄果三入口；
+- 4 个 Wasm 死重包（约 265KB）待逐源清空；`SourceRegistry` 同 id 去重仍未修。

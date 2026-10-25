@@ -221,7 +221,15 @@ globalThis.ctx = {
 };
 globalThis.__stringify_result = function (fn, input) {
     if (typeof fn !== 'function') { throw new Error('脚本未导出该函数'); }
-    const value = fn(input || {});
+    let value;
+    try {
+        value = fn(input || {});
+    } catch (err) {
+        // rquickjs 只给 Rust 侧留 "Exception"，脚本异常的 message 会丢；
+        // 借宿主错误通道把真实原因带回去（execute 读取 __last_host_error）。
+        __hostCall('__script_error', JSON.stringify({ message: String((err && err.message) || err) }));
+        throw err;
+    }
     if (value === undefined || value === null) { return '{}'; }
     return JSON.stringify(value);
 };
@@ -250,6 +258,19 @@ fn host_call(state: &HostCallState, kind: &str, payload: &str) -> String {
         "store_set" => call_store_set(state, payload),
         "log" => call_log(state, payload),
         "now" => Ok(serde_json::json!({ "ms": now_ms() }).to_string()),
+        // 脚本异常的专用回传通道：rquickjs 会把脚本抛出的 Error 压成
+        // "Exception"，消息丢失；shim 在 catch 里把真实原因送到这里，
+        // 以宿主错误的形式带回 Rust 侧（见 SHIM 的 __stringify_result）。
+        "__script_error" => {
+            #[derive(serde::Deserialize)]
+            struct Input {
+                message: String,
+            }
+            match serde_json::from_str::<Input>(payload) {
+                Ok(input) => Err(input.message),
+                Err(err) => Err(format!("__script_error 参数无效：{err}")),
+            }
+        }
         other => Err(format!("脚本调用了不存在的能力：{other}")),
     };
     match result {
@@ -596,6 +617,23 @@ mod tests {
         assert!(
             err.to_string().contains("catalog"),
             "错误信息必须指出是哪个导出：{err}"
+        );
+    }
+
+    /// 脚本抛出的异常必须带着 message 回到 Rust 侧，而不是只剩 "Exception"
+    /// ——这是「错误可定位」契约（EXTENSION-ECOSYSTEM §6.3）的宿主侧保障。
+    #[tokio::test]
+    async fn script_exception_message_is_preserved() {
+        let store = Arc::new(MemStore::default());
+        let env = env("{}", Arc::clone(&store));
+        let source = "function boom(input) { throw new Error('yaguo.resolve 分集缺少播放地址'); }";
+        let err = JsPluginHost::new()
+            .invoke(&env, source, "boom", "{}", limits(), &[])
+            .await
+            .expect_err("must fail");
+        assert!(
+            err.to_string().contains("分集缺少播放地址"),
+            "脚本异常的 message 必须原样带回：{err}"
         );
     }
 
