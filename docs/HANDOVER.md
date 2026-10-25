@@ -30,7 +30,7 @@
 | A1 | 规则引擎补 regex 提取 | ✅ |
 | A2 | JS 脚本扩展升为一等公民 | ✅ |
 | A3 | 多步编排 `preflight` | ✅ |
-| A4 | **把站源从编译代码搬到扩展包** | 🚧 进行中（猫果、芽果、剧果全链路完成：随包分发 + crate 下线；牛果复测解析服务仍挂已跳过；剩黄果三入口） |
+| A4 | **把站源从编译代码搬到扩展包** | 🚧 **收尾**：猫果 / 芽果 / 剧果全链路完成（随包 + crate 下线）；牛果与黄果三入口 2026-10-25 实测全死，迁移暂缓（探针 `huangguo_live.rs` 留存，站点复活后复测再迁）；Wasm 死重包已全部清出随包资源 |
 | A5 | 离线校验 / 冒烟工具 `check_plugin` | ✅ |
 | A6 | 内容类型标注 + 商店/发现页筛选 | ✅ |
 
@@ -119,9 +119,9 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 
 | 通道 | 位置 | 数量 | 说明 |
 | --- | --- | --- | --- |
-| 编译 crate | `bridge/src/sources/builtin.rs` | 5 个源 | 红果（主源，永久）、牛果、黄果三入口 |
+| 编译 crate | `bridge/src/sources/builtin.rs` | 5 个源 | 红果（主源，永久）、牛果、黄果三入口（**均为死源，迁移暂缓**） |
 | 编译进二进制的规则 | `engine/src/engine.rs` 的 `BUILTIN_RULES`（`include_str!`） | 9 条 | 迁移期保留 |
-| 随包扩展 | `assets/bundled_plugins/*.zip` | 4 个 Wasm + 3 个脚本（猫果 / 芽果 / 剧果 1.1.0） | Wasm 是**历史遗留，见 4.3** |
+| 随包扩展 | `assets/bundled_plugins/*.zip` | 3 个脚本（猫果 / 芽果 / 剧果 1.1.0，合计 16KB） | Wasm 包已全部清出（第十九轮） |
 
 另有仓库通道：`rust/dist/rules/`（官方仓库，9 条规则插件包），供「从仓库安装/更新」用。
 
@@ -138,15 +138,12 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 `SourceRegistry::register` 只是 `push`，`get` 取**第一个**匹配，`metas()` **不去重**。
 
 - 装配顺序：编译 crate → `BUILTIN_RULES` → 已安装插件。
-- 所以同名 id 时**编译版永远生效**，`assets/bundled_plugins` 里那 4 个 Wasm 包
-  （cloudfront / huangguo-ai / huangguo-video / niuguo）
-  实际是**死重**（每个 34–180KB 白打进行安装包）。
-- `metas()` 不去重 → `sourceCatalog()` 里同名 id 会出现两条；Dart 侧
-  `SourceSite.reportFromEngine` 用 Map 去重（后者覆盖），所以 UI 上看不出来。
-
-**这不是可以放着不管的小问题**：它是「迁移完成度」的自检指标。A4 做完时，
-这三条通道应该收敛成一条（L0/L1 扩展包 + 主源红果），`assets/bundled_plugins`
-里的 Wasm 包应当清空。
+- 所以同名 id 时**编译版永远生效**。Wasm 包已在第十九轮全部清出随包资源：
+  **全新设备**三条通道只剩编译源 + 内置规则 + 3 个脚本包，**没有重复注册**。
+- **存量设备**仍装着旧 Wasm 包（`guo.niuguo` 这类包 id 形态的源），
+  与编译版语义 id（`niuguo`）并存——Dart 侧 `SourceSite.reportFromEngine`
+  用 Map 去重（后者覆盖），UI 看不出来；随编译源逐个迁移会自然消失。
+- `metas()` 本身仍不去重，修复建议见 §8.3。
 
 ### 4.4 迁移动进度
 
@@ -157,7 +154,7 @@ assets/bundled_plugins/  随包预装的官方插件（zip + index.json）
 | 芽果 yaguo | L1 脚本 | 脚本 ~330 | ✅ **已完成**（第十七轮：随包 1.1.0，crate 已删；令牌走 `ctx.store`） |
 | 牛果 niuguo | crate | 434 | AES-ECB，密钥=请求 URI 前 16 字节 → L1（脚本里自带 AES） |
 | 剧果 huangju | L1 脚本 | 脚本 ~250 | ✅ **已完成**（第十八轮：随包 1.1.0，crate 已删；CDN Cookie 走 `res.headers`） |
-| 黄果 huangguo ×3 | crate | 1929 | AES-CBC + HMAC-SHA256 → L1，**最难的一个** |
+| 黄果 huangguo ×3 | crate | 1929 | ⚠️ **迁移暂缓**：2026-10-25 实测三入口全死（cloudfront 4001 / AI 六镜像全挂 / video 超时），且无真实响应夹具；站点复活后先跑 `huangguo_live` 再迁 |
 | 9 个规则源 | L0 | — | 已经是最便宜形态，不用动 |
 
 ---
@@ -335,6 +332,7 @@ cd /e/hongguo && flutter_rust_bridge_codegen generate
 | --- | --- | --- | --- | --- |
 | 1 | maoguo | L1 | ✅ **已完成**（第十六轮） | `--live` 目录 62 / 搜索 10 |
 | 2 | niuguo | L1 | ⚠️ **迁移暂缓**：2026-10-25 复测，两台解析服务仍超时（目录 / 详情正常）；站点复活后再迁 |
+| 5 | huangguo ×3 | L1 | ⚠️ **迁移暂缓**：2026-10-25 实测三入口全死；无真实夹具，强行改写无从验证 |
 | 3 | huangju | L1 | ✅ **已完成**（第十八轮；2026-10-25 复测站点已复活，历史 404 不再成立） | 冷启动拿令牌、过期刷新（夹具 + 实网均验证） |
 | 4 | yaguo | L1 | ✅ **已完成**（第十七轮） | token 复用与过期重登（夹具 + 实网均验证） |
 | 5 | huangguo ×3 | L1 | AES-CBC + HMAC-SHA256；三个入口 | 先做 cloudfront（唯一可在线验证） |
@@ -353,8 +351,8 @@ cd /e/hongguo && flutter_rust_bridge_codegen generate
 
 ## 9. 已知缺陷与风险（按严重度）
 
-1. **三通道重复注册**（§4.3）：编译版永远赢，Wasm 包是死重，`metas()` 不去重。
-   迁移完成后必须收敛，否则包体白增（4 个 Wasm 包合计约 244KB），且 `sourceCatalog()` 有重复 id。
+1. **三通道重复注册**（§4.3）：Wasm 死重包已清出随包资源，新设备已无重复注册；
+   存量设备的旧 Wasm 安装随编译源迁移自然消失。`metas()` 本身仍不去重。
 2. **脚本包还没走通分发链路**（§8.0）：猫果脚本只在本仓库 examples 里。
    这是 A4 的硬前置。
 3. **`_offlineIds` 是手工维护的黑名单**：11 个源被隐藏（niuguo / huangju / huaguo /

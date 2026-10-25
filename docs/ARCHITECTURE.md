@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | Rust 源文件 | 131 个 | `find rust -name '*.rs'`（不含 target） |
 | Rust crate | 12 个 + 桥接层 | `rust/crates/` + `rust/bridge/` |
-| 随包扩展 | 4 个 Wasm + 3 个脚本（猫果 / 芽果 / 剧果 1.1.0），合计约 265 KB | `assets/bundled_plugins/` |
+| 随包扩展 | 3 个脚本（猫果 / 芽果 / 剧果 1.1.0），合计 16 KB；Wasm 包已全部清出 | `assets/bundled_plugins/` |
 | 随包声明式规则 | 9 条 | `rust/rules/` |
 | FRB API 函数 | 52 个（40 站源 + 12 插件） | `rust/bridge/src/api/` |
 | FRB Stream | 1 个（下载进度） | `download_progress_stream` |
@@ -173,8 +173,7 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 | 主源 | `source-hongguo` 编译 | 1 | `BuiltinSources` 注入 |
 | 编译代码源 | `source-*` crate | 4 | 同上 |
 | 声明式规则 | `rust/rules/*.json` | 9 | `include_str!` 随包 |
-| 随包 Wasm 插件 | `assets/bundled_plugins/*.zip` | 4 | 首次启动预装 → 注册表 |
-| 随包脚本扩展 | 同上（`kind: "script"`） | 3（猫果 / 芽果 / 剧果 1.1.0） | 同上，QuickJS 宿主加载（ADR-13） |
+| 随包脚本扩展 | `assets/bundled_plugins/*.zip`（`kind: "script"`） | 3（猫果 / 芽果 / 剧果 1.1.0） | 首次启动预装 → 注册表，QuickJS 宿主加载（ADR-13） |
 
 **当前是双轨**：猫果 / 牛果 / 芽果 / 剧果 / 黄果三源**同时**有编译版与插件版。
 这是刻意的——`docs/PLUGIN-BOUNDARY.md` 的迁移完成前，删掉编译版会让正式包丢源。
@@ -214,14 +213,17 @@ UI 按能力隐藏入口；诊断页 `/settings/diagnostics` 把每一项显式�
 - `fuel` / 内存上限来自清单 `permissions.script`；
 - 导入集合经 `wasm-tools component wit` 断言只剩 `guo:source/*`，无 `wasi:*`。
 
-### 7.6 官方插件清单
+### 7.6 随包脚本清单
 
 | 插件 id | 名称 | 验证重点 | 大小 |
 | --- | --- | --- | --- |
-| `guo.niuguo` | 牛果 | AES-128-ECB 响应解密 | 50 KB |
-| `guo.huangguo-video` | 黄果视频 | 宿主 `html_select` 提取 | 34 KB |
-| `guo.huangguo-ai` | 黄果 AI | 镜像回退 + 递归 JSON | 65 KB |
-| `guo.cloudfront` | 黄果旧版 | 协议提取 + 三层加密 | 96 KB |
+| `guo.maoguo` | 猫果 | 请求签名（MD5 + 字符映射） | 4.9 KB |
+| `guo.yaguo` | 芽果 | 设备令牌 + 401 重登（`ctx.store` 落盘） | 6.0 KB |
+| `guo.huangju` | 剧果 | 访客令牌 + CDN 签名 Cookie 透传 | 5.2 KB |
+
+> 历史 Wasm 组件包（牛果 / 黄果三入口等 7 个）已全部清出随包资源
+> （第十九轮）；源码保留在 `rust/examples/plugins/`（L2 冻结通道）。
+> 对应编译源与脚本迁移状态见 `docs/HANDOVER.md` §4.4。
 
 > `guo.cloudfront` 的包名与源 id 一致是刻意的：源语义 id 必须是 `cloudfront`
 > （旧数据主键），因此包名从 `guo-plugin-huangguo-legacy` 改为 `guo-plugin-cloudfront`。
